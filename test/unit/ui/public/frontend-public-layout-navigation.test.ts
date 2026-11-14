@@ -45,11 +45,17 @@ test("navbar keeps full navigation desktop-only and exposes mobile dropdown", ()
 
   assert.ok(
     source.includes(
-      'className="hidden items-center gap-1 rounded-md border border-vetneb-line/80 bg-card/88 p-1 xl:flex"',
+      'className="hidden items-center gap-1 rounded-md border border-vetneb-line/80 bg-card/88 p-1 xl:col-start-2 xl:flex"',
     ),
   );
   assert.equal(source.includes("p-1 md:flex"), false);
   assert.equal(source.includes("p-1 lg:flex"), false);
+  assert.match(
+    source,
+    /xl:grid xl:grid-cols-\[minmax\(0,1fr\)_auto_minmax\(auto,1fr\)\]/,
+  );
+  assert.ok(source.includes("xl:col-start-3 xl:justify-self-end"));
+  assert.ok(source.includes("sm:flex xl:hidden 2xl:flex"));
   assert.ok(source.includes('className="relative xl:hidden"'));
   assert.ok(source.includes("<details"));
   assert.ok(source.includes("<summary"));
@@ -94,7 +100,12 @@ test("navbar exposes home login and access CTAs with VETNEB brand", () => {
 
   assert.ok(source.includes("href={ROUTES.home}"));
   assert.match(source, /<PublicRouteControl\s+href=\{ROUTES\.home\}\s+variant="bare"\s+className=/);
-  assert.ok(source.includes("Patología veterinaria"));
+  assert.equal(source.includes("Patología veterinaria"), false);
+  assert.match(
+    source,
+    /link\.href === ROUTES\.clinicas && \(\s*<PublicRouteControl\s+href=\{ROUTES\.home\}\s+variant="bare"/,
+  );
+  assert.equal((source.match(/href=\{ROUTES\.home\}/g) ?? []).length, 1);
   assert.ok(source.includes("rounded-md bg-primary px-3"));
   assert.ok(source.includes("font-bold text-primary-foreground"));
   assert.ok(source.includes("VETNEB"));

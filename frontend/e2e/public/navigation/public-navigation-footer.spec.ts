@@ -29,6 +29,7 @@ const prohibitedPublicCopy = [
 test("desktop navbar and footer preserve the public information architecture", async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 1536, height: 900 });
   await page.goto("/");
 
   const desktopNav = page.getByRole("navigation", {
@@ -185,3 +186,295 @@ for (const activation of [
     ).toBeLessThanOrEqual(0);
   });
 }
+
+test("VETNEB badge position across desktop viewports", async ({ page }) => {
+  test.setTimeout(90_000);
+
+  for (const width of [1280, 1366, 1440, 1920]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/servicios");
+
+    const nav = page.getByRole("navigation", {
+      name: "Navegación principal",
+    });
+
+    await expect(nav).toBeVisible();
+
+    const clinics = nav.getByRole("button", {
+      name: "Clínicas",
+      exact: true,
+    });
+
+    const logo = nav.getByRole("button", {
+      name: "VETNEB",
+      exact: true,
+    });
+
+    const particulars = nav.getByRole("button", {
+      name: "Particulares",
+      exact: true,
+    });
+
+    await expect(clinics).toBeVisible();
+    await expect(logo).toBeVisible();
+    await expect(particulars).toBeVisible();
+
+    const labels = (await nav.getByRole("button").allTextContents())
+      .map((value) => value.trim());
+
+    const clinicIndex = labels.indexOf("Clínicas");
+    const logoIndex = labels.indexOf("VETNEB");
+    const particularIndex = labels.indexOf("Particulares");
+
+    expect(clinicIndex).toBeGreaterThanOrEqual(0);
+    expect(logoIndex).toBe(clinicIndex + 1);
+    expect(particularIndex).toBe(logoIndex + 1);
+
+    const a = await clinics.boundingBox();
+    const b = await logo.boundingBox();
+    const c = await particulars.boundingBox();
+
+    expect(a).not.toBeNull();
+    expect(b).not.toBeNull();
+    expect(c).not.toBeNull();
+
+    expect(a!.x + a!.width).toBeLessThanOrEqual(b!.x + 1);
+    expect(b!.x + b!.width).toBeLessThanOrEqual(c!.x + 1);
+
+    const centers = [
+      a!.y + a!.height / 2,
+      b!.y + b!.height / 2,
+      c!.y + c!.height / 2,
+    ];
+
+    expect(Math.max(...centers) - Math.min(...centers))
+      .toBeLessThanOrEqual(4);
+
+    const geometry = await page.evaluate(() => {
+      const header = document.querySelector("header");
+      const controls = Array.from(
+        header?.querySelectorAll("button") ?? [],
+      ).filter((button) => {
+        const rect = button.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      });
+
+      const overlaps = controls.some((first, index) => {
+        const a = first.getBoundingClientRect();
+
+        return controls.slice(index + 1).some((second) => {
+          if (first.contains(second) || second.contains(first)) {
+            return false;
+          }
+
+          const b = second.getBoundingClientRect();
+
+          return (
+            Math.min(a.right, b.right) - Math.max(a.left, b.left) > 2 &&
+            Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 2
+          );
+        });
+      });
+
+      return {
+        overlaps,
+        overflow:
+          document.documentElement.scrollWidth -
+          document.documentElement.clientWidth,
+      };
+    });
+
+    expect(geometry.overlaps).toBe(false);
+    expect(geometry.overflow).toBeLessThanOrEqual(0);
+
+    await logo.click();
+    await expect(page).toHaveURL(/127\.0\.0\.1:3000\/?$/);
+  }
+});
+
+test("VETNEB navigation remains responsive", async ({ page }) => {
+  test.setTimeout(90_000);
+
+  for (const width of [375, 768, 1024, 1180]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+
+    const desktopNav = page.getByRole("navigation", {
+      name: "Navegación principal",
+    });
+
+    await expect(desktopNav).toBeHidden();
+
+    const toggle = page.getByLabel("Abrir navegación VETNEB");
+
+    const mobileNav = page.getByRole("navigation", {
+      name: "Navegación mobile",
+    });
+
+    await expect(toggle).toBeVisible();
+    await expect(mobileNav).toBeHidden();
+
+    await toggle.click();
+    await expect(mobileNav).toBeVisible();
+
+    await expect(
+      mobileNav.getByRole("button", {
+        name: "Clínicas",
+        exact: true,
+      }),
+    ).toBeVisible();
+
+    await expect(
+      mobileNav.getByRole("button", {
+        name: "Particulares",
+        exact: true,
+      }),
+    ).toBeVisible();
+
+    await toggle.click();
+    await expect(mobileNav).toBeHidden();
+
+    const overflow = await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth -
+        document.documentElement.clientWidth,
+    );
+
+    expect(overflow).toBeLessThanOrEqual(0);
+  }
+});
+
+test("desktop navbar menu stays geometrically centered in the container", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+
+  const expectedOrder = [
+    "Servicios",
+    "Profesionales",
+    "Clínicas",
+    "VETNEB",
+    "Particulares",
+    "Contacto",
+    "Precios",
+  ];
+
+  for (const width of [1280, 1366, 1440, 1535, 1536, 1920]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/servicios");
+
+    const nav = page.getByRole("navigation", {
+      name: "Navegación principal",
+    });
+
+    await expect(nav).toBeVisible();
+
+    const labels = (await nav.getByRole("button").allTextContents()).map(
+      (value) => value.trim(),
+    );
+
+    expect(labels, `order at ${width}px`).toEqual(expectedOrder);
+
+    const measures = await page.evaluate(() => {
+      const container = document.querySelector("header > div");
+      const menu = document.querySelector(
+        'nav[aria-label="Navegación principal"]',
+      );
+      const actions = container?.lastElementChild;
+
+      if (!container || !menu || !actions) {
+        return null;
+      }
+
+      const c = container.getBoundingClientRect();
+      const n = menu.getBoundingClientRect();
+      const r = actions.getBoundingClientRect();
+      const style = getComputedStyle(container);
+      const paddingLeft = Number.parseFloat(style.paddingLeft);
+      const paddingRight = Number.parseFloat(style.paddingRight);
+      const contentLeft = c.left + paddingLeft;
+      const contentRight = c.right - paddingRight;
+
+      return {
+        containerCenter: (contentLeft + contentRight) / 2,
+        navCenter: n.left + n.width / 2,
+        navLeft: n.left,
+        navRight: n.right,
+        actionsLeft: r.left,
+        actionsRight: r.right,
+        contentLeft,
+        contentRight,
+        overflow:
+          document.documentElement.scrollWidth -
+          document.documentElement.clientWidth,
+      };
+    });
+
+    expect(measures, `measures at ${width}px`).not.toBeNull();
+
+    const m = measures!;
+    const centerError = Math.abs(m.navCenter - m.containerCenter);
+
+    expect(centerError, `center error at ${width}px`).toBeLessThanOrEqual(2);
+    expect(m.actionsLeft - m.navRight, `gap at ${width}px`).toBeGreaterThanOrEqual(
+      16,
+    );
+    expect(m.navLeft, `nav left at ${width}px`).toBeGreaterThanOrEqual(
+      m.contentLeft,
+    );
+    expect(m.actionsRight, `actions right at ${width}px`).toBeLessThanOrEqual(
+      m.contentRight + 1,
+    );
+    expect(m.overflow, `overflow at ${width}px`).toBeLessThanOrEqual(0);
+
+    await expect(
+      nav.getByRole("button", { name: "VETNEB", exact: true }),
+    ).toBeInViewport({ ratio: 1 });
+  }
+});
+
+test("access CTA visibility follows the 1280 and 1536 breakpoints", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+
+  const cases = [
+    { width: 1279, visible: true },
+    { width: 1280, visible: false },
+    { width: 1535, visible: false },
+    { width: 1536, visible: true },
+  ];
+
+  for (const { width, visible } of cases) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/servicios");
+
+    const cta = page
+      .getByRole("banner")
+      .getByRole("button", { name: "Solicitar acceso", exact: true });
+
+    if (visible) {
+      await expect(cta, `CTA at ${width}px`).toBeVisible();
+    } else {
+      await expect(cta, `CTA at ${width}px`).toBeHidden();
+    }
+
+    expect(
+      await page.evaluate(
+        () =>
+          document.documentElement.scrollWidth -
+          document.documentElement.clientWidth,
+      ),
+      `overflow at ${width}px`,
+    ).toBeLessThanOrEqual(0);
+
+    const contact = page
+      .getByRole("banner")
+      .getByRole("navigation", { name: "Navegación principal" })
+      .getByRole("button", { name: "Contacto", exact: true });
+
+    if (width >= 1280) {
+      await expect(contact, `Contacto at ${width}px`).toBeVisible();
+    }
+  }
+});
