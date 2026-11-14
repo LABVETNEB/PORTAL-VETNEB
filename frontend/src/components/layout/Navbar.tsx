@@ -19,7 +19,7 @@ const mobileNavLinks = [{ label: "Inicio", href: ROUTES.home }, ...navLinks];
 export function Navbar() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-vetneb-line/80 bg-card/92 backdrop-blur-sm shadow-[0_10px_28px_rgba(15,45,62,0.08)]">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8 xl:grid xl:grid-cols-[minmax(0,1fr)_auto_minmax(auto,1fr)] xl:gap-x-4">
         <div className="relative xl:hidden">
           <details className="group">
             <summary
@@ -53,7 +53,7 @@ export function Navbar() {
         </div>
 
         <nav
-          className="hidden items-center gap-1 rounded-md border border-vetneb-line/80 bg-card/88 p-1 xl:mx-auto xl:flex"
+          className="hidden items-center gap-1 rounded-md border border-vetneb-line/80 bg-card/88 p-1 xl:col-start-2 xl:flex"
           aria-label="Navegación principal"
         >
           {navLinks.map((link) => (
@@ -82,7 +82,7 @@ export function Navbar() {
           ))}
         </nav>
 
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 xl:col-start-3 xl:justify-self-end">
           <ThemeModeToggle />
           <PublicRouteControl
             href={ROUTES.login}
@@ -94,7 +94,7 @@ export function Navbar() {
           <PublicRouteControl
             href={ROUTES.contacto}
             variant="bare"
-            className="public-cta-primary hidden h-9 items-center justify-center gap-2 whitespace-nowrap rounded-md px-3 text-sm font-semibold ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 sm:flex"
+            className="public-cta-primary hidden h-9 items-center justify-center gap-2 whitespace-nowrap rounded-md px-3 text-sm font-semibold ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 sm:flex xl:hidden 2xl:flex"
           >
             Solicitar acceso
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
