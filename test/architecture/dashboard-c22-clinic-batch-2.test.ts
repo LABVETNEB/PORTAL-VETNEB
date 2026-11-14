@@ -71,7 +71,7 @@ function c22Violations(s: Sources): string[] {
   // Etapa A · Tokens (S7): the shared panel body stays the measured canvas; the table and list are C01.
   need("tokens", /<ParticularTokensPanelBody\s+ref=\{setPanelBodyNode\}\s+data-clinic-access-list-body="true"\s+data-dashboard-adaptive-rows-canvas="true"\s+data-dashboard-row-pitch="regular"\s+data-dashboard-canvas-reserve="table-head-above-md"/, "the measured canvas keeps its A03 tokens");
   need("tokens", /<CollectionHeader\s+className="border-b border-vetneb-line\/65 bg-vetneb-surface-muted\/65 text-xs font-semibold uppercase text-muted-foreground"\s*>\s*<ContentListItem as="tr">/, "the table head is the C01 header");
-  need("tokens", '<ContentList as="tbody" className="divide-y divide-vetneb-line/60">', "the body keeps its 1px separators as the C01 list");
+  need("tokens", '<ContentList as="tbody">', "the body is the C01 list without permanent row separators");
   need("tokens", /<ContentListItem\s+as="tr"\s+key=\{token\.id\}\s+data-clinic-access-table-row="true"/, "desktop rows are C01 items with their marker");
   need("tokens", /<ContentList\s+as="div"\s+data-clinic-access-mobile-list="true"\s+className="flex min-h-0 shrink-0 flex-col divide-y divide-vetneb-line\/60 overflow-hidden md:hidden"/, "the mobile list is the C01 list with its separators");
   need("tokens", /<ContentListItem\s+as="div"\s+key=\{token\.id\}\s+id=\{`clinic-particular-token-\$\{token\.id\}`\}\s+data-clinic-access-mobile-row="true"\s+data-dashboard-adaptive-row="true"/, "mobile rows are C01 items locked to the pitch, with their notification anchor");
@@ -179,7 +179,7 @@ test("C22 adopts the applicable primitives in clinic Tokens, Logística and Oper
 test("C22 guard rejects reverting each surface to its pre-C22 grammar or moving a contract", () => {
   const sources = read();
   const mutants: ReadonlyArray<readonly [keyof Sources, string, string]> = [
-    ["tokens", '<ContentList as="tbody" className="divide-y divide-vetneb-line/60">', "<tbody className=\"divide-y divide-vetneb-line/60\">"],
+    ["tokens", '<ContentList as="tbody">', '<tbody className="divide-y divide-vetneb-line/60">'],
     ["tokens", 'data-dashboard-canvas-reserve="table-head-above-md"', 'data-dashboard-canvas-reserve="table-head"'],
     ["tokens", '<CollectionState\n                        variant="empty"\n                        title="Sin tokens para los filtros aplicados"', '<EmptyState\n                        title="Sin tokens para los filtros aplicados"'],
     ["tokens", "            {renderAdvancedFilterForm()}", "            {tokens.length ? renderAdvancedFilterForm() : null}"],
