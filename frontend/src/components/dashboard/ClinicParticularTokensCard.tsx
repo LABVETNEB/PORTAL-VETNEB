@@ -994,7 +994,7 @@ export function ClinicParticularTokensCard() {
                               <th className="w-[16%] px-3 py-2 text-right">Acción</th>
                             </ContentListItem>
                           </CollectionHeader>
-                          <ContentList as="tbody" className="divide-y divide-vetneb-line/60">
+                          <ContentList as="tbody">
                             {pagedTokens.pageItems.map((token, index) => (
                               <ContentListItem
                                 as="tr"

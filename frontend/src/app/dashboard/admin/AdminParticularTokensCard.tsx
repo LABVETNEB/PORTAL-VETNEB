@@ -969,7 +969,15 @@ export function AdminParticularTokensCard() {
 
   function renderTokensCollectionState(display: string) {
     const className = `${display} !min-h-20 flex-1`;
-    if (isLoadingTokens) return <CollectionState variant="loading" skeleton="list" rows={1} label="Cargando tokens particulares…" compact className={className} />;
+    // The `list` skeleton is a block stack: handing it `flex` made it a row
+    // container, so its single item stretched into a narrow vertical box.
+    if (isLoadingTokens) {
+      return (
+        <div className={`${display} min-h-20 flex-1 flex-col`}>
+          <CollectionState variant="loading" skeleton="list" rows={1} label="Cargando tokens particulares…" compact className="w-full" />
+        </div>
+      );
+    }
     if (errorMessage && !tokens.length) return <CollectionState variant="error" message={errorMessage} className={className} />;
     return (
       <CollectionState

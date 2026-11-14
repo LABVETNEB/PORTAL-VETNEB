@@ -45,7 +45,8 @@ function c21Violations(s: Sources): string[] {
   need("table", /case "tbody":\s+return <TableBody\b/, "the C01 body uses TableBody");
   need("table", /case "tr":\s+return <TableRow\b/, "the C01 rows use TableRow");
   need("table", 'className={cn("[&_tr:last-child]:border-0", className)}', "TableBody removes the last row border");
-  need("table", '"border-b border-vetneb-line/60 transition-colors', "TableRow paints the row separators");
+  forbid("table", '"border-b border-vetneb-line/60 transition-colors', "TableRow paints no permanent row separators");
+  need("table", '"transition-colors hover:bg-vetneb-surface-muted/45', "TableRow keeps its hover state");
   need("module", /<ContentList\s+as="div"\s+data-clinic-reports-mobile-list="true"\s+className="flex min-h-0 flex-1 flex-col divide-y divide-vetneb-line\/60 overflow-hidden md:hidden"/, "the mobile list is the C01 list with its separators");
   need("module", /<ContentListItem\s+as="div"\s+key=\{report\.id\}\s+data-clinic-reports-mobile-row="true"\s+data-dashboard-adaptive-row="true"/, "mobile rows are C01 items locked to the pitch");
   need("module", /<CollectionState\s+variant="empty"\s+title="Sin informes para los filtros aplicados"/, "filtered empty through C03");
@@ -115,7 +116,7 @@ test("C21 guard rejects reverting each surface to its pre-C21 grammar or moving 
     ["module", "<CollectionWorkspace\n            ref={setReportsListBodyNode}", "<div\n            ref={setReportsListBodyNode}"],
     ["module", '<ContentList as="tbody">', '<ContentList as="tbody" className="divide-y divide-vetneb-line/60">'],
     ["table", 'className={cn("[&_tr:last-child]:border-0", className)}', 'className={cn("", className)}'],
-    ["table", '"border-b border-vetneb-line/60 transition-colors', '"transition-colors'],
+    ["table", '"transition-colors hover:bg-vetneb-surface-muted/45', '"border-b border-vetneb-line/60 transition-colors hover:bg-vetneb-surface-muted/45'],
     ["module", 'data-dashboard-canvas-reserve="table-head-above-md"', 'data-dashboard-canvas-reserve="table-head"'],
     ["module", '<CollectionState\n          variant="empty"\n          title="Sin informes recientes"', '<EmptyState\n          title="Sin informes recientes"'],
     ["module", 'scope="clinic"', 'scope="admin"'],
