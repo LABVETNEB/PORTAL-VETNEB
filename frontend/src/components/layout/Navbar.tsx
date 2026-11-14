@@ -52,10 +52,8 @@ export function Navbar() {
           </details>
         </div>
 
-
-
         <nav
-          className="hidden items-center gap-1 rounded-md border border-vetneb-line/80 bg-card/88 p-1 xl:flex"
+          className="hidden items-center gap-1 rounded-md border border-vetneb-line/80 bg-card/88 p-1 xl:mx-auto xl:flex"
           aria-label="Navegación principal"
         >
           {navLinks.map((link) => (

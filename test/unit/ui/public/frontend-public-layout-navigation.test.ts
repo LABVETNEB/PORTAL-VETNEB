@@ -45,7 +45,7 @@ test("navbar keeps full navigation desktop-only and exposes mobile dropdown", ()
 
   assert.ok(
     source.includes(
-      'className="hidden items-center gap-1 rounded-md border border-vetneb-line/80 bg-card/88 p-1 xl:flex"',
+      'className="hidden items-center gap-1 rounded-md border border-vetneb-line/80 bg-card/88 p-1 xl:mx-auto xl:flex"',
     ),
   );
   assert.equal(source.includes("p-1 md:flex"), false);
