@@ -8,6 +8,11 @@ import {
 } from "../../shared/session-cookie-names.ts";
 import { resolveParticularSessionCookieName } from "./session-cookie-names.ts";
 import {
+  isValidEdgeCidrList,
+  parseTrustedHopChain,
+  resolveTrustProxy,
+} from "./trusted-proxy.ts";
+import {
   ADMIN_SESSION_IDLE_TIMEOUT_DEFAULT_MINUTES,
   ADMIN_SESSION_IDLE_TIMEOUT_MAX_MINUTES,
   ADMIN_SESSION_IDLE_TIMEOUT_MIN_MINUTES,
@@ -143,6 +148,26 @@ const envSchema = z.object({
       })
       .optional(),
   ),
+  TRUST_PROXY_CHAIN: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .refine((value) => parseTrustedHopChain(value) !== null, {
+        message:
+          "TRUST_PROXY_CHAIN debe ser una lista ordenada (peer primero, máximo 4) de loopback, private o edge",
+      })
+      .optional(),
+  ),
+  TRUST_PROXY_EDGE_CIDRS: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .refine(isValidEdgeCidrList, {
+        message:
+          "TRUST_PROXY_EDGE_CIDRS debe ser una lista de IP/CIDR acotados (IPv4 >= /8, IPv6 >= /16)",
+      })
+      .optional(),
+  ),
   OWNER_OPEN_ID: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   LAB_UPLOAD_USERNAMES: z.preprocess(
     emptyToUndefined,
@@ -203,6 +228,12 @@ const envSchema = z.object({
 });
 
 const rawEnv = envSchema.parse(process.env);
+
+const resolvedTrustProxy = resolveTrustProxy({
+  trustProxy: rawEnv.TRUST_PROXY,
+  chain: rawEnv.TRUST_PROXY_CHAIN,
+  edgeCidrs: rawEnv.TRUST_PROXY_EDGE_CIDRS,
+});
 
 const nodeEnv = rawEnv.NODE_ENV ?? "development";
 const port = rawEnv.PORT ?? 3000;
@@ -279,7 +310,7 @@ export const ENV = {
   ),
   corsOrigins,
   publicSiteUrl,
-  trustProxy: rawEnv.TRUST_PROXY ?? false,
+  trustProxy: resolvedTrustProxy,
   cookieSecure: nodeEnv === "production",
   cookieSameSite: (nodeEnv === "production" ? "none" : "lax") as
     | "none"
