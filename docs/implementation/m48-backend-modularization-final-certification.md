@@ -276,15 +276,17 @@ PR-SEC-09 (expiración de sesión obligatoria, TTL máximo e inactividad adminis
 
 PR-SEC-10 (resolución estructural de proxies confiables, opt-in e inactiva por defecto; módulo nuevo `server/lib/trusted-proxy.ts` y variables `TRUST_PROXY_CHAIN`/`TRUST_PROXY_EDGE_CIDRS` cableadas en `server/lib/env.ts`) lleva `server/lib` de 32/5.523 a 33/5.710. Total 243/49.698 → 244/49.885.
 
+PR-SEC-10 (IP de cliente firmada, opt-in: módulos nuevos `server/lib/signed-client-ip.ts` y `server/lib/signed-forwarded-ip-hook.ts`, variable `CLIENT_IP_SIGNING_SECRET` en `server/lib/env.ts` y registro del hook en `server/fastify-app.ts`) lleva `server/lib` de 33/5.710 a 35/5.863 y la raíz `server/*.ts` de 9/2.625 a 9/2.628. Total 244/49.885 → 246/50.041.
+
 | Área | Archivos TypeScript | LOC |
 | --- | ---: | ---: |
 | `server/features` | 161 | 19.202 |
 | `server/routes` | 38 | 21.919 |
-| `server/lib` | 33 | 5.710 |
+| `server/lib` | 35 | 5.863 |
 | `server/middlewares` | 3 | 429 |
-| raíz/entrypoints `server/*.ts` | 9 | 2.625 |
+| raíz/entrypoints `server/*.ts` | 9 | 2.628 |
 | otros | 0 | 0 |
-| **Total `server`** | **244** | **49.885** |
+| **Total `server`** | **246** | **50.041** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por
