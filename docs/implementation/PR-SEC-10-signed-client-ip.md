@@ -30,3 +30,25 @@ Tras el rewrite de Next, `request.ip` del backend es la salida compartida de Nex
 
 Activar: mismo `CLIENT_IP_SIGNING_SECRET` en `vetneb-api-stg` y `vetneb-web-stg`, más `CLIENT_IP_EDGE_CIDRS` en el frontend, y redeploy de ambos.
 Rollback: eliminar `CLIENT_IP_SIGNING_SECRET` (y `CLIENT_IP_EDGE_CIDRS`) de ambos servicios y redeploy, o redeploy del commit anterior (`b5db634c`). Sin el secreto, backend y frontend vuelven exactamente al comportamiento previo. Producción no se toca.
+
+## Procedimiento de activación en staging (preparado, NO ejecutado)
+
+Precondiciones: los tres PRs fusionados en orden backend → frontend → documentación; CI requerido en verde sobre el head fusionado; identidad de `vetneb-api-stg` (`srv-dbr5u80u01pc73a9e4a0`) y `vetneb-web-stg` (`srv-dbre2i6i0phs73fjapig`) reconfirmada; Auto-Deploy en Off; Supabase staging `qlupryhscwlihzsxbmqy`. Producción queda fuera.
+
+1. Generar un secreto aleatorio de ≥ 32 caracteres sin mostrarlo ni registrarlo.
+2. Backend: `CLIENT_IP_SIGNING_SECRET`. Frontend: el mismo valor y `CLIENT_IP_EDGE_CIDRS` (rangos acotados; ver evidencia E4 abajo). Redeploy del commit exacto en cada servicio, uno por vez, con readback.
+3. Pruebas adversariales sintéticas (sin credenciales ni datos reales; ráfagas pequeñas, sin saturar el servicio):
+   - A1 dos orígenes de prueba distintos por `/api/*` → buckets distintos (clave de rate limit del endpoint de contacto).
+   - A2 `X-Forwarded-For` falsificado a la izquierda → no cambia el bucket.
+   - A3 `x-vetneb-client-ip*` falsificado por el navegador → ignorado/borrado.
+   - A4 acceso directo al backend con `x-vetneb-client-ip*` inventado → `request.ip` sin cambio.
+   - A5 replay de una firma capturada en otra ruta o pasados 30 s → rechazada (cubierto en tests; verificar contra el servicio).
+   - A6 upload de ~15 MB por `/api` → íntegro (backend admite 20 MB).
+   - A7 rate limit sigue limitando por cliente y no se elude cambiando cabeceras.
+4. Evidencia E4 (necesaria para cerrar SEC-10): en la misma ventana, medir sobre tráfico propio y sintético (a) la posición del cliente real dentro del XFF que ve Next, (b) si el salto de borde cae dentro de `CLIENT_IP_EDGE_CIDRS`, (c) el valor de `CF-Connecting-IP` frente a esa posición y frente a un valor falsificado enviado por el cliente, (d) la IP/peer y XFF que ve el backend en una llamada directa. Sin (a)–(d) E4 permanece BLOQUEADO y la solución se considera sólo implementada, no cerrada.
+
+## Rollback
+
+1. Eliminar `CLIENT_IP_SIGNING_SECRET` (y `CLIENT_IP_EDGE_CIDRS`) de ambos servicios staging; redeploy. Sin el secreto el comportamiento es exactamente el previo: el proxy no firma y el backend no registra el hook.
+2. Si hiciera falta volver al código anterior: redeploy del commit `b5db634c` en ambos servicios (Render «Deploy a specific commit»).
+3. Verificar por readback: deploy Live, `/health`, variables retiradas y Auto-Deploy Off.
