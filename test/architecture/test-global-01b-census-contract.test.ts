@@ -361,11 +361,12 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§6.2",
     metric: "specs en test/security",
     historical: 10,
+    baseline: 14,
     compute: () => folderFiles("test/security"),
-    resolution: "REPRODUCED",
+    resolution: "RECLASSIFIED",
     guard: BAND,
     motive:
-      "Volumen por carpeta: TEST-GLOBAL-04 añade prueba negativa aquí y la cifra debe poder subir.",
+      "Volumen por carpeta: TEST-GLOBAL-04 añade prueba negativa aquí y la cifra debe poder subir. Re-anclaje 10 -> 14: main@4830a7d9f90ae78b9d94211e7b924b1860c3bd10 producia 13 specs, exactamente el tope de la banda 10 +- 3 (13), y PR-SEC-10 suma test/security/security-trusted-proxy-client-ip.test.ts, la prueba adversarial de la resolución estructural de proxies confiables (spoofing de XFF y de cabeceras alternativas, buckets por cliente, IPv6, topología desconocida), lo que lleva el valor a 14. Crecimiento intencional dentro de PR-SEC-10: se re-ancla el baseline a 14 sin ampliar la tolerancia y sin excluir ningun archivo del inventario.",
   },
   // ── §6.3 ratio test : producción ──────────────────────────────────────────
   {
