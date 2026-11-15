@@ -625,7 +625,7 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§7.2",
     metric: "specs MIXED estructural (filesystem y runtime)",
     historical: 59,
-    baseline: 48,
+    baseline: 49,
     compute: () => classification.byBucket.FILESYSTEM_AND_RUNTIME,
     resolution: "RECLASSIFIED",
     guard: BAND,
@@ -1734,7 +1734,8 @@ test("censo 05A: la deuda de lectores ad hoc rompe al crecer y la adopción del 
   // +1: clinic-reports-study-type-label lee el owner de la columna ESTUDIO por el lector canónico.
   // +1: drizzle-config-db-url lee drizzle.config.ts y backend-ci.yml por el lector canónico.
   // +1: global-search-state-retention lee la migración 0031, el repositorio y el preflight por el lector canónico.
-  assert.equal(current, 441, "global-search-state-retention se suma a los 440 importadores del lector canónico (tras drizzle-config-db-url)");
+  // +1: security-client-ip-proxy-signing lee proxy.ts y next.config.ts por el lector canónico (PR-SEC-10).
+  assert.equal(current, 442, "security-client-ip-proxy-signing se suma a los 441 importadores del lector canónico (tras global-search-state-retention)");
   assert.equal(
     guardViolation(adoptionEntry, evaluateEntry(adoptionEntry)),
     null,

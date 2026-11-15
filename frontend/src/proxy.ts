@@ -23,9 +23,33 @@ import {
   ADMIN_SESSION_COOKIE_NAME,
   CLINIC_SESSION_COOKIE_NAME,
 } from "../../shared/session-cookie-names";
+import {
+  applyClientIpHeaders,
+  buildSignedClientIpHeaders,
+} from "./lib/security/client-ip-signing";
 
 const LOGIN_PATH = "/login";
 const ADMIN_DASHBOARD_PATH_PREFIX = "/dashboard/admin";
+const API_PATH_PREFIX = "/api/";
+
+// SEC-10: en /api/* el proxy NO decide acceso. Sólo elimina cualquier identidad
+// de cliente enviada por el navegador y, si la cadena de reenvío valida, firma la
+// IP para el backend. Sin secreto o sin estructura válida no firma y el backend
+// conserva su propia resolución.
+function forwardApiRequestWithSignedClientIp(request: NextRequest) {
+  const signed = buildSignedClientIpHeaders({
+    secret: process.env.CLIENT_IP_SIGNING_SECRET,
+    edgeCidrs: process.env.CLIENT_IP_EDGE_CIDRS,
+    forwardedFor: request.headers.get("x-forwarded-for"),
+    method: request.method,
+    path: request.nextUrl.pathname,
+    nowSeconds: Math.floor(Date.now() / 1000),
+  });
+
+  return NextResponse.next({
+    request: { headers: applyClientIpHeaders(request.headers, signed) },
+  });
+}
 
 function isAdminDashboardPath(pathname: string): boolean {
   return (
@@ -42,6 +66,9 @@ function getRequiredSessionCookieName(pathname: string): string {
 
 export function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+  if (pathname.startsWith(API_PATH_PREFIX)) {
+    return forwardApiRequestWithSignedClientIp(request);
+  }
   const requiredCookieName = getRequiredSessionCookieName(pathname);
   const hasRequiredSession = Boolean(
     request.cookies.get(requiredCookieName)?.value,
@@ -61,5 +88,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: ["/dashboard/:path*", "/api/:path*"],
 };

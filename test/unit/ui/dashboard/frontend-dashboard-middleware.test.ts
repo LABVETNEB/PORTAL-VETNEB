@@ -23,7 +23,7 @@ test("frontend dashboard proxy exists and protects dashboard routes", () => {
   assert.ok(source.includes('ADMIN_DASHBOARD_PATH_PREFIX = "/dashboard/admin"'));
   assert.ok(source.includes("NextResponse.next()"));
   assert.ok(source.includes("NextResponse.redirect(loginUrl)"));
-  assert.ok(source.includes('matcher: ["/dashboard/:path*"]'));
+  assert.ok(source.includes('matcher: ["/dashboard/:path*", "/api/:path*"]'));
 });
 
 test("frontend dashboard proxy separates clinic and admin sessions", () => {
@@ -72,5 +72,6 @@ test("frontend dashboard proxy stays scoped to frontend route protection", () =>
 
   assert.equal(source.includes("fetch("), false);
   assert.equal(source.includes("particular_session_id"), false);
-  assert.equal(source.includes("process.env"), false);
+  const envReads = source.match(/process.env.[A-Z_]+/g) ?? [];
+  assert.deepEqual([...new Set(envReads)].sort(), ["process.env.CLIENT_IP_EDGE_CIDRS", "process.env.CLIENT_IP_SIGNING_SECRET"]);
 });

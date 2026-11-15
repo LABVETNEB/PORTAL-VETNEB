@@ -118,6 +118,13 @@ function documentCacheRules(paths: readonly string[], cacheControl: string) {
 const nextConfig: NextConfig = {
   compress: true,
   poweredByHeader: false,
+  experimental: {
+    // SEC-10: el proxy intercepta /api/* para firmar la IP y Next almacena el
+    // cuerpo (por defecto 10MB) para reenviarlo. Debe cubrir el máximo de subida
+    // del backend (MAX_UPLOAD_FILE_SIZE_MB, 20 por defecto) más el overhead
+    // multipart; si ese máximo sube, esto debe subir con él.
+    proxyClientMaxBodySize: "25mb",
+  },
   images: {
     formats: ["image/avif", "image/webp"],
     minimumCacheTTL: 60 * 60 * 24 * 7,
