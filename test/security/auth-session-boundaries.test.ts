@@ -444,7 +444,7 @@ test("frontend proxy mantiene separación dashboard/admin y deja particulares fu
   assert.ok(source.includes("return isAdminDashboardPath(pathname)"));
   assert.ok(source.includes("? ADMIN_SESSION_COOKIE_NAME"));
   assert.ok(source.includes(": CLINIC_SESSION_COOKIE_NAME"));
-  assert.ok(source.includes('matcher: ["/dashboard/:path*"]'));
+  assert.ok(source.includes('matcher: ["/dashboard/:path*", "/api/:path*"]'));
   assert.equal(source.includes("/particulares"), false);
   assert.equal(source.includes("hasClinicSession || hasAdminSession"), false);
 });
