@@ -16,6 +16,7 @@ import {
   buildLoginRateLimitResponse,
   buildLoginRateLimitHeaders,
   buildLoginRateLimitUnavailableResponse,
+  applyLoginIdentifierCeiling,
   buildLoginRateLimitKey,
   buildMissingCredentialsLoginRateLimitKey,
   getLoginRateLimitKeyMetadata,
@@ -1000,6 +1001,16 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
         loginRateLimitStore,
         rateLimitKey,
         { windowMs: loginRateLimitWindowMs, now: currentTime },
+      );
+      chargedEntry = await applyLoginIdentifierCeiling(
+        loginRateLimitStore,
+        chargedEntry,
+        {
+          identifier: loginIdentifier,
+          windowMs: loginRateLimitWindowMs,
+          now: currentTime,
+          maxAttempts: loginRateLimitMaxAttempts,
+        },
       );
     } catch (error) {
       logError("AUTH_LOGIN_RATE_LIMIT_GET_FAILED", {

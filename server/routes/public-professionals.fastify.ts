@@ -19,7 +19,9 @@ import {
   PUBLIC_PROFESSIONAL_DETAIL_RATE_LIMIT_WINDOW_MS,
 } from "../features/public-professionals/infrastructure/public-professionals-rate-limit.ts";
 import {
+  consumeGlobalCeiling,
   createMemoryRateLimitStore,
+  GLOBAL_CEILING_MULTIPLIER,
   getOrCreateRateLimitEntry,
   incrementRateLimitEntry,
   type RateLimitStore,
@@ -208,6 +210,7 @@ function setRateLimitHeaders(
 }
 
 function createFixedWindowRateLimit(config: {
+  scope: string;
   windowMs: number;
   max: number;
   errorMessage: string;
@@ -230,6 +233,20 @@ function createFixedWindowRateLimit(config: {
 
     entry.count = updatedEntry.count;
     entry.resetAt = updatedEntry.resetAt;
+
+    if (entry.count <= config.max) {
+      const globalCeilingEntry = await consumeGlobalCeiling(store, {
+        scope: config.scope,
+        windowMs: config.windowMs,
+        now: currentTime,
+        maxAttempts: config.max * GLOBAL_CEILING_MULTIPLIER,
+      });
+
+      if (globalCeilingEntry) {
+        entry.count = config.max + 1;
+        entry.resetAt = globalCeilingEntry.resetAt;
+      }
+    }
 
     setRateLimitHeaders(reply, {
       max: config.max,
@@ -263,6 +280,7 @@ export const publicProfessionalsNativeRoutes: FastifyPluginAsync<
   const allowedOrigins = new Set(getAllowedOrigins());
 
   const searchRateLimit = createFixedWindowRateLimit({
+    scope: "public-professionals-search",
     windowMs:
       options.searchRateLimitWindowMs ??
       PUBLIC_PROFESSIONALS_SEARCH_RATE_LIMIT_WINDOW_MS,
@@ -275,6 +293,7 @@ export const publicProfessionalsNativeRoutes: FastifyPluginAsync<
   });
 
   const detailRateLimit = createFixedWindowRateLimit({
+    scope: "public-professionals-detail",
     windowMs:
       options.detailRateLimitWindowMs ??
       PUBLIC_PROFESSIONAL_DETAIL_RATE_LIMIT_WINDOW_MS,
