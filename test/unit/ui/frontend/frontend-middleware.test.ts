@@ -58,8 +58,8 @@ test("frontend proxy remains scoped to dashboard routes only", () => {
   const source = read(MIDDLEWARE_PATH);
 
   assert.ok(source.includes("export const config = {"));
-  assert.ok(source.includes('matcher: ["/dashboard/:path*"]'));
-  assert.equal(source.includes('"/api/:path*"'), false);
+  assert.ok(source.includes('matcher: ["/dashboard/:path*", "/api/:path*"]'));
+  assert.equal(source.split('"/api/:path*"').length - 1, 1, "/api only as the SEC-10 signed-client-ip forwarder");
   assert.equal(source.includes('"/login/:path*"'), false);
   assert.equal(source.includes('"/contacto/:path*"'), false);
 });

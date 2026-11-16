@@ -223,7 +223,7 @@ test("superficies clínica, admin, particular, logística y backend siguen decla
     );
   }
 
-  assert.ok(middlewareSource.includes('matcher: ["/dashboard/:path*"]'));
+  assert.ok(middlewareSource.includes('matcher: ["/dashboard/:path*", "/api/:path*"]'));
   assert.ok(middlewareSource.includes("function getRequiredSessionCookieName(pathname: string): string"));
   assert.ok(middlewareSource.includes("return isAdminDashboardPath(pathname)"));
   assert.equal(middlewareSource.includes("hasClinicSession || hasAdminSession"), false);

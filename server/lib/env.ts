@@ -6,6 +6,7 @@ import {
   ADMIN_SESSION_COOKIE_NAME,
   CLINIC_SESSION_COOKIE_NAME,
 } from "../../shared/session-cookie-names.ts";
+import { SIGNED_CLIENT_IP_MIN_SECRET_LENGTH } from "./signed-client-ip.ts";
 import { resolveParticularSessionCookieName } from "./session-cookie-names.ts";
 import {
   isValidEdgeCidrList,
@@ -168,6 +169,15 @@ const envSchema = z.object({
       })
       .optional(),
   ),
+  CLIENT_IP_SIGNING_SECRET: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .min(SIGNED_CLIENT_IP_MIN_SECRET_LENGTH, {
+        message: `CLIENT_IP_SIGNING_SECRET debe tener al menos ${SIGNED_CLIENT_IP_MIN_SECRET_LENGTH} caracteres`,
+      })
+      .optional(),
+  ),
   OWNER_OPEN_ID: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   LAB_UPLOAD_USERNAMES: z.preprocess(
     emptyToUndefined,
@@ -311,6 +321,7 @@ export const ENV = {
   corsOrigins,
   publicSiteUrl,
   trustProxy: resolvedTrustProxy,
+  clientIpSigningSecret: rawEnv.CLIENT_IP_SIGNING_SECRET,
   cookieSecure: nodeEnv === "production",
   cookieSameSite: (nodeEnv === "production" ? "none" : "lax") as
     | "none"
