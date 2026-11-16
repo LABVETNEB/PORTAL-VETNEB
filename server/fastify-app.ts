@@ -178,6 +178,7 @@ import {
   type ObservabilityRequestFinalizer,
 } from "./lib/observability-metrics.ts";
 import { createRuntimeTimer, type RuntimeTimer } from "./lib/runtime-timing.ts";
+import { registerProxyDiagnostics } from "./lib/proxy-diagnostics.ts";
 import { registerSignedClientIp } from "./lib/signed-forwarded-ip-hook.ts";
 
 type HealthCheckResponse = {
@@ -410,6 +411,7 @@ export async function createFastifyApp(
   });
 
   registerSignedClientIp(app, { secret: ENV.clientIpSigningSecret });
+  registerProxyDiagnostics(app, { trustProxyConfigured: Boolean(ENV.trustProxy) });
 
   const metricsRegistry =
     options.observabilityMetricsRegistry ?? getObservabilityMetricsRegistry();

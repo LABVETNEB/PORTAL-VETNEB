@@ -1735,7 +1735,8 @@ test("censo 05A: la deuda de lectores ad hoc rompe al crecer y la adopción del 
   // +1: drizzle-config-db-url lee drizzle.config.ts y backend-ci.yml por el lector canónico.
   // +1: global-search-state-retention lee la migración 0031, el repositorio y el preflight por el lector canónico.
   // +1: security-client-ip-proxy-signing lee proxy.ts y next.config.ts por el lector canónico (PR-SEC-10).
-  assert.equal(current, 442, "security-client-ip-proxy-signing se suma a los 441 importadores del lector canónico (tras global-search-state-retention)");
+  // +1: proxy-diagnostics-source-contract lee el módulo, fastify-app y trusted-proxy por el lector canónico (rama de diagnóstico PR-SEC-10).
+  assert.equal(current, 443, "proxy-diagnostics-source-contract se suma a los 442 importadores del lector canónico (tras security-client-ip-proxy-signing)");
   assert.equal(
     guardViolation(adoptionEntry, evaluateEntry(adoptionEntry)),
     null,
