@@ -20,6 +20,7 @@ const {
   serializeConsoleCalls,
 } = await import("../../helpers/api-request-id-contract.ts");
 const fastifyAppHelpers = await import("../../helpers/fastify-app-route-stubs.ts");
+const { createMemoryRateLimitStore } = await import("../../../server/lib/rate-limit-store.ts");
 
 test(
   "createFastifyApp aplica trusted origin global antes de rutas mutables",
@@ -824,6 +825,8 @@ test(
           offset: 0,
         }),
         getPublicProfessionalByClinicId: async () => null,
+        searchRateLimitStore: createMemoryRateLimitStore(),
+        detailRateLimitStore: createMemoryRateLimitStore(),
         createSignedStorageUrl: async (path: string) => `signed:${path}`,
       },
       publicReportAccessRoutes: fastifyAppHelpers.buildPublicReportAccessRouteStubs(),
@@ -1976,6 +1979,8 @@ test(
             "search dispatch must not call getPublicProfessionalByClinicId",
           );
         },
+        searchRateLimitStore: createMemoryRateLimitStore(),
+        detailRateLimitStore: createMemoryRateLimitStore(),
         createSignedStorageUrl: async (path: string) => `signed:${path}`,
       },
     });
@@ -2218,6 +2223,8 @@ test(
             profileQualityScore: 0.91,
           };
         },
+        searchRateLimitStore: createMemoryRateLimitStore(),
+        detailRateLimitStore: createMemoryRateLimitStore(),
         createSignedStorageUrl: async (path: string) => `signed:${path}`,
       },
     });
