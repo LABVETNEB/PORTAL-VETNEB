@@ -47,6 +47,7 @@ function setupTempRepository(): { root: string; baseSha: string } {
     "scripts/governance/pr-governance-validator.mjs",
     "scripts/governance/quality-gate-impact-policy.mjs",
     "scripts/governance/quality-gate-impact-validator.mjs",
+    "scripts/governance/workflow-security-policy.mjs",
   ]) {
     copyRepoFile(relativePath, root);
   }

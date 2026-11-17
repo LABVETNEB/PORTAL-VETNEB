@@ -30,7 +30,7 @@ const pinnedActionReferences = new Map<string, readonly string[]>([
     ".github/workflows/backend-ci.yml",
     [
       "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
-      "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413",
+      "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115",
       "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
       "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
     ],
@@ -39,7 +39,7 @@ const pinnedActionReferences = new Map<string, readonly string[]>([
     ".github/workflows/e2e-completeness.yml",
     [
       "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
-      "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413",
+      "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115",
       "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
       "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
     ],
@@ -48,7 +48,7 @@ const pinnedActionReferences = new Map<string, readonly string[]>([
     ".github/workflows/frontend-ci.yml",
     [
       "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
-      "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413",
+      "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115",
       "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
       "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
       "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
@@ -66,7 +66,7 @@ const pinnedActionReferences = new Map<string, readonly string[]>([
     [
       "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
       "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
-      "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413",
+      "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115",
       "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
       "actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510",
     ],
@@ -93,11 +93,11 @@ const mutableActionReferences = [
 
 const canonicalWorkflowDigests = new Map<string, string>([
   [".github/workflows/app-version-force-update.yml", "25c69fb58364b709395f0ee920560845a83941eeb86efdd759a69af5f880d701"],
-  [".github/workflows/backend-ci.yml", "23e9b68d175d50ce1855d8aa8973b4ae589be69447f9d346d22291f7493bdd33"],
-  [".github/workflows/e2e-completeness.yml", "2a9cc09fcda028c1ca0f99f18d1ad97e4f51791c4c6db90b3a271675746a1ec9"],
-  [".github/workflows/frontend-ci.yml", "89cb8903baf826a0d0928113841f7dc336648c9ed1746552a04b6cd7405b530e"],
+  [".github/workflows/backend-ci.yml", "8b164a86a82a5661dc5fa6de6e35a255881afe836e2490de23cbf88fa6178d04"],
+  [".github/workflows/e2e-completeness.yml", "0d1713619d3ac59dd8f686a7ce66a702326116ebb0e903fe1bbf977a4e7d97d1"],
+  [".github/workflows/frontend-ci.yml", "102a97a4fefa6942766907b73608165d2071b2ce418b29cdb833ccc682f82e33"],
   [".github/workflows/pr-governance.yml", "461c358ea8e6db8393f77ec3f68401083e58b24352a4fb211d1e937bff6a7531"],
-  [".github/workflows/qga-governance.yml", "3c32bb7ad2cd98861d3e990c9e29884c7105d98d34ba8af2a99f8b50f6996696"],
+  [".github/workflows/qga-governance.yml", "418f1e3b2788f0e17f0c6380c258b66b03d95e57cbfbf101bcd2fd0e4cc5da75"],
   [".github/workflows/visual-regression-manual.yml", "ea13acfeb13786cb52109288fe4807116dc0982ff9dc104ee3694f6c5c4010a6"],
 ]);
 

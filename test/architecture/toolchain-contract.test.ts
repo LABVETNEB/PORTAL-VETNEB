@@ -131,7 +131,7 @@ test("Backend CI uses the pinned pnpm and Node toolchain", () => {
     "concurrency:\n  group: backend-ci-${{ github.workflow }}-${{ github.ref }}\n  cancel-in-progress: true",
   );
   assertContains(workflow, "uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7");
-  assertContains(workflow, "uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0");
+  assertContains(workflow, "uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1");
   assertContains(workflow, "uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0");
   assertNotContains(workflow, "uses: actions/checkout@v7");
   assertNotContains(workflow, "uses: pnpm/action-setup@v6");
@@ -147,7 +147,7 @@ test("Backend CI installs dependencies after toolchain setup", () => {
   const workflow = readTextFile(".github", "workflows", "backend-ci.yml");
 
   assertOrdered(workflow, [
-    "      - name: Setup pnpm\n        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0",
+    "      - name: Setup pnpm\n        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1",
     "      - name: Setup Node.js\n        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0",
     "      - name: Install dependencies\n        run: pnpm install --frozen-lockfile",
   ]);

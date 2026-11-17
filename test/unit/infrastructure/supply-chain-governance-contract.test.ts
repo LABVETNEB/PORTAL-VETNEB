@@ -322,7 +322,7 @@ test("SBOM job pins every action to a 40-character SHA and uses no floating vers
 
   assert.deepEqual(references, [
     "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
-    "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413",
+    "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115",
     "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
     "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
   ]);
