@@ -197,3 +197,16 @@ test("contrato de fuente: login, contacto y rutas públicas usan los topes", () 
     assert.match(read(path), /consumeGlobalCeiling\(/, path);
   }
 });
+
+test("el login exitoso nunca reinicia el techo por identificador", () => {
+  for (const path of [
+    "server/routes/auth.fastify.ts",
+    "server/routes/admin-auth.fastify.ts",
+    "server/routes/particular-auth.fastify.ts",
+  ]) {
+    const source = readSourceFile(path);
+
+    assert.equal(source.includes("buildLoginIdentifierCeilingKey"), false, path);
+    assert.match(source, /applyLoginIdentifierCeiling\(/, path);
+  }
+});

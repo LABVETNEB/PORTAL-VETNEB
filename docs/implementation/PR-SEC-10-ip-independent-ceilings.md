@@ -52,3 +52,20 @@ Cambio de proveedor o de frontera de entrada (zona Cloudflare propia), desactiva
 ## Rollback
 
 Revertir el commit de la PR. No hay variables ni migraciones nuevas: las claves usan la tabla de rate limit existente.
+
+## Reset administrativo del techo por identificador
+
+El techo `login-ceiling:v2:<identificador>` se guarda sin metadata (`surface`, `identifier_hash`,
+`ip_hash` nulos), es compartido por todas las superficies e independiente de la IP. El comando
+`pnpm auth:reset-login-rate-limit` lo localiza con `buildLoginIdentifierCeilingKey` +
+`hashRateLimitKey` (misma normalización que el runtime) y aplica esta semántica:
+
+- Sin `--ip-address`: reinicia los contadores por IP de la superficie y **también** el techo del
+  identificador (afecta a todas las superficies que lo comparten). El dry-run lo informa.
+- Con `--ip-address`: el reset queda limitado a esa IP y el techo se **conserva**, salvo que se
+  agregue `--include-identifier-ceiling` (PowerShell: `-IncludeIdentifierCeiling`).
+- Dry-run por defecto; sin `--force` no se borra nada. Un login exitoso nunca reinicia el techo.
+- Una falla de PostgreSQL termina con exit code 1 y sin reportar filas eliminadas.
+
+Cobertura: `test/integration/app/login-rate-limit-reset-postgres.test.ts` (PostgreSQL real
+`portal_vetneb_ci`) y `test/unit/infrastructure/reset-login-rate-limit-script-contract.test.ts`.

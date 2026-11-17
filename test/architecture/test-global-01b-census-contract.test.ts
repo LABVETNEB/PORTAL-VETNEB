@@ -1132,11 +1132,12 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§15",
     metric: "specs de integración",
     historical: 58,
+    baseline: 74,
     compute: () => specsUnder("test/integration").length,
-    resolution: "REPRODUCED",
+    resolution: "RECLASSIFIED",
     guard: BAND,
     motive:
-      "TEST-GLOBAL-09 debe aumentarlo poblando repositorios y servicios externos: congelarlo sería contradictorio.",
+      "TEST-GLOBAL-09 debe aumentarlo poblando repositorios y servicios externos: congelarlo sería contradictorio. Re-anclaje 58 -> 74: el árbol producía 73, exactamente el tope de la banda 58 +- 15, y PR-SEC-10 suma test/integration/app/login-rate-limit-reset-postgres.test.ts, el spec contra PostgreSQL real (portal_vetneb_ci) del reset administrativo del techo por identificador, lo que lleva el valor a 74. Crecimiento intencional: se re-ancla el baseline al valor medido, sin ampliar la tolerancia ni excluir ningún archivo del inventario.",
   },
   {
     row: "A0-15-INTEGRATION",
