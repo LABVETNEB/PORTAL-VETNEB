@@ -60,13 +60,17 @@ import {
   buildGlobalSearchQueryString,
   GLOBAL_SEARCH_INVALID_CURSOR_MESSAGE,
   globalSearchPathFor,
+  globalSearchStatesPathFor,
   isGlobalSearchContinuation,
+  readGlobalSearchSavedState,
   type GlobalSearchGroup,
   type GlobalSearchKind,
   type GlobalSearchRequest,
   type GlobalSearchResult,
+  type GlobalSearchSavedState,
   type GlobalSearchSurface,
 } from "@/lib/global-search";
+import { isSearchStateId } from "@/lib/dashboard/navigation/searchNavigation";
 
 const CLIENT_VERSION_UNSUPPORTED_CODE = "CLIENT_VERSION_UNSUPPORTED";
 
@@ -772,6 +776,66 @@ export async function searchDashboardGlobal(
     limit: typeof res.limit === "number" ? res.limit : request.limit,
     offset: typeof res.offset === "number" ? res.offset : (request.offset ?? 0),
   };
+}
+
+/**
+ * A saved search that is missing, expired, malformed or belongs to another
+ * session, clinic or surface: the server answers all of them with the same
+ * 404, so the client cannot (and does not try to) tell them apart. The message
+ * is fixed; nothing the server says is echoed.
+ */
+export class GlobalSearchStateUnavailableError extends Error {
+  constructor() {
+    super("La búsqueda guardada venció o no está disponible");
+    this.name = "GlobalSearchStateUnavailableError";
+  }
+}
+
+/**
+ * GLOBAL-SEARCH-DRIVE-A4: saves the canonical text and the category of a
+ * search for this session and returns its opaque id (the only thing `?sq=`
+ * carries). Never sends results, cursors or hits; the id is validated before it
+ * is trusted, and the text is never logged.
+ */
+export async function saveGlobalSearchState(
+  surface: GlobalSearchSurface,
+  state: GlobalSearchSavedState,
+  options: RequestInit = {},
+): Promise<{ readonly id: string }> {
+  const res = await apiFetch<{ success?: boolean; id?: unknown }>(globalSearchStatesPathFor(surface), {
+    ...options,
+    method: "POST",
+    cache: "no-store",
+    body: JSON.stringify(state.kinds.length > 0 ? { q: state.q, kinds: state.kinds.join(",") } : { q: state.q }),
+  });
+  if (!isSearchStateId(res.id)) throw new Error("Respuesta de búsqueda guardada inválida.");
+  return { id: res.id };
+}
+
+/**
+ * GLOBAL-SEARCH-DRIVE-A4: reads a saved search back. 404 (the one answer for
+ * missing, expired, foreign or malformed) becomes `GlobalSearchStateUnavailableError`;
+ * any other failure keeps its own error type. An id that is not a UUID v4 is
+ * rejected without a request.
+ */
+export async function loadGlobalSearchState(
+  surface: GlobalSearchSurface,
+  id: string,
+  options: RequestInit = {},
+): Promise<GlobalSearchSavedState> {
+  if (!isSearchStateId(id)) throw new GlobalSearchStateUnavailableError();
+  try {
+    const res = await apiFetch<{ success?: boolean; q?: unknown; kinds?: unknown }>(
+      `${globalSearchStatesPathFor(surface)}/${id}`,
+      { ...options, cache: "no-store" },
+    );
+    const state = readGlobalSearchSavedState(surface, res);
+    if (state === null) throw new GlobalSearchStateUnavailableError();
+    return state;
+  } catch (error) {
+    if (error instanceof ApiResponseError && error.status === 404) throw new GlobalSearchStateUnavailableError();
+    throw error;
+  }
 }
 
 /**

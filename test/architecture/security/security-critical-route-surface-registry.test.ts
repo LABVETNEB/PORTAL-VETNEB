@@ -31,7 +31,7 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
           "cookieName: CLINIC_SESSION_COOKIE_NAME",
           "adminCookieName: ADMIN_SESSION_COOKIE_NAME",
           "particularCookieName: resolveParticularSessionCookieName(",
-          "trustProxy: rawEnv.TRUST_PROXY ?? false",
+          "trustProxy: resolvedTrustProxy,",
         ],
       },
       {

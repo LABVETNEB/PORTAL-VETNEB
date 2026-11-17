@@ -346,7 +346,7 @@ test("automatic workflow coverage is derived from catalog cohorts and equals ful
   // +2: DRV V7 overlay contracts and fidelity probe.
   // +2: DRV V8 container-columns contract and column probe.
   // +1: GLOBAL-SEARCH-2 record search (platform/app-shell/dashboard-global-search.spec.ts).
-  assert.equal(E2E_SUITE_CATALOG.length, 134);
+  assert.equal(E2E_SUITE_CATALOG.length, 135);
 
   const partitionUnion = new Set(PARTITION_COHORTS.flatMap((cohort) => E2E_COHORT_SPECS[cohort]));
   assert.deepEqual([...partitionUnion].sort(), [...E2E_COHORT_SPECS.full].sort());

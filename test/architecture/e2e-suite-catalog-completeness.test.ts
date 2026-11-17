@@ -26,8 +26,8 @@ const REPO_ROOT = resolve(dirname(TEST_FILE), "..", "..");
 process.chdir(REPO_ROOT);
 
 // +1: GLOBAL-SEARCH-2 record search (platform/app-shell/dashboard-global-search.spec.ts).
-const EXPECTED_WORKSPACE_SPEC_COUNT = 134;
-const EXPECTED_CATALOG_SPEC_COUNT = 134;
+const EXPECTED_WORKSPACE_SPEC_COUNT = 135;
+const EXPECTED_CATALOG_SPEC_COUNT = 135;
 const EXPECTED_MANUAL_ONLY_SPEC_COUNT = 0;
 const EXPECTED_DOMAIN_COUNTS = new Map([
   // +1: C04 Clínicas admin column sort (admin-clinics-column-sort.spec.ts).
@@ -71,7 +71,7 @@ const EXPECTED_DOMAIN_COUNTS = new Map([
   // +1: G11 axe matrix 21 x 2 x 2 (platform/accessibility/dashboard-g11-axe-matrix.spec.ts).
   // +1: GLOBAL-SEARCH-2 record search (platform/app-shell), routed to
   // visual-contract like its app-shell siblings.
-  ["platform", 31],
+  ["platform", 32],
   // +1: B10 clinic app-shell unification, the runtime half of the shared
   // ClinicDashboardShell contract.
   // +1: B11 canonical WorkspaceHeader, the runtime half of the shared
@@ -113,7 +113,7 @@ const EXPECTED_LAYER_COUNTS = new Map<E2eLayer, number>([
   // +1: G11 fulfills the A02 surface stubs and the clinic particular-tokens window.
   // +1: GLOBAL-SEARCH-2 fulfills GET /api/search and /api/admin/search with a
   // spec-local model of the GLOBAL-SEARCH-1 contract (client component).
-  ["mocked", 51],
+  ["mocked", 52],
   // -1: E2E-GLOBAL-10 removed the assertion-free evidence generator (R-16);
   // +1 fixture / -1 mocked: §23 remediation moved dashboard keyboard a11y
   // off browser response stubs and onto the shared populated fixture.
@@ -189,7 +189,8 @@ const EXPECTED_CURRENT_COUNTS = new Map([
   // contract specs (AGENTS.md §7).
   // +1: A1-5 served document cache policy, routed public-clinic like the
   // served PWA surface (AGENTS.md §7).
-  ["public-clinic", 20],
+  // +1: dashboard-table-visual-coherence, routed public-clinic (AGENTS.md §7).
+  ["public-clinic", 21],
 ]);
 const EXPECTED_EXECUTION_COUNTS = new Map<E2eExecutionCohort, number>([
   // +3: E2E-GLOBAL-03 (smoke -> ci union grows with it).
@@ -224,7 +225,7 @@ const EXPECTED_EXECUTION_COUNTS = new Map<E2eExecutionCohort, number>([
   // +1: DRV V8 container-driven table columns (DRV-01 contract) runs in ci.
   // +1: list font-size theme parity runs in ci.
   // +1: GLOBAL-SEARCH-2 belongs to visual-contract and therefore the CI union.
-  ["ci", 99],
+  ["ci", 100],
   // +1: G11 axe matrix, full-only like the A02 baseline whose surfaces it audits.
   ["extended", 28],
   // -1: E2E-GLOBAL-10 (R-16). `evidence` keeps the generator that does assert
@@ -236,7 +237,7 @@ const EXPECTED_EXECUTION_COUNTS = new Map<E2eExecutionCohort, number>([
   // +1: DRV V8 column and truncation probe, an evidence generator for DRV-01.
   ["evidence", 4],
   ["visual-linux", 3],
-  ["full", 134],
+  ["full", 135],
   ["affected", 0],
 ]);
 const E2E_GLOBAL_06_PROMOTED_P1_SPECS = [
@@ -460,7 +461,7 @@ function validateCatalog(
   }
 
   const currentUnion = unique([...currentMemberships.keys()]).sort();
-  assert.equal(currentUnion.length, 99);
+  assert.equal(currentUnion.length, 100);
   assert.deepEqual(E2E_COHORT_SPECS.ci, currentUnion, "ci must equal the current four-cohort union");
 
   for (const cohort of ["extended", "evidence", "visual-linux", "full"] as const) {
@@ -532,11 +533,11 @@ test("catalog validation catches missing and duplicate entries in memory", async
 
   assert.throws(
     () => validateCatalog(missing, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
-    /133|classified/,
+    /134|classified/,
   );
   assert.throws(
     () => validateCatalog(duplicated, workspaceSpecs, E2E_MANUAL_ONLY_SPECS),
-    /134|unique/,
+    /135|unique/,
   );
 });
 
@@ -590,7 +591,7 @@ test("affected selection fails closed for empty or shared changes", async () => 
 
   const sharedSelection = runner.classifyAffectedPaths(["frontend/e2e/helpers/admin-mobile-contracts.ts"]);
   assert.equal(sharedSelection.fallback, true);
-  assert.equal(sharedSelection.specs.length, 99);
+  assert.equal(sharedSelection.specs.length, 100);
   assert.match(sharedSelection.reason, /shared E2E infrastructure/);
 });
 

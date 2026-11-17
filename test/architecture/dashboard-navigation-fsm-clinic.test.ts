@@ -607,7 +607,18 @@ test("ownership: Abrir módulo completo dispatches OPEN_ROUTE and reads its pend
       provider.includes('store.dispatch({ type: "OPEN_ROUTE", path: target.path, module: target.module });'),
     "OPEN_ROUTE reaches the machine through the clinic owner",
   );
-  assert.equal(provider.split('type: "OPEN_ROUTE"').length - 1, 1, "one emitter of OPEN_ROUTE");
+  // GLOBAL-SEARCH-DRIVE-A4: the saved search is a coordinate of the SAME location, selected
+  // with the same events. The search owner is the only other emitter and it re-selects the
+  // route already on screen (`display`), carrying `search`; it never opens another route.
+  assert.ok(
+    provider.includes('store.dispatch({ type: "OPEN_ROUTE", path: display.path, module: parsed, ...carried });'),
+    "the search owner re-selects the displayed route with its saved search",
+  );
+  assert.equal(
+    provider.split('type: "OPEN_ROUTE"').length - 1,
+    2,
+    "two emitters of OPEN_ROUTE: the claim of a control and the saved-search coordinate of the route on screen",
+  );
 });
 
 test("#8, #12, #15: Abrir módulo completo routes with a budget, stalls when it never lands and retries as a document navigation", () => {

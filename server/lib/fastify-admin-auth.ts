@@ -1,6 +1,11 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 
 import { ENV } from "./env.ts";
+import {
+  getAdminSessionLastAccessRefreshIntervalMs,
+  isSessionExpired,
+  isSessionIdle,
+} from "./session-expiry.ts";
 import { shouldRefreshSessionLastAccess } from "./session-last-access.ts";
 
 type FastifyAdminSessionRecord = {
@@ -40,6 +45,7 @@ export type FastifyAdminAuthDeps = {
   updateAdminSessionLastAccess: (tokenHash: string) => Promise<void>;
   hashSessionToken: (token: string) => string;
   now: () => number;
+  idleTimeoutMs?: number;
   messages?: Partial<Record<FastifyAdminAuthFailureReason, string>>;
 };
 
@@ -250,7 +256,13 @@ async function loadRequestAdminAuthContext(
 
   const { session } = sessionWithUser;
 
-  if (session.expiresAt && session.expiresAt.getTime() <= deps.now()) {
+  const nowMs = deps.now();
+  const idleTimeoutMs = deps.idleTimeoutMs ?? ENV.adminSessionIdleTimeoutMs;
+
+  if (
+    isSessionExpired(session.expiresAt, nowMs) ||
+    isSessionIdle(session.lastAccess, nowMs, idleTimeoutMs)
+  ) {
     await deps.deleteAdminSession(tokenHash);
 
     return {
@@ -274,7 +286,13 @@ async function loadRequestAdminAuthContext(
     };
   }
 
-  if (shouldRefreshSessionLastAccess(session.lastAccess ?? null, deps.now())) {
+  if (
+    shouldRefreshSessionLastAccess(
+      session.lastAccess ?? null,
+      nowMs,
+      getAdminSessionLastAccessRefreshIntervalMs(idleTimeoutMs),
+    )
+  ) {
     await deps.updateAdminSessionLastAccess(tokenHash);
   }
 

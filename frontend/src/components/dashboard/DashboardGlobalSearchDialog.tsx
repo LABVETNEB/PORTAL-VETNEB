@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, SlidersHorizontal, X } from "lucide-react";
 
@@ -10,6 +10,7 @@ import { SuperSearchField } from "@/features/dashboard/presentation/filters/Supe
 import { useDashboardCanvasCapacity } from "@/hooks/useDashboardCanvasCapacity";
 import {
   EMPTY_GLOBAL_SEARCH_FILTERS,
+  GLOBAL_SEARCH_MAX_QUERY,
   GLOBAL_SEARCH_REPORT_STATUS_OPTIONS,
   GLOBAL_SEARCH_STUDY_TYPE_OPTIONS,
   buildGlobalSearchDestination,
@@ -24,8 +25,7 @@ import {
   globalSearchKindsFor,
   globalSearchStatusLabel,
   hasGlobalSearchReportFilters,
-  isGlobalSearchQueryReady,
-  normalizeGlobalSearchInput,
+  isGlobalSearchRequestReady,
   readGlobalSearchSession,
   rememberGlobalSearchQuery,
   writeGlobalSearchSession,
@@ -36,6 +36,14 @@ import {
   type GlobalSearchSurface,
 } from "@/lib/global-search";
 import { GLOBAL_SEARCH_MAX_CHUNK } from "@/lib/global-search-pager";
+import {
+  EMPTY_GLOBAL_SEARCH_ADVANCED_TEXT,
+  composeAdvancedFreeText,
+  foldTypedGlobalSearchFilters,
+  readAdvancedFreeText,
+  resolveGlobalSearchQuery,
+  type GlobalSearchAdvancedText,
+} from "@/lib/global-search-query";
 import { cn } from "@/lib/utils";
 import { useGlobalSearchPager } from "./useGlobalSearchPager";
 
@@ -69,12 +77,32 @@ const DESTINATION_LABELS: Readonly<Record<GlobalSearchSurface, Readonly<Record<G
   },
 };
 
-/** What opened the dialog: a query from the bar, a chosen hit, or a plain reopen. */
+/**
+ * What opened the dialog: a query from the bar, a chosen hit, or a plain reopen.
+ *
+ * `filters` says what happens to the filters already applied: `keep` (default:
+ * the words typed in the bar never reset them), `replace` (a recent or saved
+ * search carries its own filters, read from its canonical text and `kinds`) or
+ * `unavailable` (a saved search that expired or is not this session's: nothing
+ * is searched). `restored` marks a search read back from `?sq=`: it is already
+ * in the URL and is not confirmed again.
+ */
 export type DashboardGlobalSearchOpenRequest = {
   readonly id: number;
   readonly query: string;
   readonly hit: GlobalSearchHit | null;
+  readonly filters?: "keep" | "replace" | "unavailable";
+  readonly kinds?: readonly GlobalSearchKind[];
+  readonly restored?: boolean;
 };
+
+/** The canonical search the dialog hands to the bar: composed text (filters included) and category. */
+export type DashboardGlobalSearchConfirmation = {
+  readonly query: string;
+  readonly kinds: readonly GlobalSearchKind[];
+};
+
+export const GLOBAL_SEARCH_STATE_UNAVAILABLE_NOTICE = "La búsqueda guardada venció o no está disponible";
 
 export type DashboardGlobalSearchDialogProps = {
   readonly surface: GlobalSearchSurface;
@@ -82,6 +110,13 @@ export type DashboardGlobalSearchDialogProps = {
   readonly request: DashboardGlobalSearchOpenRequest | null;
   readonly onOpenChange: (open: boolean) => void;
   readonly onOpenDestination: (destination: string) => void;
+  /** Enter, «Ver resultados» or a request from the bar: the single confirmation of a search. */
+  readonly onSearchConfirmed?: (search: DashboardGlobalSearchConfirmation) => void;
+  /** The dialog's words and applied filters (raw: the bar resolves them like the dialog), to mirror and preview with. */
+  readonly onSearchStateChange?: (state: {
+    readonly query: string;
+    readonly filters: GlobalSearchFilters;
+  }) => void;
   /** Where focus goes back on close (the top-bar input when it is painted). */
   readonly returnFocusRef?: RefObject<HTMLElement | null>;
 };
@@ -218,6 +253,8 @@ export function DashboardGlobalSearchDialog({
   request,
   onOpenChange,
   onOpenDestination,
+  onSearchConfirmed,
+  onSearchStateChange,
   returnFocusRef,
 }: DashboardGlobalSearchDialogProps) {
   const titleId = useId();
@@ -236,30 +273,105 @@ export function DashboardGlobalSearchDialog({
   const [filters, setFilters] = useState<GlobalSearchFilters>(remembered?.filters ?? EMPTY_GLOBAL_SEARCH_FILTERS);
   const [showFilters, setShowFilters] = useState(false);
   const [selected, setSelected] = useState<GlobalSearchHit | null>(remembered?.selected ?? null);
+  const [advancedEdit, setAdvancedEdit] = useState<GlobalSearchAdvancedText | null>(null);
+  const [stateUnavailable, setStateUnavailable] = useState(false);
   const handledRequest = useRef<number | null>(null);
+  const confirmRef = useRef(onSearchConfirmed);
+  const stateChangeRef = useRef(onSearchStateChange);
+  // Latest callbacks, written before any passive effect of the commit reads them.
+  useLayoutEffect(() => {
+    confirmRef.current = onSearchConfirmed;
+    stateChangeRef.current = onSearchStateChange;
+  });
+
+  // One model: the words and the filters (typed operators on top of the applied
+  // ones, field by field) are what the chips, the form, the pager and the API see.
+  const resolved = useMemo(() => resolveGlobalSearchQuery(surface, query, filters), [filters, query, surface]);
+  const effectiveFilters = resolved.filters;
+
+  /** Typed filter operators become chips (they replace only their own field); the words stay. */
+  const foldTyped = useCallback(
+    (text: string, base: GlobalSearchFilters) => foldTypedGlobalSearchFilters(surface, text, base),
+    [surface],
+  );
+
+  /**
+   * The only confirmation of a search: the canonical text (filters included)
+   * and the category go to the bar, which saves them and asks the machine for
+   * `?sq=`. The preview per keystroke never gets here.
+   */
+  const confirm = useCallback(
+    (words: string, applied: GlobalSearchFilters) => {
+      const next = resolveGlobalSearchQuery(surface, words, applied);
+      if (!isGlobalSearchRequestReady(surface, next.words, next.filters)) return;
+      rememberGlobalSearchQuery(surface, next.text);
+      const allowed = new Set<GlobalSearchKind>(globalSearchKindsFor(surface));
+      confirmRef.current?.({ query: next.text, kinds: applied.kinds.filter((kind) => allowed.has(kind)) });
+    },
+    [surface],
+  );
 
   // A new query or a chosen hit starts a new search; a plain reopen restores it.
+  // The words typed in the bar never reset the filters (they replace only the
+  // field they name); a recent or saved search brings its own.
   useEffect(() => {
     if (!open || !request || handledRequest.current === request.id) return;
     handledRequest.current = request.id;
-    const nextQuery = normalizeGlobalSearchInput(request.query);
-    if (request.hit) setSelected(request.hit);
-    if (nextQuery && nextQuery !== normalizeGlobalSearchInput(query)) {
-      setQuery(nextQuery);
+    setAdvancedEdit(null);
+
+    if (request.filters === "unavailable") {
+      setQuery("");
       setFilters(EMPTY_GLOBAL_SEARCH_FILTERS);
       setShowFilters(false);
-      if (!request.hit) setSelected(null);
+      setSelected(null);
+      setStateUnavailable(true);
+      return;
     }
-  }, [open, query, request]);
+    setStateUnavailable(false);
+
+    if (request.hit) setSelected(request.hit);
+    const text = request.query.replace(/\s+/g, " ").trim();
+    if (request.filters === "replace") {
+      const folded = foldTyped(text, { ...EMPTY_GLOBAL_SEARCH_FILTERS, kinds: request.kinds ?? [] });
+      setQuery(folded.query);
+      setFilters(folded.filters);
+      setShowFilters(false);
+      if (!request.hit) setSelected(null);
+      if (!request.restored) confirm(folded.query, folded.filters);
+      return;
+    }
+    if (text) {
+      const folded = foldTyped(text, filters);
+      // Reopening with the search already on screen restores it, open record included.
+      const unchanged = folded.query === query && JSON.stringify(folded.filters) === JSON.stringify(filters);
+      setQuery(folded.query);
+      setFilters(folded.filters);
+      if (!request.hit && !unchanged) setSelected(null);
+      confirm(folded.query, folded.filters);
+    }
+  }, [confirm, filters, foldTyped, open, query, request]);
+
+  useEffect(() => {
+    stateChangeRef.current?.({ query, filters });
+  }, [filters, query]);
 
   const kinds = globalSearchKindsFor(surface);
-  const reportFilters = hasGlobalSearchReportFilters(filters);
-  const activeKinds = useMemo<readonly GlobalSearchKind[]>(
-    () => (reportFilters ? ["report"] : filters.kinds.length > 0 ? filters.kinds : kinds),
-    [filters.kinds, kinds, reportFilters],
-  );
+  const reportFilters = hasGlobalSearchReportFilters(effectiveFilters);
+  const typeKinds = resolved.typeKinds;
+  const activeKinds = useMemo<readonly GlobalSearchKind[]>(() => {
+    if (reportFilters) return ["report"];
+    const base = effectiveFilters.kinds.length > 0 ? effectiveFilters.kinds : kinds;
+    // A typed `type:` restricts the entities searched (never widens them). An empty
+    // intersection is left to the server, whose closed 400 explains the conflict.
+    const restricted = typeKinds.length > 0 ? base.filter((kind) => typeKinds.includes(kind)) : base;
+    return restricted.length > 0 ? restricted : base;
+  }, [effectiveFilters.kinds, kinds, reportFilters, typeKinds]);
   const singleKind = activeKinds.length === 1 ? activeKinds[0] : null;
-  const ready = isGlobalSearchQueryReady(query);
+  const ready = isGlobalSearchRequestReady(surface, resolved.words, effectiveFilters);
+  const advancedBase = useMemo(() => readAdvancedFreeText(resolved.words), [resolved.words]);
+  // Words the form cannot express (OR, several phrases, type:, literal terms) are never overwritten.
+  const advancedLocked = advancedBase === null;
+  const advanced = advancedEdit ?? advancedBase ?? EMPTY_GLOBAL_SEARCH_ADVANCED_TEXT;
 
   const [canvasNode, setCanvasNode] = useState<HTMLElement | null>(null);
   const capacity = useDashboardCanvasCapacity({
@@ -283,11 +395,13 @@ export function DashboardGlobalSearchDialog({
 
   const pager = useGlobalSearchPager({
     surface,
+    // Raw state: the pager resolves it once, exactly as the dialog did (resolving the
+    // already-resolved words again would let a contradictory typed operator win silently).
     query,
     filters,
     kinds: activeKinds,
     pageSize,
-    enabled: activated,
+    enabled: activated && !stateUnavailable,
     restorePageIndex: remembered && remembered.pageSize === pageSize ? remembered.pageIndex : 0,
   });
 
@@ -297,8 +411,25 @@ export function DashboardGlobalSearchDialog({
   }, [activated, filters, pageSize, pager.pageIndex, query, selected, surface]);
 
   const updateFilters = (patch: Partial<GlobalSearchFilters>) => {
-    setFilters((current) => ({ ...current, ...patch }));
+    // Editing any filter folds the typed operators into chips first.
+    const folded = foldTyped(query, filters);
+    setQuery(folded.query);
+    setFilters({ ...folded.filters, ...patch });
     setSelected(null);
+    setStateUnavailable(false);
+  };
+
+  /** «Ver resultados»: the form's text fields replace the words only if the person edited them. */
+  const applyFilters = () => {
+    const folded = foldTyped(query, filters);
+    const words = advancedEdit !== null && !advancedLocked ? composeAdvancedFreeText(advancedEdit) : folded.query;
+    setQuery(words);
+    setFilters(folded.filters);
+    setAdvancedEdit(null);
+    setShowFilters(false);
+    setSelected(null);
+    setStateUnavailable(false);
+    confirm(words, folded.filters);
   };
 
   const pageNumber = pager.pageIndex + 1;
@@ -310,13 +441,13 @@ export function DashboardGlobalSearchDialog({
       : pager.status === "error"
         ? pager.error ?? ""
         : pager.status === "ready" && pager.page.length === 0
-          ? `Sin resultados para «${normalizeGlobalSearchInput(query)}».`
+          ? `Sin resultados para «${resolved.text}».`
           : pager.status === "ready"
             ? `${scopeLabel}, página ${pageNumber}: ${pager.page.length} resultados${pager.hasNext ? "; hay más páginas" : ""}.`
             : "";
 
-  const filtersActive = reportFilters || Boolean(filters.clinicId);
-  const filterChips = describeGlobalSearchFilterChips(surface, filters);
+  const filtersActive = reportFilters || Boolean(effectiveFilters.clinicId);
+  const filterChips = describeGlobalSearchFilterChips(surface, effectiveFilters);
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -364,21 +495,29 @@ export function DashboardGlobalSearchDialog({
               placeholder="Paciente, tutor, informe, #id…"
               value={query}
               ref={inputRef}
-              maxLength={80}
+              maxLength={GLOBAL_SEARCH_MAX_QUERY}
               autoComplete="off"
               spellCheck={false}
               data-global-search-dialog-input="true"
               className="md:w-full md:max-w-none"
               onKeyDown={(event) => {
-                // Enter dismisses the virtual keyboard so the pager is reachable.
+                // Enter confirms the search: typed operators fold into chips and the
+                // canonical search goes to the bar. It also dismisses the virtual
+                // keyboard so the pager is reachable.
                 if (event.key === "Enter") {
-                  rememberGlobalSearchQuery(surface, event.currentTarget.value);
+                  const folded = foldTyped(event.currentTarget.value, filters);
+                  setQuery(folded.query);
+                  setFilters(folded.filters);
+                  setStateUnavailable(false);
+                  confirm(folded.query, folded.filters);
                   event.currentTarget.blur();
                 }
               }}
               onValueChange={(value) => {
                 setQuery(value);
                 setSelected(null);
+                setAdvancedEdit(null);
+                setStateUnavailable(false);
               }}
             />
             <div
@@ -390,10 +529,10 @@ export function DashboardGlobalSearchDialog({
               {[null, ...kinds].map((kind) => {
                 const pressed =
                   kind === null
-                    ? filters.kinds.length === 0 && !reportFilters
+                    ? effectiveFilters.kinds.length === 0 && !reportFilters
                     : reportFilters
                       ? kind === "report"
-                      : filters.kinds.length === 1 && filters.kinds[0] === kind;
+                      : effectiveFilters.kinds.length === 1 && effectiveFilters.kinds[0] === kind;
                 return (
                   <button
                     key={kind ?? "all"}
@@ -442,7 +581,7 @@ export function DashboardGlobalSearchDialog({
                     type="button"
                     aria-label={`Quitar filtro ${chip.label}`}
                     data-global-search-applied-filter={chip.key}
-                    onClick={() => updateFilters(clearGlobalSearchFilter(filters, chip.key))}
+                    onClick={() => updateFilters(clearGlobalSearchFilter(effectiveFilters, chip.key))}
                     className="inline-flex min-h-11 max-w-full items-center gap-1.5 rounded-full border border-primary bg-accent/60 px-3 text-sm font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85"
                   >
                     <span className="truncate">{chip.label}</span>
@@ -452,7 +591,7 @@ export function DashboardGlobalSearchDialog({
                 <button
                   type="button"
                   data-global-search-clear-filters="true"
-                  onClick={() => updateFilters({ ...EMPTY_GLOBAL_SEARCH_FILTERS, kinds: filters.kinds })}
+                  onClick={() => updateFilters({ ...EMPTY_GLOBAL_SEARCH_FILTERS, kinds: effectiveFilters.kinds })}
                   className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85"
                 >
                   Borrar filtros
@@ -467,6 +606,11 @@ export function DashboardGlobalSearchDialog({
             >
               {announcement}
             </p>
+            {resolved.truncated ? (
+              <p role="alert" data-global-search-truncated="true" className="text-xs text-muted-foreground">
+                La búsqueda es demasiado larga: se omitieron las últimas palabras para conservar los filtros.
+              </p>
+            ) : null}
           </div>
 
           <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">
@@ -484,7 +628,7 @@ export function DashboardGlobalSearchDialog({
                       Estado del informe
                       <select
                         className={fieldClass}
-                        value={filters.status}
+                        value={effectiveFilters.status}
                         data-global-search-filter="status"
                         onChange={(event) => updateFilters({ status: event.target.value as GlobalSearchReportStatus | "" })}
                       >
@@ -498,7 +642,7 @@ export function DashboardGlobalSearchDialog({
                       Tipo de estudio
                       <select
                         className={fieldClass}
-                        value={filters.studyType}
+                        value={effectiveFilters.studyType}
                         data-global-search-filter="studyType"
                         onChange={(event) => updateFilters({ studyType: event.target.value })}
                       >
@@ -513,8 +657,8 @@ export function DashboardGlobalSearchDialog({
                       <input
                         type="date"
                         className={fieldClass}
-                        value={filters.from}
-                        max={filters.to || undefined}
+                        value={effectiveFilters.from}
+                        max={effectiveFilters.to || undefined}
                         data-global-search-filter="from"
                         onChange={(event) => updateFilters({ from: event.target.value })}
                       />
@@ -524,8 +668,8 @@ export function DashboardGlobalSearchDialog({
                       <input
                         type="date"
                         className={fieldClass}
-                        value={filters.to}
-                        min={filters.from || undefined}
+                        value={effectiveFilters.to}
+                        min={effectiveFilters.from || undefined}
                         data-global-search-filter="to"
                         onChange={(event) => updateFilters({ to: event.target.value })}
                       />
@@ -538,13 +682,76 @@ export function DashboardGlobalSearchDialog({
                           inputMode="numeric"
                           pattern="[0-9]*"
                           className={fieldClass}
-                          value={filters.clinicId}
+                          value={effectiveFilters.clinicId}
                           data-global-search-filter="clinicId"
                           onChange={(event) => updateFilters({ clinicId: event.target.value.replace(/\D/g, "").slice(0, 9) })}
                         />
                       </label>
                     ) : null}
                   </div>
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-[repeat(auto-fit,minmax(12rem,1fr))]">
+                    <label className="flex min-w-0 flex-col gap-1 text-xs text-muted-foreground">
+                      Contiene las palabras
+                      <input
+                        type="text"
+                        className={fieldClass}
+                        value={advanced.contains}
+                        disabled={advancedLocked}
+                        autoComplete="off"
+                        spellCheck={false}
+                        data-global-search-advanced="contains"
+                        onChange={(event) => setAdvancedEdit({ ...advanced, contains: event.target.value })}
+                      />
+                    </label>
+                    <label className="flex min-w-0 flex-col gap-1 text-xs text-muted-foreground">
+                      Frase exacta
+                      <input
+                        type="text"
+                        className={fieldClass}
+                        value={advanced.exact}
+                        disabled={advancedLocked}
+                        autoComplete="off"
+                        spellCheck={false}
+                        data-global-search-advanced="exact"
+                        onChange={(event) => setAdvancedEdit({ ...advanced, exact: event.target.value })}
+                      />
+                    </label>
+                    <label className="flex min-w-0 flex-col gap-1 text-xs text-muted-foreground">
+                      Sólo en el título o nombre
+                      <input
+                        type="text"
+                        className={fieldClass}
+                        value={advanced.title}
+                        disabled={advancedLocked}
+                        autoComplete="off"
+                        spellCheck={false}
+                        data-global-search-advanced="title"
+                        onChange={(event) => setAdvancedEdit({ ...advanced, title: event.target.value })}
+                      />
+                    </label>
+                    <label className="flex min-w-0 flex-col gap-1 text-xs text-muted-foreground">
+                      Tipo de registro
+                      <select
+                        className={fieldClass}
+                        value={reportFilters ? "report" : effectiveFilters.kinds.length === 1 ? effectiveFilters.kinds[0] : ""}
+                        disabled={reportFilters}
+                        data-global-search-advanced="kind"
+                        onChange={(event) =>
+                          updateFilters({ kinds: event.target.value ? [event.target.value as GlobalSearchKind] : [] })
+                        }
+                      >
+                        <option value="">Todos</option>
+                        {kinds.map((kind) => (
+                          <option key={kind} value={kind}>{globalSearchKindLabel(kind)}</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  {advancedLocked ? (
+                    <p className="text-xs text-muted-foreground" data-global-search-advanced-locked="true">
+                      La consulta tiene alternativas, varias frases u operadores que este formulario no expresa: editala en el campo de búsqueda.
+                    </p>
+                  ) : null}
                   <p className="text-xs text-muted-foreground">
                     Los filtros de estado, tipo de estudio y fechas aplican a informes.
                   </p>
@@ -553,7 +760,7 @@ export function DashboardGlobalSearchDialog({
                       type="button"
                       className="min-h-11 flex-1"
                       data-global-search-filters-apply="true"
-                      onClick={() => setShowFilters(false)}
+                      onClick={applyFilters}
                     >
                       Ver resultados
                     </Button>
@@ -561,7 +768,7 @@ export function DashboardGlobalSearchDialog({
                       type="button"
                       variant="outline"
                       className="min-h-11 flex-1"
-                      onClick={() => updateFilters({ ...EMPTY_GLOBAL_SEARCH_FILTERS, kinds: filters.kinds })}
+                      onClick={() => updateFilters({ ...EMPTY_GLOBAL_SEARCH_FILTERS, kinds: effectiveFilters.kinds })}
                     >
                       Limpiar filtros
                     </Button>
@@ -606,15 +813,20 @@ export function DashboardGlobalSearchDialog({
                     ) : null}
                     {ready && pager.status === "ready" && pager.page.length === 0 ? (
                       <div className="p-3 text-sm text-muted-foreground" data-global-search-empty="true">
-                        <p>{`Sin resultados para «${normalizeGlobalSearchInput(query)}».`}</p>
+                        <p>{`Sin resultados para «${resolved.text}».`}</p>
                         <p className="mt-1">
-                          {filtersActive || filters.kinds.length > 0
+                          {filtersActive || effectiveFilters.kinds.length > 0
                             ? "Probá quitar los filtros o buscar por número de registro (#id)."
                             : "Probá con otro nombre, apellido o número de registro (#id)."}
                         </p>
                       </div>
                     ) : null}
-                    {!ready ? (
+                    {stateUnavailable ? (
+                      <p role="alert" className="p-3 text-sm text-foreground" data-global-search-state-unavailable="true">
+                        {GLOBAL_SEARCH_STATE_UNAVAILABLE_NOTICE}
+                      </p>
+                    ) : null}
+                    {!ready && !stateUnavailable ? (
                       <p className="p-3 text-sm text-muted-foreground">
                         Buscá por paciente, mascota, tutor, archivo o #número. No distingue tildes ni mayúsculas.
                       </p>

@@ -1,8 +1,9 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page, type Route } from "@playwright/test";
 
+import { parseGlobalSearchQuery } from "../../../src/lib/global-search-query";
 import { DARK_GRAY_THEME_MODE, THEME_STORAGE_KEY } from "../../../src/lib/theme";
-import { clearDashboardModuleMemory, suppressNextDevChrome } from "../../helpers/dashboard-geometry-matrix";
+import { clearDashboardModuleMemory, suppressNextDevChrome, waitForRenderQuiescence } from "../../helpers/dashboard-geometry-matrix";
 import { addAppCookies, sessionCookie } from "../../helpers/session";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -248,16 +249,68 @@ type StubOptions = {
 };
 
 const STUB_TYPE_ALIASES = new Set(["informe", "informes", "token", "tokens", "seguimiento", "seguimientos", "clinica", "usuario", "usuarios"]);
+const STUB_FILTER_OPERATORS: Readonly<Record<string, "status" | "study" | "after" | "before" | "clinic">> = {
+  status: "status",
+  estado: "status",
+  study: "study",
+  estudio: "study",
+  after: "after",
+  before: "before",
+  clinic: "clinic",
+  clinica: "clinic",
+};
+const STUB_REPORT_STATUSES = ["uploaded", "processing", "ready", "delivered"];
+
+function stubFilterError(operator: "status" | "study" | "after" | "before" | "clinic", value: string): string | null {
+  switch (operator) {
+    case "status":
+      return STUB_REPORT_STATUSES.includes(fold(value)) ? null : "Estado de informe inválido";
+    case "study":
+      return /^[a-z]{3,40}$/.test(fold(value)) ? null : "Tipo de estudio inválido";
+    case "clinic":
+      return /^[1-9]\d{0,8}$/.test(value) ? null : "Clínica de búsqueda inválida";
+    default: {
+      const date = new Date(`${value}T00:00:00.000Z`);
+      return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
+        ? null
+        : "Fecha de búsqueda inválida";
+    }
+  }
+}
 
 /** The syntax rejections of the query language (server/features/global-search), by their exact API messages. */
 function stubSyntaxRejection(q: string): string | null {
-  for (const match of q.matchAll(/(?:^|\s)([A-Za-z]{2,20}):(\S*)/g)) {
+  const seen = new Map<string, string>();
+  for (const match of q.matchAll(/(?:^|\s)([A-Za-z]{2,20}):("[^"]*"|\S*)/g)) {
     const name = match[1].toLowerCase();
-    if (name !== "type" && name !== "title") return `Operador de búsqueda desconocido: ${name}:`;
-    if (name === "type" && match[2] && !STUB_TYPE_ALIASES.has(match[2].toLowerCase())) return "Tipo de búsqueda inválido";
+    const value = match[2].replace(/^"|"$/g, "").trim();
+    if (name === "title") continue;
+    if (name === "type") {
+      if (value && !STUB_TYPE_ALIASES.has(fold(value))) return "Tipo de búsqueda inválido";
+      continue;
+    }
+    const operator = STUB_FILTER_OPERATORS[name];
+    if (!operator) return `Operador de búsqueda desconocido: ${name}:`;
+    if (!value) continue;
+    const error = stubFilterError(operator, value);
+    if (error) return error;
+    const normalized = operator === "status" || operator === "study" ? fold(value) : value;
+    const previous = seen.get(operator);
+    if (previous !== undefined && previous !== normalized) return `Filtros contradictorios: ${name}:`;
+    seen.set(operator, normalized);
   }
-  const words = q.replace(/(?:^|\s)(type|title):\S*/gi, " ").replace(/"/g, " ").split(/\s+/).filter(Boolean);
-  if (!words.some((word) => word !== "OR")) return "La búsqueda requiere al menos un término";
+  const after = seen.get("after");
+  const before = seen.get("before");
+  if (after && before && after > before) return "Rango de fechas inválido";
+  const words = q
+    .replace(/(?:^|\s)(?:type|status|estado|study|estudio|after|before|clinic|clinica):("[^"]*"|\S*)/gi, " ")
+    .replace(/(?:^|\s)title:/gi, " ")
+    .replace(/"/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  const hasOperators = seen.size > 0 || /(?:^|\s)type:\S+/i.test(q);
+  // A query made only of operators is a valid, filter-only search (GLOBAL-SEARCH-DRIVE-A3).
+  if (!words.some((word) => word !== "OR") && !hasOperators) return "La búsqueda requiere al menos un término";
   if (words.filter((word) => word !== "OR").length > 8) return "Demasiados términos de búsqueda";
   if (words.filter((word) => word === "OR").length >= 4) return "Demasiadas alternativas OR en la búsqueda";
   return null;
@@ -325,13 +378,32 @@ async function installSearchStub(page: Page, options: StubOptions = {}): Promise
       return;
     }
     const allowed = surface === "admin" ? ADMIN_KINDS : CLINIC_KINDS;
-    const reportFilters = Boolean(params.status || params.studyType || params.from || params.to);
-    const requestedKinds = (params.kinds ? params.kinds.split(",") : allowed) as Kind[];
+    // GLOBAL-SEARCH-DRIVE-A: the filters travel inside `q` (the legacy parameters are still honoured).
+    const reading = parseGlobalSearchQuery(params.q ?? "", { surface: "admin" }).semantics;
+    const typed = reading?.filters;
+    const statusFilter = typed?.status ?? params.status ?? null;
+    const studyFilter = typed?.studyType ?? params.studyType ?? null;
+    const afterFilter = typed?.after ?? params.from ?? null;
+    const beforeFilter = typed?.before ?? params.to ?? null;
+    const reportFilters = Boolean(statusFilter || studyFilter || afterFilter || beforeFilter);
+    const typeKinds = (reading?.typeKinds ?? null) as Kind[] | null;
+    const requestedKinds = (
+      params.kinds ? params.kinds.split(",") : typeKinds ? typeKinds.filter((kind) => allowed.includes(kind)) : allowed
+    ) as Kind[];
     if (requestedKinds.some((kind) => !allowed.includes(kind))) {
       await respond(400, { success: false, error: "Tipo de busqueda no permitido" });
       return;
     }
+    if (typeKinds && params.kinds && requestedKinds.some((kind) => !typeKinds.includes(kind))) {
+      await respond(400, { success: false, error: "El tipo de búsqueda no está disponible aquí" });
+      return;
+    }
+    if (reportFilters && !requestedKinds.includes("report")) {
+      await respond(400, { success: false, error: "Los filtros de informe requieren incluir informes" });
+      return;
+    }
     const kinds = reportFilters ? (["report"] as Kind[]) : requestedKinds;
+    const clauses = reading?.clauses ?? [[{ text: params.q ?? "", numericId: null, titleOnly: false }]];
     const limit = Number(params.limit ?? 5);
     const offset = Number(params.offset ?? 0);
     // GLOBAL-SEARCH-1 rules: offset pages one kind, up to 500; limit 1..25.
@@ -348,9 +420,17 @@ async function installSearchStub(page: Page, options: StubOptions = {}): Promise
       await respond(400, { success: false, error: "El cursor requiere un único tipo de entidad" });
       return;
     }
-    const needle = fold(params.q ?? "");
-    const numeric = /^#?(\d{1,9})$/.exec(params.q ?? "");
-    const tenant = surface === "clinic" ? CLINIC_A.id : params.clinicId ? Number(params.clinicId) : null;
+    const tenant =
+      surface === "clinic" ? CLINIC_A.id : (typed?.clinicId ?? (params.clinicId ? Number(params.clinicId) : null));
+    const matchesText = (row: Row) =>
+      clauses.length === 0 ||
+      clauses.some((clause) =>
+        clause.every((term) =>
+          term.numericId !== null
+            ? row.id === term.numericId
+            : fold(term.titleOnly ? row.title : `${row.title} ${row.subtitle ?? ""}`).includes(fold(term.text)),
+        ),
+      );
     let after: CursorPosition | null = null;
     if (params.cursor !== undefined) {
       after = params.cursor.length <= 512 ? decodeStubCursor(params.cursor, cursorContext(surface, tenant, params, kinds[0])) : null;
@@ -365,11 +445,11 @@ async function installSearchStub(page: Page, options: StubOptions = {}): Promise
     for (const kind of kinds) {
       const rows = ROWS.filter((row) => row.kind === kind)
         .filter((row) => tenant === null || row.clinicId === tenant)
-        .filter((row) =>
-          numeric ? row.id === Number(numeric[1]) : fold(`${row.title} ${row.subtitle ?? ""}`).includes(needle),
-        )
-        .filter((row) => !params.status || row.status === params.status)
-        .filter((row) => !params.studyType || row.studyType === params.studyType)
+        .filter(matchesText)
+        .filter((row) => !statusFilter || row.status === statusFilter)
+        .filter((row) => !studyFilter || row.studyType === studyFilter)
+        .filter((row) => !afterFilter || row.date.slice(0, 10) >= afterFilter)
+        .filter((row) => !beforeFilter || row.date.slice(0, 10) <= beforeFilter)
         .sort((left, right) => right.date.localeCompare(left.date) || right.id - left.id)
         .filter((row) => !after || row.date < after.date || (row.date === after.date && row.id < after.id));
       const start = after ? 0 : offset;
@@ -714,7 +794,7 @@ test.describe("GLOBAL-SEARCH-2 · Buscar en VETNEB", () => {
 
     await expect
       .poll(() => observed.at(-1)?.params)
-      .toMatchObject({ q: "serie", kinds: "report", status: "ready", studyType: "citologia", from: "2026-09-01" });
+      .toMatchObject({ q: "serie status:ready study:citologia after:2026-09-01", kinds: "report" });
     await expect(dialog.locator('[data-global-search-kind-filter="particular_token"]')).toBeDisabled();
     await expect(dialog.locator('[data-global-search-filters-toggle="true"]')).toHaveText("Filtros activos");
     await dialog.locator('[data-global-search-filters-apply="true"]').click();
@@ -769,7 +849,7 @@ test.describe("GLOBAL-SEARCH-2 · Buscar en VETNEB", () => {
     const dialog = page.locator(DIALOG);
     await dialog.locator('[data-global-search-filters-toggle="true"]').click();
     await dialog.locator('[data-global-search-filter="clinicId"]').fill("78");
-    await expect.poll(() => observed.at(-1)?.params).toMatchObject({ q: "luna", clinicId: "78" });
+    await expect.poll(() => observed.at(-1)?.params).toMatchObject({ q: "luna clinic:78" });
     await dialog.locator('[data-global-search-filters-apply="true"]').click();
     await expect(dialog.locator('[data-global-search-result="report:9201"]')).toBeVisible();
     await expect(dialog.locator('[data-global-search-result="report:9101"]')).toHaveCount(0);
@@ -821,7 +901,7 @@ test.describe("GLOBAL-SEARCH-2 · Buscar en VETNEB", () => {
     const input = await hydratedInput(page);
     const applied = () => {
       const params = observed.at(-1)?.params ?? {};
-      return JSON.stringify({ q: params.q, status: params.status ?? null, from: params.from ?? null });
+      return JSON.stringify({ q: params.q });
     };
 
     await input.fill("luna");
@@ -835,15 +915,15 @@ test.describe("GLOBAL-SEARCH-2 · Buscar en VETNEB", () => {
     const chips = dialog.locator('[data-global-search-applied-filters="true"]');
     await expect(chips.locator('[data-global-search-applied-filter="status"]')).toHaveText("Listo");
     await expect(chips.locator('[data-global-search-applied-filter="from"]')).toHaveText("Desde 01/09/2026");
-    await expect.poll(applied).toBe(JSON.stringify({ q: "luna", status: "ready", from: "2026-09-01" }));
+    await expect.poll(applied).toBe(JSON.stringify({ q: "luna status:ready after:2026-09-01" }));
     await expect(dialog.locator('[data-global-search-pager="true"]')).toBeVisible();
     expect(await documentScroll(page)).toEqual({ vertical: 0, horizontal: 0 });
 
     await chips.getByRole("button", { name: "Quitar filtro Listo" }).click();
-    await expect.poll(applied).toBe(JSON.stringify({ q: "luna", status: null, from: "2026-09-01" }));
+    await expect.poll(applied).toBe(JSON.stringify({ q: "luna after:2026-09-01" }));
     await chips.locator('[data-global-search-clear-filters="true"]').click();
     await expect(chips).toBeHidden();
-    await expect.poll(applied).toBe(JSON.stringify({ q: "luna", status: null, from: null }));
+    await expect.poll(applied).toBe(JSON.stringify({ q: "luna" }));
     await expect(dialog.locator('[data-global-search-dialog-input="true"]')).toHaveValue("luna");
 
     await page.keyboard.press("Escape");
@@ -858,16 +938,19 @@ test.describe("GLOBAL-SEARCH-2 · Buscar en VETNEB", () => {
 
     await input.fill("");
     const recent = page.locator('[data-global-search-recent="true"]');
-    await expect(recent).toHaveText("luna");
+    // Each confirmation is remembered as its canonical text: the filtered search first, then the plain one.
+    await expect(recent).toHaveText(["luna status:ready after:2026-09-01", "luna"]);
     await expect(input).toHaveAttribute("aria-expanded", "true");
     await expect(input).not.toHaveAttribute("aria-activedescendant", /.+/);
     await input.press("Enter");
     await expect(dialog, "Enter on an empty field opens nothing").toBeHidden();
     await input.press("ArrowDown");
-    await expect(recent).toHaveAttribute("aria-selected", "true");
+    await expect(recent.first()).toHaveAttribute("aria-selected", "true");
     await input.press("Enter");
     await expect(dialog).toBeVisible();
     await expect(dialog.locator('[data-global-search-dialog-input="true"]')).toHaveValue("luna");
+    // A recent search brings its own filters back as chips.
+    await expect(dialog.locator('[data-global-search-applied-filter="status"]')).toHaveText("Listo");
   });
 
   test("syntax errors: readable guidance in the bar, no retry loop, text kept, and the search recovers", async ({ page }) => {
@@ -881,7 +964,10 @@ test.describe("GLOBAL-SEARCH-2 · Buscar en VETNEB", () => {
     const rejected: ReadonlyArray<readonly [string, RegExp]> = [
       ["foo:bar", /«foo:» no es un operador/],
       ["type:pdf luna", /Ese tipo no existe\. Probá type:informe, type:token o type:seguimiento\./],
-      ["type:informe", /Agregá una palabra además del operador/],
+      ["status:xyz", /Ese estado no existe/],
+      ["after:2026-02-30", /La fecha no es válida/],
+      ["status:ready status:delivered", /dos valores distintos/],
+      ["after:2026-12-31 before:2026-01-01", /posterior a «Hasta»/],
       ["a1 a2 a3 a4 a5 a6 a7 a8 a9", /demasiados términos/i],
       ["a OR b OR c OR d OR e", /demasiados OR/i],
     ];
@@ -900,7 +986,7 @@ test.describe("GLOBAL-SEARCH-2 · Buscar en VETNEB", () => {
     const sentOnce = requestsFor("foo:bar");
 
     // Queries the language tolerates are not errors.
-    for (const tolerated of ["luna OR", '"luna', "type: luna"]) {
+    for (const tolerated of ["luna OR", '"luna', "type: luna", "type:informe", "status:ready"]) {
       await input.fill(tolerated);
       await expect(page.locator('[data-global-search-status="ready"]'), tolerated).toBeVisible();
       await expect(status, tolerated).not.toHaveAttribute("data-global-search-error-kind", /.+/);
@@ -933,14 +1019,14 @@ test.describe("GLOBAL-SEARCH-2 · Buscar en VETNEB", () => {
     await expect(error.getByRole("button")).toHaveCount(0);
     await expect(dialogInput).toHaveValue("foo:bar");
     await expect(dialog.locator('[data-global-search-applied-filter="status"]'), "valid filters survive").toHaveText("Listo");
-    await expect.poll(() => observed.at(-1)?.params).toMatchObject({ q: "foo:bar", status: "ready", kinds: "report" });
-    const sent = observed.filter((entry) => entry.params.q === "foo:bar").length;
+    await expect.poll(() => observed.at(-1)?.params).toMatchObject({ q: "foo:bar status:ready", kinds: "report" });
+    const sent = observed.filter((entry) => entry.params.q === "foo:bar status:ready").length;
 
     await dialogInput.fill("type:pdf luna");
     await expect(error).toContainText("Ese tipo no existe");
 
     await dialogInput.fill("luna");
-    expect(observed.filter((entry) => entry.params.q === "foo:bar").length, "no request loop").toBe(sent);
+    expect(observed.filter((entry) => entry.params.q === "foo:bar status:ready").length, "no request loop").toBe(sent);
     await expect(error).toHaveCount(0);
     await expect(dialog.locator("[data-global-search-result]").first()).toBeVisible();
     await expect(dialog.locator('[data-global-search-applied-filter="status"]')).toHaveText("Listo");
@@ -1591,4 +1677,689 @@ test.describe("GLOBAL-SEARCH-2 · Buscar en VETNEB", () => {
       expect(await documentScroll(page)).toEqual({ vertical: 0, horizontal: 0 });
     });
   }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GLOBAL-SEARCH-DRIVE-A · canonical query (A1–A6) and recoverable searches (A4).
+//
+// Same rules as above: synthetic data, the API served by `page.route`. The saved
+// searches (`POST /api/(admin/)search/states`, `GET .../states/:id`) are a stub
+// of the server contract of `server/routes/global-search-states.fastify.ts`:
+// bound to the session cookie and the surface, one 404 for missing, malformed,
+// expired, foreign or other-surface ids, an identical text reuses its id, and
+// the URL carries only the id. The real isolation, cascade, cap and expiry are
+// proven against PostgreSQL by the backend suites (C1–C10); this spec proves the
+// UI side: the machine's history, the single confirmation, late answers and the
+// sanitized failures.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const STATE_UNAVAILABLE = "Búsqueda guardada no disponible";
+const STATE_NOTICE = "La búsqueda guardada venció o no está disponible";
+const STATE_ID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+type StateEntry = {
+  readonly surface: "clinic" | "admin";
+  owner: string;
+  readonly q: string;
+  readonly kinds: string | null;
+  expired: boolean;
+};
+
+type StatesStore = {
+  readonly entries: Map<string, StateEntry>;
+  readonly posts: { readonly surface: string; readonly q: string; readonly kinds: string | null }[];
+  readonly gets: string[];
+  /** Every state call answers with this status (a revoked session, a failing store). */
+  failWith: number | null;
+  /** State calls that reached the server stub, answered or not. */
+  attempts: number;
+  expire(id: string): void;
+  /** The state now belongs to another session. */
+  transfer(id: string): void;
+};
+
+function createStatesStore(): StatesStore {
+  const entries = new Map<string, StateEntry>();
+  return {
+    entries,
+    posts: [],
+    gets: [],
+    failWith: null,
+    attempts: 0,
+    expire(id) {
+      const entry = entries.get(id);
+      if (entry) entry.expired = true;
+    },
+    transfer(id) {
+      const entry = entries.get(id);
+      if (entry) entry.owner = "another-session";
+    },
+  };
+}
+
+type StatesStubOptions = {
+  /** Holds the answer of a POST with this exact text until the promise settles. */
+  readonly holdPost?: Readonly<Record<string, Promise<void>>>;
+  /** Called once a POST with this text was answered (or the page aborted it). */
+  readonly onAnswered?: (q: string) => void;
+};
+
+/** Waits until the page has nothing left to render (committed quiet frames): what a late answer would have changed is settled. */
+async function settled(page: Page, label: string) {
+  await waitForRenderQuiescence(page, label, []);
+}
+
+async function installStatesStub(page: Page, store: StatesStore, options: StatesStubOptions = {}) {
+  const clinicCookie = sessionCookie("clinic", "populated");
+  const adminCookie = sessionCookie("admin", "populated");
+
+  await page.route(/\/api\/(admin\/)?search\/states(\/|$)/, async (route: Route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const match = /^\/api\/(admin\/)?search\/states(?:\/([^/]*))?$/.exec(url.pathname);
+    if (!match) {
+      await route.fallback();
+      return;
+    }
+    const surface = match[1] ? "admin" : "clinic";
+    store.attempts += 1;
+    const cookies = ((await request.allHeaders()).cookie ?? "").split(";").map((part) => part.trim());
+    const own = surface === "admin" ? `${adminCookie.name}=${adminCookie.value}` : `${clinicCookie.name}=${clinicCookie.value}`;
+    const respond = async (status: number, body: unknown, hold?: Promise<void>) => {
+      if (hold) await hold;
+      try {
+        await route.fulfill({
+          status,
+          contentType: "application/json",
+          headers: { "cache-control": "no-store" },
+          body: JSON.stringify(body),
+        });
+      } catch {
+        // The page aborted a superseded request: that is the contract under test.
+      }
+    };
+
+    if (store.failWith !== null) {
+      await respond(store.failWith, { success: false, error: "No autenticado" });
+      return;
+    }
+    if (!cookies.includes(own)) {
+      await respond(401, { success: false, error: "No autenticado" });
+      return;
+    }
+
+    if (request.method() === "POST" && match[2] === undefined) {
+      const body = JSON.parse(request.postData() ?? "{}") as { q?: unknown; kinds?: unknown };
+      if (typeof body.q !== "string" || !body.q) {
+        await respond(400, { success: false, error: "Búsqueda guardada inválida" });
+        return;
+      }
+      const kinds = typeof body.kinds === "string" && body.kinds ? body.kinds : null;
+      store.posts.push({ surface, q: body.q, kinds });
+      const hold = options.holdPost?.[body.q];
+      const reused = [...store.entries].find(
+        ([, entry]) => entry.surface === surface && entry.owner === own && entry.q === body.q && entry.kinds === kinds && !entry.expired,
+      );
+      const id = reused?.[0] ?? crypto.randomUUID();
+      if (!reused) store.entries.set(id, { surface, owner: own, q: body.q, kinds, expired: false });
+      await respond(201, { success: true, id }, hold);
+      options.onAnswered?.(body.q);
+      return;
+    }
+
+    if (request.method() === "GET" && match[2] !== undefined) {
+      const id = match[2];
+      store.gets.push(id);
+      const entry = STATE_ID_V4.test(id) ? store.entries.get(id) : undefined;
+      if (!entry || entry.expired || entry.surface !== surface || entry.owner !== own) {
+        await respond(404, { success: false, error: STATE_UNAVAILABLE });
+        return;
+      }
+      await respond(200, { success: true, q: entry.q, kinds: entry.kinds });
+      return;
+    }
+    await route.fallback();
+  });
+}
+
+function sqOf(page: Page): string | null {
+  return new URL(page.url()).searchParams.get("sq");
+}
+
+/** The saved search currently on the URL (waits for it to be a v4 id). */
+async function expectSavedSearchOnUrl(page: Page): Promise<string> {
+  await expect.poll(() => sqOf(page), { timeout: 25_000 }).toMatch(STATE_ID_V4);
+  return sqOf(page) as string;
+}
+
+/** The admin surface normalizes a module-less entry with one replace: wait for it before searching. */
+async function waitForWorkspaceUrl(page: Page, role: "clinic" | "admin") {
+  if (role === "admin") await expect(page).toHaveURL(/\/dashboard\/admin\?module=/, { timeout: 30_000 });
+  else await expect(page).toHaveURL(/\/dashboard(\?|$)/, { timeout: 30_000 });
+}
+
+const DIALOG_INPUT = '[data-global-search-dialog-input="true"]';
+
+/** Opens the dialog from the bar with `query` and waits for results. */
+async function searchFromBar(page: Page, query: string) {
+  const input = await hydratedInput(page);
+  await input.fill(query);
+  await page.locator('[data-global-search-see-all="true"]').click();
+  const dialog = page.locator(DIALOG);
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator("[data-global-search-result]").first()).toBeVisible();
+  return dialog;
+}
+
+async function openSearchWorkspace(page: Page, role: "clinic" | "admin") {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  const observed = await installSearchStub(page);
+  const store = createStatesStore();
+  await installStatesStub(page, store);
+  await openWorkspace(page, role);
+  await waitForWorkspaceUrl(page, role);
+  return { observed, store };
+}
+
+test.describe("GLOBAL-SEARCH-DRIVE-A1–A3 · operators and filter-only searches", () => {
+  test.describe.configure({ timeout: 120_000 });
+
+  test("type:, OR, title: and a filter-only search reach the API as one canonical q", async ({ page }) => {
+    const { observed } = await openSearchWorkspace(page, "clinic");
+
+    // type:informe alone is a search: only reports are asked, never a kind the operator excludes.
+    const dialog = await searchFromBar(page, "type:informe");
+    expect(observed.filter((entry) => entry.params.limit === "25").every((entry) => entry.params.kinds === "report")).toBe(true);
+    const keys = await resultKeys(dialog);
+    expect(keys.length).toBeGreaterThan(0);
+    expect(keys.every((key) => key.startsWith("report:"))).toBe(true);
+
+    const input = dialog.locator(DIALOG_INPUT);
+    await input.fill("title:lunático");
+    await expect(dialog.locator('[data-global-search-result="report:9102"]')).toBeVisible();
+    await expect(dialog.locator('[data-global-search-result="report:9101"]'), "title: matches the title only").toHaveCount(0);
+
+    await input.fill('luna OR "Lunático Gómez"');
+    await expect(dialog.locator('[data-global-search-result="report:9101"]')).toBeVisible();
+    await expect(dialog.locator('[data-global-search-result="report:9102"]')).toBeVisible();
+
+    // No words at all: the status filter alone searches (A3). The tenant stays the session's.
+    await input.fill("");
+    await dialog.locator('[data-global-search-filters-toggle="true"]').click();
+    await dialog.locator('[data-global-search-filter="status"]').selectOption("processing");
+    await dialog.locator('[data-global-search-filters-apply="true"]').click();
+    await expect(dialog.locator('[data-global-search-result="report:9102"]')).toBeVisible();
+    await expect(dialog.locator('[data-global-search-result="report:9101"]')).toHaveCount(0);
+    expect(observed.at(-1)?.params).toMatchObject({ q: "status:processing", kinds: "report" });
+    expect(observed.every((entry) => !("clinicId" in entry.params)), "the filters never travel as parameters").toBe(true);
+    expect(observed.every((entry) => !("status" in entry.params) && !("from" in entry.params))).toBe(true);
+  });
+
+  test("an empty query with no filters still searches nothing", async ({ page }) => {
+    const { observed } = await openSearchWorkspace(page, "clinic");
+    const dialog = await searchFromBar(page, "luna");
+    const before = observed.length;
+    await dialog.locator(DIALOG_INPUT).fill("");
+    await expect(dialog.locator('[data-global-search-dialog-status="idle"]')).toHaveCount(1);
+    await expect(dialog.getByText("Buscá por paciente, mascota, tutor, archivo o #número.")).toBeVisible();
+    await settled(page, "empty query");
+    expect(observed.length, "no request for an empty query").toBe(before);
+  });
+});
+
+test.describe("GLOBAL-SEARCH-DRIVE-A2/A5 · persistent filters and typed operators", () => {
+  test.describe.configure({ timeout: 120_000 });
+
+  test("changing the words keeps the filters; the bar's words never reset them", async ({ page }) => {
+    const { observed } = await openSearchWorkspace(page, "clinic");
+    const dialog = await searchFromBar(page, "serie");
+    await dialog.locator('[data-global-search-filters-toggle="true"]').click();
+    await dialog.locator('[data-global-search-filter="status"]').selectOption("ready");
+    await dialog.locator('[data-global-search-filters-apply="true"]').click();
+    const chips = dialog.locator('[data-global-search-applied-filters="true"]');
+    await expect(chips.locator('[data-global-search-applied-filter="status"]')).toHaveText("Listo");
+
+    // Words changed in the dialog: the chip and the request keep the filter.
+    await dialog.locator(DIALOG_INPUT).fill("luna");
+    await expect.poll(() => observed.at(-1)?.params.q).toBe("luna status:ready");
+    await expect(chips.locator('[data-global-search-applied-filter="status"]')).toBeVisible();
+
+    // Words typed in the bar: the dialog reopens with them over the same filters.
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    const input = await hydratedInput(page);
+    await input.fill("serie");
+    await page.locator('[data-global-search-see-all="true"]').click();
+    await expect(dialog.locator('[data-global-search-applied-filter="status"]')).toHaveText("Listo");
+    await expect(dialog.locator(DIALOG_INPUT)).toHaveValue("serie");
+    await expect.poll(() => observed.at(-1)?.params.q).toBe("serie status:ready");
+
+    // The bar's preview uses the same filters and says so.
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    await input.fill("serie ");
+    await expect(page.locator('[data-global-search-active-filters="true"]')).toHaveText("Filtros activos: Listo");
+    await expect.poll(() => observed.at(-1)?.params.q).toBe("serie status:ready");
+  });
+
+  test("a typed operator becomes a chip on Enter, replaces only its own field and leaves the words", async ({ page }) => {
+    const { observed } = await openSearchWorkspace(page, "clinic");
+    const dialog = await searchFromBar(page, "serie");
+    await dialog.locator('[data-global-search-filters-toggle="true"]').click();
+    await dialog.locator('[data-global-search-filter="studyType"]').selectOption("citologia");
+    await dialog.locator('[data-global-search-filters-apply="true"]').click();
+
+    const input = dialog.locator(DIALOG_INPUT);
+    await input.fill("serie estado:READY after:2026-09-01");
+    await expect.poll(() => observed.at(-1)?.params.q).toBe("serie status:ready study:citologia after:2026-09-01");
+    await input.press("Enter");
+    await expect(input).toHaveValue("serie");
+    const chips = dialog.locator('[data-global-search-applied-filters="true"]');
+    await expect(chips.locator("[data-global-search-applied-filter]")).toHaveText(["Listo", "Citología", "Desde 01/09/2026"]);
+
+    // A new status replaces the chip of that field alone.
+    await input.fill("serie status:delivered");
+    await input.press("Enter");
+    await expect(chips.locator('[data-global-search-applied-filter="status"]')).toHaveText("Entregado");
+    await expect(chips.locator('[data-global-search-applied-filter="studyType"]')).toHaveText("Citología");
+
+    // Removing a chip keeps the words and the others; clearing keeps the words.
+    await chips.getByRole("button", { name: "Quitar filtro Entregado" }).click();
+    await expect.poll(() => observed.at(-1)?.params.q).toBe("serie study:citologia after:2026-09-01");
+    await chips.locator('[data-global-search-clear-filters="true"]').click();
+    await expect.poll(() => observed.at(-1)?.params.q).toBe("serie");
+    await expect(input).toHaveValue("serie");
+  });
+
+  test("an invalid or contradictory operator is answered by the server with readable guidance and keeps the text", async ({ page }) => {
+    await openSearchWorkspace(page, "clinic");
+    const dialog = await searchFromBar(page, "luna");
+    const input = dialog.locator(DIALOG_INPUT);
+    const error = dialog.locator('[data-global-search-error="invalid"]');
+
+    for (const [text, message] of [
+      ["luna status:xyz", /Ese estado no existe/],
+      ["luna after:2026-02-30", /La fecha no es válida/],
+      ["luna after:2026-12-31 before:2026-01-01", /posterior a «Hasta»/],
+      ["luna status:ready status:delivered", /«status:» con dos valores distintos/],
+    ] as const) {
+      await input.fill(text);
+      await expect(error, text).toContainText(message);
+      await expect(error.getByRole("button"), "a rejected query cannot succeed on retry").toHaveCount(0);
+      await expect(input, "the text stays editable").toHaveValue(text);
+    }
+    await input.fill("luna status:ready");
+    await expect(error).toHaveCount(0);
+    await expect(dialog.locator('[data-global-search-result="report:9101"]')).toBeVisible();
+  });
+
+  test("the composed query never exceeds 200 characters and says what it left out", async ({ page }) => {
+    const { observed } = await openSearchWorkspace(page, "clinic");
+    const dialog = await searchFromBar(page, "serie");
+    await dialog.locator('[data-global-search-filters-toggle="true"]').click();
+    await dialog.locator('[data-global-search-filter="status"]').selectOption("ready");
+    await dialog.locator('[data-global-search-filter="studyType"]').selectOption("histopatologia");
+    await dialog.locator('[data-global-search-filter="from"]').fill("2026-01-01");
+    await dialog.locator('[data-global-search-filter="to"]').fill("2026-12-31");
+    await dialog.locator('[data-global-search-filters-apply="true"]').click();
+
+    const longWords = Array.from({ length: 7 }, (_, index) => `palabra${index}${"x".repeat(18)}`).join(" ");
+    await dialog.locator(DIALOG_INPUT).fill(longWords);
+    await expect(dialog.locator('[data-global-search-truncated="true"]')).toContainText("se omitieron las últimas palabras");
+    await expect.poll(() => (observed.at(-1)?.params.q ?? "").length).toBeLessThanOrEqual(200);
+    await expect
+      .poll(() => observed.at(-1)?.params.q)
+      .toMatch(/ status:ready study:histopatologia after:2026-01-01 before:2026-12-31$/);
+  });
+});
+
+test.describe("GLOBAL-SEARCH-DRIVE-A6 · advanced form", () => {
+  test.describe.configure({ timeout: 120_000 });
+
+  test("the form's text fields compose the same query text, quote operator-looking words and never overwrite what they cannot express", async ({ page }) => {
+    const { observed } = await openSearchWorkspace(page, "clinic");
+    const dialog = await searchFromBar(page, "luna");
+    await dialog.locator('[data-global-search-filters-toggle="true"]').click();
+    const contains = dialog.locator('[data-global-search-advanced="contains"]');
+    await expect(contains).toHaveValue("luna");
+
+    await contains.fill("luna status:ready");
+    await dialog.locator('[data-global-search-advanced="exact"]').fill("Pérez");
+    await dialog.locator('[data-global-search-advanced="title"]').fill("lunático");
+    await dialog.locator('[data-global-search-filter="from"]').fill("2026-01-01");
+    // Nothing is composed until the person applies: the words in the field are still «luna».
+    await expect(dialog.locator(DIALOG_INPUT)).toHaveValue("luna");
+    await dialog.locator('[data-global-search-filters-apply="true"]').click();
+
+    await expect(dialog.locator(DIALOG_INPUT)).toHaveValue('luna "status:ready" "Pérez" title:lunático');
+    await expect(dialog.locator('[data-global-search-applied-filter="from"]')).toHaveText("Desde 01/01/2026");
+    await expect
+      .poll(() => observed.at(-1)?.params.q)
+      .toBe('luna "status:ready" "Pérez" title:lunático after:2026-01-01');
+    expect(observed.at(-1)?.params.kinds, "a quoted operator is a word, not a filter").toBe("report");
+
+    // «Tipo de registro» is the category.
+    await dialog.locator('[data-global-search-filters-toggle="true"]').click();
+    await dialog.locator('[data-global-search-filter="from"]').fill("");
+    await dialog.locator('[data-global-search-advanced="kind"]').selectOption("particular_token");
+    await expect(dialog.locator('[data-global-search-kind-filter="particular_token"]')).toHaveAttribute("aria-pressed", "true");
+
+    // OR alternatives are not expressible by the form: it is locked and the query untouched.
+    await dialog.locator('[data-global-search-filters-apply="true"]').click();
+    await dialog.locator(DIALOG_INPUT).fill("luna OR rex");
+    await dialog.locator('[data-global-search-filters-toggle="true"]').click();
+    await expect(dialog.locator('[data-global-search-advanced-locked="true"]')).toBeVisible();
+    await expect(dialog.locator('[data-global-search-advanced="contains"]')).toBeDisabled();
+    await dialog.locator('[data-global-search-filters-apply="true"]').click();
+    await expect(dialog.locator(DIALOG_INPUT)).toHaveValue("luna OR rex");
+  });
+
+  for (const viewport of [
+    { width: 320, height: 640 },
+    { width: 390, height: 844 },
+    { width: 768, height: 1024 },
+    { width: 1024, height: 768 },
+    { width: 1920, height: 1080 },
+  ] as const) {
+    test(`the form at ${viewport.width}x${viewport.height} fits: no horizontal overflow, fields inside the dialog, no document scroll`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await installSearchStub(page);
+      await installStatesStub(page, createStatesStore());
+      await openWorkspace(page, "admin");
+      await waitForWorkspaceUrl(page, "admin");
+      const dialog = await openFullSearch(page, "luna");
+      await dialog.locator('[data-global-search-filters-toggle="true"]').click();
+      const panel = dialog.locator('[data-global-search-filters-panel="true"]');
+      await expect(panel).toBeVisible();
+
+      const geometry = await dialog.evaluate((node) => {
+        const box = node.getBoundingClientRect();
+        const fields = [...node.querySelectorAll<HTMLElement>("[data-global-search-advanced], [data-global-search-filter]")];
+        return {
+          overflowX: node.scrollWidth - node.clientWidth,
+          fields: fields.length,
+          outside: fields.filter((field) => {
+            const rect = field.getBoundingClientRect();
+            return rect.left < box.left - 0.5 || rect.right > box.right + 0.5;
+          }).length,
+          minHeight: Math.min(...fields.map((field) => field.getBoundingClientRect().height)),
+        };
+      });
+      expect(geometry.fields, "four advanced fields and five filters (admin)").toBe(9);
+      expect(geometry.overflowX).toBeLessThanOrEqual(0);
+      expect(geometry.outside, "every field stays inside the dialog").toBe(0);
+      expect(geometry.minHeight, "touch target").toBeGreaterThanOrEqual(44);
+      expect(await documentScroll(page)).toEqual({ vertical: 0, horizontal: 0 });
+      await expectNoSeriousAxe(page, DIALOG, `advanced form ${viewport.width}`);
+    });
+  }
+});
+
+for (const role of ["clinic", "admin"] as const) {
+  test.describe(`GLOBAL-SEARCH-DRIVE-A4 · recoverable searches (${role})`, () => {
+    test.describe.configure({ timeout: 150_000 });
+
+    test("A → B → Back → Forward, reload and a repeated Enter: the URL carries only an opaque id", async ({ page }) => {
+      const { observed, store } = await openSearchWorkspace(page, role);
+      const dialog = await searchFromBar(page, "serie");
+      const idA = await expectSavedSearchOnUrl(page);
+      expect(page.url(), "the query never travels in the URL").not.toMatch(/serie/i);
+      expect(store.entries.get(idA)).toMatchObject({ surface: role, q: "serie" });
+
+      const input = dialog.locator(DIALOG_INPUT);
+      await input.fill("luna");
+      await input.press("Enter");
+      await expect.poll(() => sqOf(page)).not.toBe(idA);
+      const idB = await expectSavedSearchOnUrl(page);
+      await expect(dialog.locator('[data-global-search-result="report:9101"]')).toBeVisible();
+      expect(store.posts.map((post) => post.q)).toEqual(["serie", "luna"]);
+
+      // The same search again adds neither a save nor a history entry.
+      const depth = await page.evaluate(() => window.history.length);
+      await input.focus();
+      await input.press("Enter");
+      await expect(input, "Enter was handled (it dismisses the keyboard)").not.toBeFocused();
+      await settled(page, "repeated Enter");
+      expect(store.posts.length, "no second save for the same text").toBe(2);
+      expect(await page.evaluate(() => window.history.length), "no new history entry").toBe(depth);
+
+      await page.goBack();
+      await expect.poll(() => sqOf(page), { timeout: 25_000 }).toBe(idA);
+      await expect(dialog).toBeVisible();
+      await expect(input).toHaveValue("serie");
+      await expect(dialog.locator("[data-global-search-result]").first()).toBeVisible();
+      await expect.poll(() => observed.at(-1)?.params.q).toBe("serie");
+
+      await page.goForward();
+      await expect.poll(() => sqOf(page), { timeout: 25_000 }).toBe(idB);
+      await expect(input).toHaveValue("luna");
+      await expect(dialog.locator('[data-global-search-result="report:9101"]')).toBeVisible();
+
+      await page.reload();
+      await expect(dialog).toBeVisible({ timeout: 30_000 });
+      await expect(input).toHaveValue("luna");
+      await expect(dialog.locator('[data-global-search-result="report:9101"]')).toBeVisible();
+      expect(sqOf(page)).toBe(idB);
+    });
+
+    test("filters and category are restored with the search, and Back after closing reopens it", async ({ page }) => {
+      const { store } = await openSearchWorkspace(page, role);
+      const dialog = await searchFromBar(page, "serie");
+      await dialog.locator('[data-global-search-filters-toggle="true"]').click();
+      await dialog.locator('[data-global-search-filter="status"]').selectOption("ready");
+      await dialog.locator('[data-global-search-filters-apply="true"]').click();
+      await expect.poll(() => store.posts.map((post) => post.q).at(-1)).toBe("serie status:ready");
+      await expect.poll(() => store.entries.get(sqOf(page) ?? "")?.q).toBe("serie status:ready");
+      const id = await expectSavedSearchOnUrl(page);
+      expect(store.entries.get(id)).toMatchObject({ q: "serie status:ready", kinds: null });
+
+      await page.reload();
+      await expect(dialog).toBeVisible({ timeout: 30_000 });
+      await expect(dialog.locator(DIALOG_INPUT)).toHaveValue("serie");
+      await expect(dialog.locator('[data-global-search-applied-filter="status"]')).toHaveText("Listo");
+
+      // Closing selects the same location without its id: one entry, Back returns to the search.
+      await page.keyboard.press("Escape");
+      await expect(dialog).toBeHidden();
+      await expect.poll(() => sqOf(page)).toBeNull();
+      await page.goBack();
+      await expect.poll(() => sqOf(page), { timeout: 25_000 }).toBe(id);
+      await expect(dialog).toBeVisible();
+      await expect(dialog.locator('[data-global-search-applied-filter="status"]')).toHaveText("Listo");
+      await page.goForward();
+      await expect(dialog).toBeHidden();
+      await expect.poll(() => sqOf(page)).toBeNull();
+    });
+
+    test("opening a record and coming back (Back) reopens the search with its results", async ({ page }) => {
+      await openSearchWorkspace(page, role);
+      const dialog = await searchFromBar(page, "luna");
+      const id = await expectSavedSearchOnUrl(page);
+      await dialog.locator('[data-global-search-result="report:9101"]').click();
+      await dialog.locator('[data-global-search-open-module="true"]').click();
+      await expect(dialog).toBeHidden();
+      await expect(page).toHaveURL(/reportId=9101/, { timeout: 25_000 });
+      expect(sqOf(page), "the record's URL is the record's").toBeNull();
+
+      await page.goBack();
+      await expect.poll(() => sqOf(page), { timeout: 25_000 }).toBe(id);
+      await expect(dialog).toBeVisible({ timeout: 25_000 });
+      await expect(dialog.locator(DIALOG_INPUT)).toHaveValue("luna");
+      await expect(dialog.locator('[data-global-search-result="report:9101"]')).toBeVisible();
+    });
+
+    test("a link in another tab of the same session opens the same search", async ({ page, context }) => {
+      const { store } = await openSearchWorkspace(page, role);
+      await searchFromBar(page, "luna");
+      await expectSavedSearchOnUrl(page);
+      const url = page.url();
+
+      const other = await context.newPage();
+      await other.setViewportSize({ width: 1366, height: 768 });
+      await installSearchStub(other);
+      await installStatesStub(other, store);
+      await suppressNextDevChrome(other);
+      await other.goto(url);
+      const dialog = other.locator(DIALOG);
+      await expect(dialog).toBeVisible({ timeout: 30_000 });
+      await expect(dialog.locator(DIALOG_INPUT)).toHaveValue("luna");
+      await expect(dialog.locator('[data-global-search-result="report:9101"]')).toBeVisible();
+      await other.close();
+    });
+
+    test("another session, a missing id, an expired id and a malformed id never run a search", async ({ page }) => {
+      const { observed, store } = await openSearchWorkspace(page, role);
+      await searchFromBar(page, "luna");
+      const id = await expectSavedSearchOnUrl(page);
+      const dialog = page.locator(DIALOG);
+      const base = page.url().split("?")[0];
+      const withModule = (extra: string) => {
+        const current = new URL(page.url());
+        current.searchParams.set("sq", extra);
+        return current.toString();
+      };
+
+      // Another session's id: the same notice as a missing one, and nothing is searched.
+      store.transfer(id);
+      const searched = observed.length;
+      await page.reload();
+      await expect(dialog).toBeVisible({ timeout: 30_000 });
+      await expect(dialog.locator('[data-global-search-state-unavailable="true"]')).toHaveText(STATE_NOTICE);
+      await expect(dialog.locator(DIALOG_INPUT)).toHaveValue("");
+      await expect(dialog.locator("[data-global-search-result]")).toHaveCount(0);
+      await settled(page, "unavailable search");
+      expect(observed.length, "an unavailable search runs no search").toBe(searched);
+      await expect(page.locator("body")).not.toContainText(/No autenticado|Búsqueda guardada no disponible|HTTP 404/);
+
+      // An id that was never issued.
+      await page.goto(withModule("00000000-0000-4000-8000-000000000000"));
+      await expect(dialog.locator('[data-global-search-state-unavailable="true"]')).toBeVisible({ timeout: 30_000 });
+
+      // An expired id (the server hides it before it deletes it).
+      await page.goto(base);
+      await waitForWorkspaceUrl(page, role);
+      await searchFromBar(page, "serie");
+      const fresh = await expectSavedSearchOnUrl(page);
+      store.expire(fresh);
+      await page.reload();
+      await expect(dialog.locator('[data-global-search-state-unavailable="true"]')).toBeVisible({ timeout: 30_000 });
+
+      // A malformed id is not an id: it is dropped before any request.
+      const reads = store.gets.length;
+      await page.goto(withModule("luna perez"));
+      await expect(page.locator(DIALOG)).toHaveCount(0);
+      await hydratedInput(page);
+      await settled(page, "malformed id");
+      expect(store.gets.length, "a malformed id is never read").toBe(reads);
+    });
+
+    test("a late save never navigates: not after a newer confirmation, not after the dialog closed", async ({ page }) => {
+      const store = createStatesStore();
+      let releaseSlow: () => void = () => undefined;
+      const slow = new Promise<void>((resolve) => {
+        releaseSlow = resolve;
+      });
+      let releaseClosed: () => void = () => undefined;
+      const closed = new Promise<void>((resolve) => {
+        releaseClosed = resolve;
+      });
+      const answered = new Map<string, () => void>();
+      const answeredPromise = (q: string) =>
+        new Promise<void>((resolve) => {
+          answered.set(q, resolve);
+        });
+      const slowAnswered = answeredPromise("serie");
+      const closedAnswered = answeredPromise("serie status:ready");
+      await page.setViewportSize({ width: 1366, height: 768 });
+      await installSearchStub(page);
+      await installStatesStub(page, store, {
+        holdPost: { serie: slow, "serie status:ready": closed },
+        onAnswered: (q) => answered.get(q)?.(),
+      });
+      await openWorkspace(page, role);
+      await waitForWorkspaceUrl(page, role);
+
+      // «serie» is held; «luna» overtakes it.
+      const dialog = await searchFromBar(page, "serie");
+      expect(sqOf(page)).toBeNull();
+      const input = dialog.locator(DIALOG_INPUT);
+      await input.fill("luna");
+      await input.press("Enter");
+      const idLuna = await expectSavedSearchOnUrl(page);
+      releaseSlow();
+      await slowAnswered;
+      await settled(page, "late answer of an overtaken save");
+      expect(sqOf(page), "the late answer of an overtaken confirmation does not navigate").toBe(idLuna);
+      await expect(input).toHaveValue("luna");
+
+      // «serie status:ready» is held and the dialog closes before it lands.
+      await input.fill("serie");
+      await dialog.locator('[data-global-search-filters-toggle="true"]').click();
+      await dialog.locator('[data-global-search-filter="status"]').selectOption("ready");
+      await dialog.locator('[data-global-search-filters-apply="true"]').click();
+      await expect.poll(() => store.posts.map((post) => post.q).at(-1)).toBe("serie status:ready");
+      await page.keyboard.press("Escape");
+      await expect(dialog).toBeHidden();
+      await expect.poll(() => sqOf(page)).toBeNull();
+      releaseClosed();
+      await closedAnswered;
+      await settled(page, "late answer after close");
+      expect(sqOf(page), "a save that lands after the dialog closed does not reopen the URL").toBeNull();
+      await expect(dialog).toBeHidden();
+    });
+
+    test("a revoked session or a failed save leaves the search working without an id, with sanitized errors", async ({ page }) => {
+      const { store } = await openSearchWorkspace(page, role);
+      // A revoked clinic session answers 401; the admin 401 belongs to the shell's global access-error
+      // handling (not this feature), so the admin variant exercises a failing store instead.
+      store.failWith = role === "clinic" ? 401 : 500;
+      const dialog = await searchFromBar(page, "luna");
+      await expect.poll(() => store.attempts, { message: "the save was attempted" }).toBeGreaterThan(0);
+      await settled(page, "failed save");
+      expect(sqOf(page), "no id without a save").toBeNull();
+      await expect(dialog.locator('[data-global-search-result="report:9101"]'), "the search itself still works").toBeVisible();
+      await expect(dialog).not.toContainText(/No autenticado|401|Error/);
+
+      // Reading with a revoked session shows the closed notice, never the server's words.
+      await page.goto(`${page.url().split("?")[0]}?sq=3b0f6a52-8f4e-4c1d-9a77-0a1b2c3d4e5f${role === "admin" ? "&module=admin-clinics" : ""}`);
+      await expect(page.locator(DIALOG).locator('[data-global-search-state-unavailable="true"]')).toHaveText(STATE_NOTICE, { timeout: 30_000 });
+      await expect(page.locator("body")).not.toContainText(/No autenticado|HTTP 401/);
+    });
+  });
+}
+
+test.describe("GLOBAL-SEARCH-DRIVE-A4 · surfaces", () => {
+  test.describe.configure({ timeout: 150_000 });
+
+  test("a clinic id on the admin surface, and an id on a module-less admin entry, open nothing", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    const observed = await installSearchStub(page);
+    const store = createStatesStore();
+    await installStatesStub(page, store);
+    await suppressNextDevChrome(page);
+    await clearDashboardModuleMemory(page);
+    await addAppCookies(page, [sessionCookie("clinic", "populated"), sessionCookie("admin", "populated")]);
+    await page.goto("/dashboard");
+    await waitForWorkspaceUrl(page, "clinic");
+    await searchFromBar(page, "luna");
+    const clinicId = await expectSavedSearchOnUrl(page);
+    expect(store.entries.get(clinicId)?.surface).toBe("clinic");
+
+    // The other surface cannot read it: the same unavailable notice, no search.
+    const searched = observed.length;
+    await page.goto(`/dashboard/admin?module=admin-clinics&sq=${clinicId}`);
+    const dialog = page.locator(DIALOG);
+    await expect(dialog.locator('[data-global-search-state-unavailable="true"]')).toBeVisible({ timeout: 30_000 });
+    await expect(dialog.locator(DIALOG_INPUT)).toHaveValue("");
+    expect(observed.length, "no search on a foreign-surface id").toBe(searched);
+
+    // Admin without a module: the entry normalizes to a module and drops the id.
+    const reads = store.gets.length;
+    await page.goto(`/dashboard/admin?sq=${clinicId}`);
+    await expect(page).toHaveURL(/\/dashboard\/admin\?module=/, { timeout: 30_000 });
+    expect(sqOf(page), "an id with no module is another surface's and is dropped").toBeNull();
+    await hydratedInput(page);
+    await settled(page, "module-less admin entry");
+    expect(store.gets.length, "nothing was read for it").toBe(reads);
+  });
 });

@@ -1,4 +1,8 @@
 import {
+  createMemoryRateLimitStore,
+  type RateLimitStore,
+} from "../../server/lib/rate-limit-store.ts";
+import {
   buildPublicProfessionalFixtureRow,
   clonePublicProfessionalFixtureRow,
   type PublicProfessionalFixtureRow,
@@ -19,6 +23,8 @@ export type PublicProfessionalsRouteFixtureStubs = {
   searchRateLimitMaxAttempts: number;
   detailRateLimitWindowMs: number;
   detailRateLimitMaxAttempts: number;
+  searchRateLimitStore: RateLimitStore;
+  detailRateLimitStore: RateLimitStore;
   now: () => number;
 };
 
@@ -64,6 +70,8 @@ export function buildPublicProfessionalsRouteFixtureStubs(
     searchRateLimitMaxAttempts: options.searchRateLimitMaxAttempts ?? 1,
     detailRateLimitWindowMs: options.detailRateLimitWindowMs ?? 60_000,
     detailRateLimitMaxAttempts: options.detailRateLimitMaxAttempts ?? 1,
+    searchRateLimitStore: createMemoryRateLimitStore(),
+    detailRateLimitStore: createMemoryRateLimitStore(),
     now: options.now ?? (() => 10_000),
   };
 }

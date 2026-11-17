@@ -13,7 +13,7 @@ import type { GlobalSearchChunkRequest } from "../../../../frontend/src/lib/glob
 const LIB_DIR = resolve(import.meta.dirname, "../../../../frontend/src/lib");
 const PAGER_URL = pathToFileURL(resolve(LIB_DIR, "global-search-pager.ts")).href;
 const SEARCH_URL = pathToFileURL(resolve(LIB_DIR, "global-search.ts")).href;
-const SIBLINGS = new Set(["./routes", "./study-types", "./global-search"]);
+const SIBLINGS = new Set(["./routes", "./study-types", "./global-search", "./global-search-query"]);
 
 // The frontend imports its siblings without an extension (the Next.js idiom the
 // type-stripping loader cannot resolve). The fallback is limited to these two

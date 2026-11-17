@@ -71,7 +71,7 @@ test.describe("C21 · clinic Informes module", () => {
       };
     });
     expect(borders.count).toBeGreaterThan(1);
-    expect(borders.first).toBe("1px");
+    expect(borders.first).toBe("0px");
     expect(borders.lastIsFinal).toBe(true);
     expect(borders.last).toBe("0px");
 

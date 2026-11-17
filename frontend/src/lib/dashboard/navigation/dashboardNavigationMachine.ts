@@ -22,11 +22,18 @@
 
 export type Surface = "admin" | "clinic";
 
+/**
+ * `search` (GLOBAL-SEARCH-DRIVE-A4) is the opaque id of a saved search (`?sq=`),
+ * a coordinate of the location like `module`: two locations that differ only in
+ * it are two entries of the history. The machine never reads its value; the
+ * adapter (`searchNavigation.ts`) alone validates and writes it. Absent when
+ * there is none (never `undefined`-valued), so locations without it keep their shape.
+ */
 export type NavLocation =
   | { readonly kind: "none" }
-  | { readonly kind: "module"; readonly module: string }
-  | { readonly kind: "hub" }
-  | { readonly kind: "route"; readonly path: string; readonly module: string };
+  | { readonly kind: "module"; readonly module: string; readonly search?: string }
+  | { readonly kind: "hub"; readonly search?: string }
+  | { readonly kind: "route"; readonly path: string; readonly module: string; readonly search?: string };
 
 export type MachineConfig = {
   readonly surface: Surface;
@@ -77,9 +84,9 @@ export type NavEvent =
       readonly explicit: boolean;
       readonly storedModule: string | null;
     }
-  | { readonly type: "SELECT_MODULE"; readonly module: string }
-  | { readonly type: "SELECT_HUB" }
-  | { readonly type: "OPEN_ROUTE"; readonly path: string; readonly module: string }
+  | { readonly type: "SELECT_MODULE"; readonly module: string; readonly search?: string }
+  | { readonly type: "SELECT_HUB"; readonly search?: string }
+  | { readonly type: "OPEN_ROUTE"; readonly path: string; readonly module: string; readonly search?: string }
   | { readonly type: "URL_COMMITTED"; readonly location: NavLocation }
   | { readonly type: "TRAVERSE_STARTED"; readonly destination: NavLocation }
   | { readonly type: "BUDGET_EXPIRED"; readonly navId: number }
@@ -110,7 +117,16 @@ const PUBLISH_DISPLAY: NavEffect = { type: "PUBLISH_DISPLAY" };
 
 // ── Normative helpers (§12.4) ────────────────────────────────────────────────
 
+function searchOf(location: NavLocation): string | null {
+  return location.kind === "none" ? null : (location.search ?? null);
+}
+
+function withSearch<T extends NavLocation>(location: T, search: string | undefined): T {
+  return typeof search === "string" && search !== "" ? { ...location, search } : location;
+}
+
 function same(a: NavLocation, b: NavLocation): boolean {
+  if (searchOf(a) !== searchOf(b)) return false;
   if (a.kind === "module") return b.kind === "module" && a.module === b.module;
   if (a.kind === "route") return b.kind === "route" && a.module === b.module && a.path === b.path;
   return a.kind === b.kind;
@@ -123,12 +139,14 @@ function valid(config: MachineConfig, moduleId: string | null): moduleId is stri
 function targetOf(config: MachineConfig, event: SelectEvent): NavLocation | null {
   switch (event.type) {
     case "SELECT_MODULE":
-      return valid(config, event.module) ? { kind: "module", module: event.module } : null;
+      return valid(config, event.module)
+        ? withSearch({ kind: "module", module: event.module }, event.search)
+        : null;
     case "SELECT_HUB":
-      return config.surface === "clinic" ? { kind: "hub" } : null;
+      return config.surface === "clinic" ? withSearch({ kind: "hub" }, event.search) : null;
     case "OPEN_ROUTE":
       return config.surface === "clinic" && valid(config, event.module)
-        ? { kind: "route", path: event.path, module: event.module }
+        ? withSearch({ kind: "route", path: event.path, module: event.module }, event.search)
         : null;
   }
 }

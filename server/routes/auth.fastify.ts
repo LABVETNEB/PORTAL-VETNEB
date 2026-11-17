@@ -15,18 +15,20 @@ import { ENV } from "../lib/env.ts";
 import {
   buildLoginRateLimitResponse,
   buildLoginRateLimitHeaders,
+  buildLoginRateLimitUnavailableResponse,
+  applyLoginIdentifierCeiling,
   buildLoginRateLimitKey,
   buildMissingCredentialsLoginRateLimitKey,
   getLoginRateLimitKeyMetadata,
   LOGIN_RATE_LIMIT_EXPOSED_HEADERS,
   LOGIN_RATE_LIMIT_MAX_ATTEMPTS,
+  LOGIN_RATE_LIMIT_UNAVAILABLE_RETRY_SECONDS,
   LOGIN_RATE_LIMIT_WINDOW_MS,
 } from "../lib/login-rate-limit.ts";
 import {
   createMemoryRateLimitStore,
   createPersistentRateLimitStore,
   consumeRateLimitAttempt,
-  getOrCreateRateLimitEntry,
   type RateLimitEntry,
   type RateLimitStore,
 } from "../lib/rate-limit-store.ts";
@@ -35,6 +37,7 @@ import {
   normalizeClinicUserRole,
 } from "../lib/permissions.ts";
 import { logRequestCompletion } from "../middlewares/request-logger.ts";
+import { logError, logWarn, serializeError } from "../lib/logger.ts";
 import {
   createRuntimeTimer,
   type RuntimeTimer,
@@ -193,6 +196,11 @@ type AuthNativeRoutesFields = {
     authProId: string | null;
     role: ReturnType<typeof normalizeClinicUserRole>;
   }) => Promise<unknown>;
+  changeClinicUserPasswordAndRevokeOtherSessions?: (input: {
+    clinicUserId: number;
+    passwordHash: string;
+    keepSessionTokenHash: string;
+  }) => Promise<{ revokedSessionCount: number } | null>;
   generateSessionToken?: () => string;
   hashPassword?: (password: string) => Promise<string>;
   hashSessionToken?: (token: string) => string;
@@ -284,6 +292,7 @@ type NativeAuthDeps = Required<
     | "getClinicUserByIdentifier"
     | "updateSessionLastAccess"
     | "upsertClinicUser"
+    | "changeClinicUserPasswordAndRevokeOtherSessions"
     | "generateSessionToken"
     | "hashPassword"
     | "hashSessionToken"
@@ -326,6 +335,8 @@ async function loadDefaultDeps(): Promise<NativeAuthDefaultDeps> {
         getClinicUserByIdentifier,
         updateSessionLastAccess: db.updateSessionLastAccess,
         upsertClinicUser: db.upsertClinicUser,
+        changeClinicUserPasswordAndRevokeOtherSessions:
+          db.changeClinicUserPasswordAndRevokeOtherSessions,
         generateSessionToken: authSecurity.generateSessionToken,
         hashPassword: authSecurity.hashPassword,
         hashSessionToken: authSecurity.hashSessionToken,
@@ -469,6 +480,12 @@ function setLoginRateLimitHeaders(
   )) {
     reply.header(headerName, headerValue);
   }
+}
+
+function sendLoginRateLimitUnavailable(reply: FastifyReply) {
+  reply.header("Retry-After", String(LOGIN_RATE_LIMIT_UNAVAILABLE_RETRY_SECONDS));
+
+  return reply.code(503).send(buildLoginRateLimitUnavailableResponse());
 }
 
 function isPasswordChangeBody(
@@ -765,6 +782,14 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
       options.updateSessionLastAccess ?? defaultDeps!.updateSessionLastAccess,
     upsertClinicUser:
       options.upsertClinicUser ?? defaultDeps!.upsertClinicUser,
+    changeClinicUserPasswordAndRevokeOtherSessions:
+      options.changeClinicUserPasswordAndRevokeOtherSessions ??
+      defaultDeps?.changeClinicUserPasswordAndRevokeOtherSessions ??
+      (async () => {
+        throw new Error(
+          "changeClinicUserPasswordAndRevokeOtherSessions dependency is required for clinic password change",
+        );
+      }),
     generateSessionToken:
       options.generateSessionToken ?? defaultDeps!.generateSessionToken,
     hashPassword: options.hashPassword ?? defaultDeps!.hashPassword,
@@ -909,15 +934,12 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
           createdAt: new Date(currentTime),
         });
       } catch (error) {
-        request.log.warn(
-          {
-            err: error,
-            code: "AUTH_LOGIN_FAILED_ATTEMPT_RECORD_FAILED",
-            surface: "clinic",
-            reason: input.reason,
-          },
-          "No se pudo persistir intento fallido de login clinic",
-        );
+        logWarn("AUTH_LOGIN_FAILED_ATTEMPT_RECORD_FAILED", {
+          requestId: request.id,
+          surface: "clinic",
+          reason: input.reason,
+          errorName: serializeError(error).name,
+        });
       }
     };
 
@@ -942,14 +964,11 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
           now: currentTime,
         });
       } catch (error) {
-        request.log.error(
-          {
-            err: error,
-            code: "AUTH_LOGIN_MISSING_CREDENTIALS_RATE_LIMIT_FAILED",
-            route: "/api/auth/login",
-          },
-          "No se pudo actualizar el rate limit de credenciales faltantes",
-        );
+        logError("AUTH_LOGIN_MISSING_CREDENTIALS_RATE_LIMIT_FAILED", {
+          requestId: request.id,
+          route: "/api/auth/login",
+          errorName: serializeError(error).name,
+        });
       }
 
       await recordFailedLoginAttempt({
@@ -975,40 +994,40 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
       ipAddress: request.ip || null,
     });
 
-    const failureEntry: RateLimitEntry = {
-      count: 0,
-      resetAt: currentTime + loginRateLimitWindowMs,
-    };
-    let canUseRateLimitStore = true;
+    let chargedEntry: RateLimitEntry;
 
     try {
-      const existingEntry = await getOrCreateRateLimitEntry(
+      chargedEntry = await consumeRateLimitAttempt(
         loginRateLimitStore,
         rateLimitKey,
-        loginRateLimitWindowMs,
-        currentTime,
+        { windowMs: loginRateLimitWindowMs, now: currentTime },
       );
-
-      failureEntry.count = existingEntry.count;
-      failureEntry.resetAt = existingEntry.resetAt;
-    } catch (error) {
-      canUseRateLimitStore = false;
-      request.log.error(
+      chargedEntry = await applyLoginIdentifierCeiling(
+        loginRateLimitStore,
+        chargedEntry,
         {
-          err: error,
-          code: "AUTH_LOGIN_RATE_LIMIT_GET_FAILED",
-          route: "/api/auth/login",
+          identifier: loginIdentifier,
+          windowMs: loginRateLimitWindowMs,
+          now: currentTime,
+          maxAttempts: loginRateLimitMaxAttempts,
         },
-        "No se pudo leer el rate limit de login unificado",
       );
+    } catch (error) {
+      logError("AUTH_LOGIN_RATE_LIMIT_GET_FAILED", {
+        requestId: request.id,
+        route: "/api/auth/login",
+        errorName: serializeError(error).name,
+      });
+
+      return sendLoginRateLimitUnavailable(reply);
     }
 
-    if (canUseRateLimitStore && failureEntry.count >= loginRateLimitMaxAttempts) {
+    if (chargedEntry.count > loginRateLimitMaxAttempts) {
       setLoginRateLimitHeaders(reply, {
         max: loginRateLimitMaxAttempts,
         windowMs: loginRateLimitWindowMs,
-        failedCount: failureEntry.count,
-        resetAt: failureEntry.resetAt,
+        failedCount: chargedEntry.count,
+        resetAt: chargedEntry.resetAt,
         now: currentTime,
         includeRetryAfter: true,
       });
@@ -1020,7 +1039,7 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
 
       return reply.code(429).send(
         buildLoginRateLimitResponse({
-          resetAt: failureEntry.resetAt,
+          resetAt: chargedEntry.resetAt,
           now: currentTime,
         }),
       );
@@ -1030,57 +1049,36 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
       username?: string | null;
       reason: LoginFailedAttemptReason;
     }) => {
-      if (canUseRateLimitStore) {
-        try {
-          const updatedEntry = await consumeRateLimitAttempt(
-            loginRateLimitStore,
-            rateLimitKey,
-            { windowMs: loginRateLimitWindowMs, now: currentTime },
-          );
-
-          failureEntry.count = updatedEntry.count;
-          failureEntry.resetAt = updatedEntry.resetAt;
-
-          setLoginRateLimitHeaders(reply, {
-            max: loginRateLimitMaxAttempts,
-            windowMs: loginRateLimitWindowMs,
-            failedCount: failureEntry.count,
-            resetAt: failureEntry.resetAt,
-            now: currentTime,
-          });
-        } catch (error) {
-          canUseRateLimitStore = false;
-          request.log.error(
-            {
-              err: error,
-              code: "AUTH_LOGIN_RATE_LIMIT_INCREMENT_FAILED",
-              route: "/api/auth/login",
-            },
-            "No se pudo actualizar el rate limit de login unificado",
-          );
-        }
-      }
+      setLoginRateLimitHeaders(reply, {
+        max: loginRateLimitMaxAttempts,
+        windowMs: loginRateLimitWindowMs,
+        failedCount: chargedEntry.count,
+        resetAt: chargedEntry.resetAt,
+        now: currentTime,
+      });
 
       await recordFailedLoginAttempt(input);
     };
 
     const markSuccess = async () => {
-      if (!canUseRateLimitStore) {
-        return;
-      }
-
       if (loginRateLimitStore.delete) {
         try {
           await loginRateLimitStore.delete(rateLimitKey);
         } catch (error) {
-          request.log.warn(
-            {
-              err: error,
-              code: "AUTH_LOGIN_RATE_LIMIT_RESET_FAILED",
-              route: "/api/auth/login",
-            },
-            "No se pudo limpiar el rate limit de login tras login exitoso",
-          );
+          logWarn("AUTH_LOGIN_RATE_LIMIT_RESET_FAILED", {
+            requestId: request.id,
+            route: "/api/auth/login",
+            errorName: serializeError(error).name,
+          });
+          setLoginRateLimitHeaders(reply, {
+            max: loginRateLimitMaxAttempts,
+            windowMs: loginRateLimitWindowMs,
+            failedCount: chargedEntry.count,
+            resetAt: chargedEntry.resetAt,
+            now: currentTime,
+          });
+
+          return;
         }
       }
 
@@ -1230,104 +1228,71 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
       ipAddress: request.ip || null,
     });
 
-    const failureEntry: RateLimitEntry = {
-      count: 0,
-      resetAt: currentTime + loginRateLimitWindowMs,
-    };
-    let canUseRateLimitStore = true;
+    let chargedEntry: RateLimitEntry;
 
     try {
-      const existingEntry = await getOrCreateRateLimitEntry(
+      chargedEntry = await consumeRateLimitAttempt(
         loginRateLimitStore,
         rateLimitKey,
-        loginRateLimitWindowMs,
-        currentTime,
+        { windowMs: loginRateLimitWindowMs, now: currentTime },
       );
-
-      failureEntry.count = existingEntry.count;
-      failureEntry.resetAt = existingEntry.resetAt;
     } catch (error) {
-      canUseRateLimitStore = false;
-      request.log.error(
-        {
-          err: error,
-          code: "AUTH_PASSWORD_CHANGE_RATE_LIMIT_GET_FAILED",
-          route: "/api/auth/change-password",
-        },
-        "No se pudo leer el rate limit de cambio de contraseña clinic",
-      );
+      logError("AUTH_PASSWORD_CHANGE_RATE_LIMIT_GET_FAILED", {
+        requestId: request.id,
+        route: "/api/auth/change-password",
+        errorName: serializeError(error).name,
+      });
+
+      return sendLoginRateLimitUnavailable(reply);
     }
 
-    if (canUseRateLimitStore && failureEntry.count >= loginRateLimitMaxAttempts) {
+    if (chargedEntry.count > loginRateLimitMaxAttempts) {
       setLoginRateLimitHeaders(reply, {
         max: loginRateLimitMaxAttempts,
         windowMs: loginRateLimitWindowMs,
-        failedCount: failureEntry.count,
-        resetAt: failureEntry.resetAt,
+        failedCount: chargedEntry.count,
+        resetAt: chargedEntry.resetAt,
         now: currentTime,
         includeRetryAfter: true,
       });
 
       return reply.code(429).send(
         buildLoginRateLimitResponse({
-          resetAt: failureEntry.resetAt,
+          resetAt: chargedEntry.resetAt,
           now: currentTime,
         }),
       );
     }
 
     const markFailure = async () => {
-      if (!canUseRateLimitStore) {
-        return;
-      }
-
-      try {
-        const updatedEntry = await consumeRateLimitAttempt(
-          loginRateLimitStore,
-          rateLimitKey,
-          { windowMs: loginRateLimitWindowMs, now: currentTime },
-        );
-
-        failureEntry.count = updatedEntry.count;
-        failureEntry.resetAt = updatedEntry.resetAt;
-
-        setLoginRateLimitHeaders(reply, {
-          max: loginRateLimitMaxAttempts,
-          windowMs: loginRateLimitWindowMs,
-          failedCount: failureEntry.count,
-          resetAt: failureEntry.resetAt,
-          now: currentTime,
-        });
-      } catch (error) {
-        canUseRateLimitStore = false;
-        request.log.error(
-          {
-            err: error,
-            code: "AUTH_PASSWORD_CHANGE_RATE_LIMIT_INCREMENT_FAILED",
-            route: "/api/auth/change-password",
-          },
-          "No se pudo actualizar el rate limit de cambio de contraseña clinic",
-        );
-      }
+      setLoginRateLimitHeaders(reply, {
+        max: loginRateLimitMaxAttempts,
+        windowMs: loginRateLimitWindowMs,
+        failedCount: chargedEntry.count,
+        resetAt: chargedEntry.resetAt,
+        now: currentTime,
+      });
     };
 
     const markSuccess = async () => {
-      if (!canUseRateLimitStore) {
-        return;
-      }
-
       if (loginRateLimitStore.delete) {
         try {
           await loginRateLimitStore.delete(rateLimitKey);
         } catch (error) {
-          request.log.warn(
-            {
-              err: error,
-              code: "AUTH_PASSWORD_CHANGE_RATE_LIMIT_RESET_FAILED",
-              route: "/api/auth/change-password",
-            },
-            "No se pudo limpiar el rate limit tras cambio de contraseña clinic",
-          );
+          logWarn("AUTH_PASSWORD_CHANGE_RATE_LIMIT_RESET_FAILED", {
+            requestId: request.id,
+            route: "/api/auth/change-password",
+            errorName: serializeError(error).name,
+          });
+          setLoginRateLimitHeaders(reply, {
+            max: loginRateLimitMaxAttempts,
+            windowMs: loginRateLimitWindowMs,
+            failedCount: chargedEntry.count,
+            resetAt: chargedEntry.resetAt,
+            now: currentTime,
+          });
+
+          return;
         }
       }
 
@@ -1377,13 +1342,29 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
 
     const newPasswordHash = await deps.hashPassword(request.body.newPassword);
 
-    await deps.upsertClinicUser({
-      clinicId: auth.clinicId,
-      username: auth.username,
-      passwordHash: newPasswordHash,
-      authProId: auth.authProId,
-      role: auth.role,
-    });
+    let revocation: { revokedSessionCount: number } | null;
+
+    try {
+      revocation = await deps.changeClinicUserPasswordAndRevokeOtherSessions({
+        clinicUserId: auth.id,
+        passwordHash: newPasswordHash,
+        keepSessionTokenHash: deps.hashSessionToken(auth.sessionToken),
+      });
+    } catch (error) {
+      logError("AUTH_PASSWORD_CHANGE_COMMIT_FAILED", {
+        requestId: request.id,
+        route: "/api/auth/change-password",
+        errorName: serializeError(error).name,
+      });
+      revocation = null;
+    }
+
+    if (!revocation) {
+      return reply.code(500).send({
+        success: false,
+        error: PASSWORD_CHANGE_ERROR_MESSAGE,
+      });
+    }
 
     await deps.writeAuditLog(createAuditRequestLike(request, auth), {
       event: AUDIT_EVENTS.CLINIC_USER_CREDENTIALS_UPDATED,
@@ -1394,6 +1375,7 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
         role: auth.role,
         selfService: true,
         sessionMaintained: true,
+        otherSessionsRevoked: revocation.revokedSessionCount,
       },
       actor: {
         type: "clinic_user",

@@ -194,7 +194,7 @@ test(
         return {
           adminUserId: 7,
           expiresAt: new Date(Date.UTC(2026, 3, 24, 1, 0, 0)),
-          lastAccess: new Date(Date.UTC(2026, 3, 23, 23, 0, 0)),
+          lastAccess: new Date(Date.UTC(2026, 3, 23, 23, 35, 0)),
         };
       },
       getAdminUserById: async (adminUserId: number) => {
@@ -252,7 +252,7 @@ test(
       getAdminSessionByToken: async () => ({
         adminUserId: 3,
         expiresAt: new Date(Date.UTC(2026, 3, 24, 1, 0, 0)),
-        lastAccess: new Date(Date.UTC(2026, 3, 23, 23, 0, 0)),
+        lastAccess: new Date(Date.UTC(2026, 3, 23, 23, 35, 0)),
       }),
       getAdminUserById: async () => ({
         id: 3,
@@ -524,7 +524,8 @@ test(
       assert.equal(sessionCalls.length, 1);
       assert.equal(resetKeys.length, 1);
       assert.equal(response.headers["ratelimit-limit"], "2");
-      assert.equal(response.headers["ratelimit-remaining"], "2");
+      // PR-SEC-08: the attempt was charged before verifying; a failed reset keeps it.
+      assert.equal(response.headers["ratelimit-remaining"], "0");
       assert.deepEqual(JSON.parse(response.body), {
         success: true,
         admin: {

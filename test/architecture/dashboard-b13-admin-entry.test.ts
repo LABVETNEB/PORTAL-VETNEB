@@ -58,7 +58,8 @@ test("B13 · entry precedence preserves URL intent and resolves the retired hub"
   // reading of the URL; this is the admin one.
   for (const [path, owner, parse] of [
     [CONTROLLER, source, "parseAdminModule(searchParams.get(MODULE_QUERY_PARAM))"],
-    [PROVIDER, provider, "location: adminLocation(parseAdminModule(query.get(MODULE_QUERY_PARAM))),"],
+    // GLOBAL-SEARCH-DRIVE-A4: the saved search rides on the same location as its `sq`; the module is still read from the URL alone.
+    [PROVIDER, provider, "location: adminLocation(parseAdminModule(query.get(MODULE_QUERY_PARAM)), readSearchParam(query)),"],
   ] as const) {
     assert.ok(owner.includes(parse), `${path}: module parsing remains the URL authority`);
   }

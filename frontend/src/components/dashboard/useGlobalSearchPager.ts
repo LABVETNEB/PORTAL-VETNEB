@@ -8,13 +8,13 @@ import {
   GLOBAL_SEARCH_DEBOUNCE_MS,
   describeGlobalSearchSyntaxError,
   hasGlobalSearchReportFilters,
-  isGlobalSearchQueryReady,
-  normalizeGlobalSearchInput,
+  isGlobalSearchRequestReady,
   type GlobalSearchFilters,
   type GlobalSearchHit,
   type GlobalSearchKind,
   type GlobalSearchSurface,
 } from "@/lib/global-search";
+import { resolveGlobalSearchQuery } from "@/lib/global-search-query";
 import {
   applyGlobalSearchChunk,
   createGlobalSearchPager,
@@ -128,15 +128,26 @@ export function useGlobalSearchPager(input: {
   /** Page to reopen on the first traversal after mount (search session memory). */
   readonly restorePageIndex?: number;
 }): GlobalSearchPagerView {
-  const { surface, filters, pageSize, enabled } = input;
+  const { surface, pageSize, enabled } = input;
   const debounceMs = input.debounceMs ?? GLOBAL_SEARCH_DEBOUNCE_MS;
-  const query = normalizeGlobalSearchInput(input.query);
-  const kinds = useMemo(
-    () => (hasGlobalSearchReportFilters(filters) ? (["report"] as GlobalSearchKind[]) : [...input.kinds]),
-    [filters, input.kinds],
+  // One model: the words and the filters (typed operators already on top of the
+  // applied ones) are exactly what the request composes into `q`, so the
+  // traversal key changes only when the canonical search does.
+  const resolved = useMemo(
+    () => resolveGlobalSearchQuery(surface, input.query, input.filters),
+    [surface, input.query, input.filters],
   );
-  const ready = enabled && pageSize > 0 && isGlobalSearchQueryReady(query);
-  const key = ready ? JSON.stringify({ surface, query, filters, kinds, pageSize }) : null;
+  // The request is built from the RAW state (it resolves it once, like `resolved`);
+  // resolving already-resolved words again would not be idempotent for a conflicting operator.
+  const query = input.query;
+  const filters = input.filters;
+  const effectiveFilters = resolved.filters;
+  const kinds = useMemo(
+    () => (hasGlobalSearchReportFilters(effectiveFilters) ? (["report"] as GlobalSearchKind[]) : [...input.kinds]),
+    [effectiveFilters, input.kinds],
+  );
+  const ready = enabled && pageSize > 0 && isGlobalSearchRequestReady(surface, resolved.words, effectiveFilters);
+  const key = ready ? JSON.stringify({ surface, text: resolved.text, kinds, pageSize }) : null;
 
   const session = useRef<Session | null>(null);
   const controller = useRef<AbortController | null>(null);

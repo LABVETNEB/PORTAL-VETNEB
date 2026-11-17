@@ -130,7 +130,7 @@ function createAuthStubs(overrides: Record<string, unknown> = {}) {
     getAdminSessionByToken: async () => ({
       adminUserId: 1,
       expiresAt: new Date("2099-01-01T00:00:00.000Z"),
-      lastAccess: new Date("2026-04-23T00:00:00.000Z"),
+      lastAccess: new Date(),
     }),
     getAdminUserById: async () => ({
       id: 1,
@@ -926,6 +926,11 @@ test("adminReportsNativeRoutes vincula token y cierra tracking en delivered al s
 
   const app = await createTestApp({
     now: () => nowDate.getTime(),
+    getAdminSessionByToken: async () => ({
+      adminUserId: 1,
+      expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+      lastAccess: nowDate,
+    }),
     getParticularTokenById: async () => selectedToken,
     updateParticularTokenReport: async (id: number, reportId: number | null) => {
       updateTokenCalls.push({ id, reportId });
@@ -1035,6 +1040,11 @@ test("adminReportsNativeRoutes cierra tracking por reportId en delivered cuando 
 
   const app = await createTestApp({
     now: () => nowDate.getTime(),
+    getAdminSessionByToken: async () => ({
+      adminUserId: 1,
+      expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+      lastAccess: nowDate,
+    }),
     getStudyTrackingCaseByReportId: async () => trackingCase,
     updateStudyTrackingCase: async (id: number, input: Record<string, unknown>) => {
       updateTrackingCalls.push({ id, input });
@@ -1160,6 +1170,11 @@ test("adminReportsNativeRoutes no aborta upload si falla report_delivered notifi
 
   const app = await createTestApp({
     now: () => nowDate.getTime(),
+    getAdminSessionByToken: async () => ({
+      adminUserId: 1,
+      expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+      lastAccess: nowDate,
+    }),
     getStudyTrackingCaseByReportId: async () => trackingCase,
     updateStudyTrackingCase: async (id: number, input: Record<string, unknown>) =>
       createTrackingCaseFixture({

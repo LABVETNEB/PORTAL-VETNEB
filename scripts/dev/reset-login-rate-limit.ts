@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 import postgres from "postgres";
 
 import {
+  buildLoginIdentifierCeilingKey,
   buildLoginRateLimitKey,
   hashLoginRateLimitIdentifier,
   hashLoginRateLimitIpAddress,
@@ -19,6 +20,7 @@ type CliOptions = {
   identifier: string;
   ipAddress: string | null;
   force: boolean;
+  includeIdentifierCeiling: boolean;
 };
 
 const VALID_SURFACES = new Set<LoginRateLimitSurface>([
@@ -32,9 +34,13 @@ function printUsage() {
   console.log(
     [
       "Usage:",
-      "  pnpm exec tsx scripts/dev/reset-login-rate-limit.ts --surface <surface> --identifier <value> [--ip-address <ip>] [--force]",
+      "  pnpm exec tsx scripts/dev/reset-login-rate-limit.ts --surface <surface> --identifier <value> [--ip-address <ip>] [--include-identifier-ceiling] [--force]",
       "",
       "Default mode is dry-run. Use --force to delete matching rows.",
+      "",
+      "The SEC-10 identifier ceiling is shared across ALL surfaces and independent of IP.",
+      "  - Without --ip-address it is reset together with the per-IP counters.",
+      "  - With --ip-address it is kept unless --include-identifier-ceiling is also given.",
     ].join("\n"),
   );
 }
@@ -54,6 +60,7 @@ function parseArgs(args: string[]): CliOptions {
   let identifier = "";
   let ipAddress: string | null = null;
   let force = false;
+  let includeIdentifierCeiling = false;
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
@@ -87,6 +94,10 @@ function parseArgs(args: string[]): CliOptions {
         force = true;
         break;
       }
+      case "--include-identifier-ceiling": {
+        includeIdentifierCeiling = true;
+        break;
+      }
       case "--dry-run": {
         force = false;
         break;
@@ -116,6 +127,7 @@ function parseArgs(args: string[]): CliOptions {
     identifier: normalizedIdentifier,
     ipAddress,
     force,
+    includeIdentifierCeiling,
   };
 }
 
@@ -170,6 +182,18 @@ async function main() {
   console.log(`IP filter      : ${ipHash ? previewHash(ipHash) : "(none)"}`);
   console.log(`Mode           : ${options.force ? "FORCE" : "DRY-RUN"}`);
 
+  const resetsIdentifierCeiling =
+    !options.ipAddress || options.includeIdentifierCeiling;
+  const ceilingKeyHash = hashRateLimitKey(
+    buildLoginIdentifierCeilingKey(options.identifier),
+  );
+
+  console.log(
+    resetsIdentifierCeiling
+      ? "Identifier ceiling: INCLUDED (shared by every surface for this identifier, independent of IP)"
+      : "Identifier ceiling: EXCLUDED (--ip-address limits the reset to that IP; add --include-identifier-ceiling to also clear it)",
+  );
+
   try {
     const metadataRows = ipHash
       ? await sql<{
@@ -200,7 +224,22 @@ async function main() {
 
     const rows = [...metadataRows];
 
-    if (rows.length === 0 && options.ipAddress) {
+    if (resetsIdentifierCeiling) {
+      const ceilingRows = await sql<{
+        key_hash: string;
+        count: number;
+        reset_at: Date;
+        ip_hash: string | null;
+      }[]>`
+        SELECT key_hash, count, reset_at, ip_hash
+        FROM login_rate_limits
+        WHERE key_hash = ${ceilingKeyHash}
+      `;
+
+      rows.push(...ceilingRows);
+    }
+
+    if (metadataRows.length === 0 && options.ipAddress) {
       const legacyKeyHash = hashRateLimitKey(
         buildLoginRateLimitKey({
           surface: options.surface,
@@ -236,7 +275,13 @@ async function main() {
           `  hash=${previewHash(row.key_hash)}`,
           `count=${row.count}`,
           `reset_at=${row.reset_at.toISOString()}`,
-          `ip_hash=${row.ip_hash ? previewHash(row.ip_hash) : "(legacy)"}`,
+          `ip_hash=${
+            row.key_hash === ceilingKeyHash
+              ? "(identifier-ceiling)"
+              : row.ip_hash
+                ? previewHash(row.ip_hash)
+                : "(legacy)"
+          }`,
         ].join(" "),
       );
     }

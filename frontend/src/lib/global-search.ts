@@ -1,3 +1,9 @@
+import {
+  GLOBAL_SEARCH_QUERY_MAX_LENGTH,
+  collapseGlobalSearchText,
+  hasGlobalSearchFilterOperators,
+  resolveGlobalSearchQuery,
+} from "./global-search-query";
 import { ROUTES } from "./routes";
 import { STUDY_TYPE_LABELS } from "./study-types";
 
@@ -27,7 +33,8 @@ export const ADMIN_GLOBAL_SEARCH_KINDS = [
 export type GlobalSearchKind = (typeof ADMIN_GLOBAL_SEARCH_KINDS)[number];
 
 export const GLOBAL_SEARCH_MIN_QUERY = 2;
-export const GLOBAL_SEARCH_MAX_QUERY = 80;
+/** The server's `q` limit (it was 80 before the operators and filters travelled inside `q`). */
+export const GLOBAL_SEARCH_MAX_QUERY = GLOBAL_SEARCH_QUERY_MAX_LENGTH;
 export const GLOBAL_SEARCH_SUGGESTION_LIMIT = 5;
 export const GLOBAL_SEARCH_PAGE_SIZE = 20;
 /** Largest `offset` the API accepts. Only the first-window (offset) path uses it: continuations go by cursor. */
@@ -155,8 +162,17 @@ export function writeGlobalSearchSession(surface: GlobalSearchSurface, value: Gl
  * the server says is ever echoed to the screen unfiltered.
  */
 const OPERATOR_UNKNOWN = /^Operador de búsqueda desconocido: ([A-Za-z]{2,20}):$/;
+const FILTERS_CONTRADICTORY = /^Filtros contradictorios: ([A-Za-z]{2,20}):$/;
 
 const SYNTAX_MESSAGES: Readonly<Record<string, (surface: GlobalSearchSurface) => string>> = {
+  "Estado de informe inválido": () => "Ese estado no existe. Probá status:uploaded, processing, ready o delivered.",
+  "Tipo de estudio inválido": () => "Ese tipo de estudio no es válido. Usá solo letras, por ejemplo study:citologia.",
+  "Clínica de búsqueda inválida": () => "El número de clínica no es válido. Usá el ID numérico, por ejemplo clinic:12.",
+  "Fecha de búsqueda inválida": () => "La fecha no es válida. Usá el formato AAAA-MM-DD con un día real.",
+  "Rango de fechas inválido": () => "La fecha «Desde» es posterior a «Hasta». Revisá el rango.",
+  "Filtros de búsqueda contradictorios": () => "Los filtros se contradicen entre sí. Quitá uno de los dos.",
+  "Los filtros de informe requieren incluir informes": () =>
+    "Estado, tipo de estudio y fechas aplican a informes. Incluí informes o quitá esos filtros.",
   "Tipo de búsqueda inválido": (surface) =>
     `Ese tipo no existe. Probá type:${surface === "admin" ? "informe, type:token, type:seguimiento, type:clinica o type:usuario" : "informe, type:token o type:seguimiento"}.`,
   "El tipo de búsqueda no está disponible aquí": () =>
@@ -174,7 +190,11 @@ const SYNTAX_MESSAGES: Readonly<Record<string, (surface: GlobalSearchSurface) =>
 export function describeGlobalSearchSyntaxError(surface: GlobalSearchSurface, serverMessage: string): string | null {
   const unknown = OPERATOR_UNKNOWN.exec(serverMessage);
   if (unknown) {
-    return `«${unknown[1]}:» no es un operador. Usá type: o title:, o poné el texto entre comillas para buscarlo tal cual.`;
+    return `«${unknown[1]}:» no es un operador. Usá type:, title:, status:, study:, after:, before: o clinic:, o poné el texto entre comillas para buscarlo tal cual.`;
+  }
+  const contradictory = FILTERS_CONTRADICTORY.exec(serverMessage);
+  if (contradictory) {
+    return `Escribiste «${contradictory[1]}:» con dos valores distintos. Dejá uno solo.`;
   }
   return SYNTAX_MESSAGES[serverMessage]?.(surface) ?? null;
 }
@@ -224,6 +244,17 @@ export function globalSearchKindsFor(surface: GlobalSearchSurface): readonly Glo
 export function globalSearchPathFor(surface: GlobalSearchSurface): string {
   return surface === "admin" ? "/api/admin/search" : "/api/search";
 }
+
+/** Saved searches (`?sq=`): the surface's own endpoint, `POST /` to save and `GET /:id` to read. */
+export function globalSearchStatesPathFor(surface: GlobalSearchSurface): string {
+  return surface === "admin" ? "/api/admin/search/states" : "/api/search/states";
+}
+
+/** A saved search as the server stores it: the canonical text and the category. */
+export type GlobalSearchSavedState = {
+  readonly q: string;
+  readonly kinds: readonly GlobalSearchKind[];
+};
 
 const KIND_LABELS: Readonly<Record<GlobalSearchKind, string>> = {
   clinic: "Clínicas",
@@ -312,11 +343,37 @@ export function foldGlobalSearchText(value: string): string {
 }
 
 export function normalizeGlobalSearchInput(value: string): string {
-  return value.replace(/\s+/g, " ").trim().slice(0, GLOBAL_SEARCH_MAX_QUERY);
+  return collapseGlobalSearchText(value).slice(0, GLOBAL_SEARCH_MAX_QUERY);
 }
 
 export function isGlobalSearchQueryReady(value: string): boolean {
   return normalizeGlobalSearchInput(value).length >= GLOBAL_SEARCH_MIN_QUERY;
+}
+
+/**
+ * A search can run with words of its own or with filters alone (`status:ready`,
+ * the «Estado» select with no words): filter-only searches are valid.
+ */
+export function isGlobalSearchRequestReady(
+  surface: GlobalSearchSurface,
+  query: string,
+  filters: GlobalSearchFilters,
+): boolean {
+  return isGlobalSearchQueryReady(query) || hasGlobalSearchFilterOperators(surface, query, filters);
+}
+
+/** Parses the answer of `GET /states/:id`; `null` when it is not a saved search. */
+export function readGlobalSearchSavedState(
+  surface: GlobalSearchSurface,
+  body: { readonly q?: unknown; readonly kinds?: unknown },
+): GlobalSearchSavedState | null {
+  if (typeof body.q !== "string" || body.q.length === 0 || body.q.length > GLOBAL_SEARCH_MAX_QUERY) return null;
+  const allowed = new Set<string>(globalSearchKindsFor(surface));
+  const kinds =
+    typeof body.kinds === "string" && body.kinds
+      ? body.kinds.split(",").filter((kind): kind is GlobalSearchKind => allowed.has(kind))
+      : [];
+  return { q: body.q, kinds: [...new Set(kinds)] };
 }
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -363,9 +420,12 @@ export function buildGlobalSearchQueryString(
   request: GlobalSearchRequest,
 ): string {
   const params = new URLSearchParams();
-  params.set("q", normalizeGlobalSearchInput(request.query));
+  // One model: the words and every filter travel as the canonical `q`; only
+  // the category (`kinds`) and the paging stay as their own parameters.
+  const resolved = resolveGlobalSearchQuery(surface, request.query, request.filters);
+  params.set("q", resolved.text);
 
-  const kinds = resolveGlobalSearchRequestKinds(surface, request.filters);
+  const kinds = resolveGlobalSearchRequestKinds(surface, resolved.filters);
   const continuation = isGlobalSearchContinuation(request);
   if (continuation) {
     // A cursor continues exactly one kind; anything else is a caller bug the
@@ -376,13 +436,6 @@ export function buildGlobalSearchQueryString(
     }
   }
   if (kinds.length > 0) params.set("kinds", kinds.join(","));
-
-  const { status, studyType, from, to, clinicId } = request.filters;
-  if (status) params.set("status", status);
-  if (studyType) params.set("studyType", studyType);
-  if (ISO_DAY.test(from)) params.set("from", from);
-  if (ISO_DAY.test(to)) params.set("to", to);
-  if (surface === "admin" && POSITIVE_ID.test(clinicId)) params.set("clinicId", clinicId);
 
   params.set("limit", String(request.limit));
   if (continuation) {

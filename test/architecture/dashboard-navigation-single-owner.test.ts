@@ -952,3 +952,60 @@ test("the dashboard retry may replace only the complete current URL", () => {
     );
   }
 });
+
+// GLOBAL-SEARCH-DRIVE-A4 — the saved search (`?sq=<uuid>`) is a coordinate of the machine's
+// location, selected with the machine's own events. It adds no owner, no event and no native
+// history, and the bar never writes the URL. The adapter is a new file: the working tree is read.
+const SEARCH_ADAPTER = "frontend/src/lib/dashboard/navigation/searchNavigation.ts";
+const MACHINE_FILE = "frontend/src/lib/dashboard/navigation/dashboardNavigationMachine.ts";
+
+function executable(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+}
+
+test("the saved search is a coordinate of the machine, never a second navigation owner", () => {
+  // The adapter's own surface (no DOM, no router, one registrant) is judged at runtime in
+  // test/unit/ui/dashboard/dashboard-navigation-search.test.ts.
+
+  // The machine gained a coordinate, not an event: the same ten event types.
+  const machine = executable(readSourceFile(MACHINE_FILE));
+  const navEvent = machine.slice(machine.indexOf("export type NavEvent"), machine.indexOf("export type NavEffect"));
+  assert.deepEqual(
+    [...navEvent.matchAll(/readonly type: "([A-Z_]+)"/g)].map((match) => match[1]),
+    [
+      "HYDRATED",
+      "SELECT_MODULE",
+      "SELECT_HUB",
+      "OPEN_ROUTE",
+      "URL_COMMITTED",
+      "TRAVERSE_STARTED",
+      "BUDGET_EXPIRED",
+      "NAV_FAILED",
+      "RETRY",
+      "RESET",
+    ],
+    "no event carries the search: SELECT_MODULE / SELECT_HUB / OPEN_ROUTE take an optional `search`",
+  );
+  assert.equal(/^\s*import\s/m.test(machine), false, "the machine keeps no imports");
+
+  // One registrant of the search owner, in the provider, next to the single coordinator.
+  const provider = readSourceFile(PROVIDER);
+  assert.equal(provider.split("registerSearchNavigationOwner(").length - 1, 1);
+  assert.equal(provider.split("createNavigationCoordinator(").length - 1, 1);
+  assert.equal(provider.split("publishDisplayedSearch(").length - 1 >= 2, true, "the display's search is published by the provider");
+  assert.ok(provider.includes("MACHINE, source.surface.config, snapshot, source.location"), "the published search is the previewed display");
+
+  // Nothing else in frontend/src (tracked) builds or reads the parameter, nor registers the owner.
+  const writers = [...listTrackedSourceFiles(FRONTEND_SRC), ...listTrackedFiles().filter((file) => file.startsWith(`${FRONTEND_SRC}/`) && file.endsWith(".tsx"))]
+    .filter((file, index, all) => all.indexOf(file) === index && file !== SEARCH_ADAPTER)
+    .filter((file) => /SEARCH_QUERY_PARAM|withSearchParam|readSearchParam|registerSearchNavigationOwner|publishDisplayedSearch/.test(readSourceFile(file)))
+    .sort();
+  assert.deepEqual(writers, [PROVIDER], "only the provider reads, writes and publishes the saved-search coordinate");
+
+  // The bar asks the owner and navigates nothing for a search: a record's deep link is the only router call.
+  const bar = executable(readSourceFile(MODULE_SEARCH));
+  assert.ok(bar.includes("requestSearchSelection(id)") && bar.includes("requestSearchSelection(null)"));
+  assert.equal(/["'`]sq["'`]|sq=|SEARCH_QUERY_PARAM|withSearchParam/.test(bar), false, "the bar never writes the URL");
+  assert.equal(bar.split("router.push(").length - 1, 1, "the bar's only router call is the record deep link");
+  assert.equal(/history\./.test(bar), false);
+});

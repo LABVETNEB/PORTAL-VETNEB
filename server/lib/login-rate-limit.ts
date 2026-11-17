@@ -1,10 +1,20 @@
 import { createHash } from "node:crypto";
 
+import {
+  consumeRateLimitAttempt,
+  type RateLimitEntry,
+  type RateLimitStore,
+} from "./rate-limit-store.ts";
+
 export const LOGIN_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 export const LOGIN_RATE_LIMIT_MAX_ATTEMPTS = 10;
 export const LOGIN_RATE_LIMIT_CODE = "LOGIN_RATE_LIMITED";
 export const LOGIN_RATE_LIMIT_ERROR_MESSAGE =
   "Demasiados intentos de inicio de sesión. Intentá nuevamente más tarde.";
+export const LOGIN_RATE_LIMIT_UNAVAILABLE_CODE = "LOGIN_RATE_LIMIT_UNAVAILABLE";
+export const LOGIN_RATE_LIMIT_UNAVAILABLE_MESSAGE =
+  "No pudimos procesar la solicitud en este momento. Intentá nuevamente en unos minutos.";
+export const LOGIN_RATE_LIMIT_UNAVAILABLE_RETRY_SECONDS = 30;
 export const LOGIN_RATE_LIMIT_EXPOSED_HEADERS =
   "RateLimit-Policy, RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, Retry-After";
 
@@ -103,6 +113,49 @@ export function buildLoginRateLimitKey(input: {
   ].join(":");
 }
 
+// SEC-10: la IP no es una identidad autenticada (depende de la cadena de proxies
+// de la plataforma). Este tope por identificador no depende de ella: rotar o
+// falsificar la IP no evita que los intentos contra un mismo identificador se
+// acumulen. Es independiente de la superficie para que repartir intentos entre
+// superficies no multiplique el cupo. No se reinicia con un login exitoso.
+export const LOGIN_IDENTIFIER_CEILING_MULTIPLIER = 5;
+
+export function buildLoginIdentifierCeilingKey(identifier: string): string {
+  return [
+    "login-ceiling",
+    LOGIN_RATE_LIMIT_KEY_VERSION,
+    normalizeLoginRateLimitIdentifier(identifier),
+  ].join(":");
+}
+
+// Devuelve la entrada ya cobrada por IP, o una entrada excedida si el tope por
+// identificador se superó (el llamador reutiliza su rama 429 existente).
+export async function applyLoginIdentifierCeiling(
+  store: RateLimitStore,
+  chargedEntry: RateLimitEntry,
+  input: {
+    identifier: string;
+    windowMs: number;
+    now: number;
+    maxAttempts: number;
+  },
+): Promise<RateLimitEntry> {
+  const ceilingEntry = await consumeRateLimitAttempt(
+    store,
+    buildLoginIdentifierCeilingKey(input.identifier),
+    { windowMs: input.windowMs, now: input.now },
+  );
+
+  if (ceilingEntry.count <= input.maxAttempts * LOGIN_IDENTIFIER_CEILING_MULTIPLIER) {
+    return chargedEntry;
+  }
+
+  return {
+    count: Math.max(chargedEntry.count, input.maxAttempts + 1),
+    resetAt: Math.max(chargedEntry.resetAt, ceilingEntry.resetAt),
+  };
+}
+
 export function buildMissingCredentialsLoginRateLimitKey(input: {
   surface: LoginRateLimitSurface;
   ipAddress?: string | null;
@@ -180,6 +233,16 @@ export function buildLoginRateLimitHeaders(input: LoginRateLimitHeaderInput) {
   }
 
   return headers;
+}
+
+/** Store failure: the attempt could not be charged, so the credentials are never checked. */
+export function buildLoginRateLimitUnavailableResponse() {
+  return {
+    success: false,
+    error: LOGIN_RATE_LIMIT_UNAVAILABLE_MESSAGE,
+    code: LOGIN_RATE_LIMIT_UNAVAILABLE_CODE,
+    retryAfterSeconds: LOGIN_RATE_LIMIT_UNAVAILABLE_RETRY_SECONDS,
+  };
 }
 
 export function buildLoginRateLimitResponse(input: {
