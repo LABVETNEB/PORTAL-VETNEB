@@ -625,8 +625,13 @@ test("public professionals search and detail keep independent fixed-window store
   );
   assertContains(
     source,
-    "config.store ?? createMemoryRateLimitStore();",
-    "public professionals memory fallback store",
+    "config.store ?? (await loadDefaultRateLimitStore())",
+    "public professionals persistent default store",
+  );
+  assertNotContains(
+    source,
+    "createMemoryRateLimitStore",
+    "public professionals no memory fallback",
   );
   assertContainsInOrder(
     source,

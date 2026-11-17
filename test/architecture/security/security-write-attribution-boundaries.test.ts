@@ -2187,7 +2187,7 @@ const ROUTE_SURFACES: readonly RouteSurface[] = [
         "PUBLIC_REPORT_ACCESS_RATE_LIMIT_MAX_ATTEMPTS",
         "PUBLIC_REPORT_ACCESS_RATE_LIMIT_WINDOW_MS",
       ],
-      "../lib/rate-limit-store.ts": ["consumeRateLimitAttempt", "createPersistentRateLimitStore"],
+      "../lib/rate-limit-store.ts": ["consumeGlobalCeiling", "consumeRateLimitAttempt", "createPersistentRateLimitStore", "GLOBAL_CEILING_MULTIPLIER"],
       "../lib/supabase.ts": [
         "createSignedReportDownloadUrl as defaultCreateSignedReportDownloadUrl",
         "createSignedReportUrl as defaultCreateSignedReportUrl",

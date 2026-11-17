@@ -16,6 +16,7 @@ import {
   buildLoginRateLimitResponse,
   buildLoginRateLimitHeaders,
   buildLoginRateLimitUnavailableResponse,
+  applyLoginIdentifierCeiling,
   buildLoginRateLimitKey,
   buildMissingCredentialsLoginRateLimitKey,
   getLoginRateLimitKeyMetadata,
@@ -649,6 +650,16 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
         loginRateLimitStore,
         rateLimitKey,
         { windowMs: loginRateLimitWindowMs, now: currentTime },
+      );
+      chargedEntry = await applyLoginIdentifierCeiling(
+        loginRateLimitStore,
+        chargedEntry,
+        {
+          identifier: providedToken,
+          windowMs: loginRateLimitWindowMs,
+          now: currentTime,
+          maxAttempts: loginRateLimitMaxAttempts,
+        },
       );
     } catch (error) {
       logError("PARTICULAR_LOGIN_RATE_LIMIT_GET_FAILED", {
