@@ -15,6 +15,7 @@ import {
   validateEnvValueSourcesEvaluated,
 } from "./env-value-leak-detector.mjs";
 
+const VERIFIED_PDFJS_VERSIONS = new Set(["6.4.299", "6.5.438"]);
 const ROOT = process.cwd();
 const JSON_OUTPUT = process.argv.includes("--json");
 
@@ -591,9 +592,9 @@ function verifiedPdfJsPasswordEnumNames(file) {
     const chunk = readFileSync(resolve(ROOT, file), "utf8");
     const sourceEnum = /\bconst\s+PasswordResponses\s*=\s*\{\s*NEED_PASSWORD\s*:\s*1\s*,\s*INCORRECT_PASSWORD\s*:\s*2\s*\}/g;
     const chunkEnum = /\{\s*NEED_PASSWORD\s*:\s*1\s*,\s*INCORRECT_PASSWORD\s*:\s*2\s*\}/g;
-    if (version !== "6.4.299" || !loader.includes('import("pdfjs-dist")')) return empty;
-    if ([...source.matchAll(sourceEnum)].length !== 1 || !source.includes('const version = "6.4.299"')) return empty;
-    if ([...chunk.matchAll(chunkEnum)].length !== 1 || !chunk.includes("6.4.299") || !chunk.includes("GlobalWorkerOptions") || !chunk.includes("getDocument")) return empty;
+    if (typeof version !== "string" || !VERIFIED_PDFJS_VERSIONS.has(version) || !loader.includes('import("pdfjs-dist")')) return empty;
+    if ([...source.matchAll(sourceEnum)].length !== 1 || !source.includes(`const version = "${version}"`)) return empty;
+    if ([...chunk.matchAll(chunkEnum)].length !== 1 || !chunk.includes(version) || !chunk.includes("GlobalWorkerOptions") || !chunk.includes("getDocument")) return empty;
     for (const name of ["NEED_PASSWORD", "INCORRECT_PASSWORD"]) {
       if ([...source.matchAll(new RegExp(`\\b${name}\\b`, "g"))].length !== 1 ||
           [...chunk.matchAll(new RegExp(`\\b${name}\\b`, "g"))].length !== 1) return empty;

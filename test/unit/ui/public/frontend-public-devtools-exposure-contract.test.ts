@@ -117,14 +117,14 @@ function writeOversizedMainChunk(workspaceRoot: string, content: string): void {
   writeFileSync(resolve(workspaceRoot, NEXT_MAIN_CHUNK_PATH), content, "utf8");
 }
 
-function createPdfJsFixture(workspaceRoot: string, chunk: string, provenance = true): void {
+function createPdfJsFixture(workspaceRoot: string, chunk: string, provenance = true, version = "6.4.299"): void {
   createMinimalPublicWorkspace(workspaceRoot);
   if (provenance) {
     mkdirSync(resolve(workspaceRoot, "frontend/node_modules/pdfjs-dist/build"), { recursive: true });
     mkdirSync(resolve(workspaceRoot, "frontend/src/features/dashboard/presentation/viewer"), { recursive: true });
-    writeFileSync(resolve(workspaceRoot, "frontend/node_modules/pdfjs-dist/package.json"), '{"version":"6.4.299"}');
+    writeFileSync(resolve(workspaceRoot, "frontend/node_modules/pdfjs-dist/package.json"), `{"version":"${version}"}`);
     writeFileSync(resolve(workspaceRoot, "frontend/node_modules/pdfjs-dist/build/pdf.mjs"),
-      'const PasswordResponses = { NEED_PASSWORD: 1, INCORRECT_PASSWORD: 2 }; const version = "6.4.299";');
+      `const PasswordResponses = { NEED_PASSWORD: 1, INCORRECT_PASSWORD: 2 }; const version = "${version}";`);
     writeFileSync(resolve(workspaceRoot, "frontend/src/features/dashboard/presentation/viewer/pdfjs-client.ts"),
       'const load = () => import("pdfjs-dist");');
   }
@@ -138,6 +138,53 @@ test("PDF.js numeric password enum is classified only with verified provenance",
     createPdfJsFixture(root, PDFJS_ENUM_CHUNK);
     const result = runAuditor(root);
     assert.equal(result.ok, true, JSON.stringify(result.findings));
+  });
+});
+
+test("PDF.js 6.5.438 numeric password enum is classified with matching installed, source and chunk provenance", () => {
+  withTempWorkspace((root) => {
+    createPdfJsFixture(root, PDFJS_ENUM_CHUNK.replace("6.4.299", "6.5.438"), true, "6.5.438");
+    const result = runAuditor(root);
+    assert.equal(result.ok, true, JSON.stringify(result.findings));
+  });
+});
+
+test("PDF.js enum classification rejects unverified versions and cross-version provenance", () => {
+  const cases = [
+    { installed: "6.5.439", chunk: PDFJS_ENUM_CHUNK.replace("6.4.299", "6.5.439") },
+    { installed: "6.5.438", chunk: PDFJS_ENUM_CHUNK },
+    { installed: "6.4.299", chunk: PDFJS_ENUM_CHUNK.replace("6.4.299", "6.5.438") },
+  ];
+  for (const { installed, chunk } of cases) {
+    withTempWorkspace((root) => {
+      createPdfJsFixture(root, chunk, true, installed);
+      const result = runAuditor(root);
+      assert.equal(result.ok, false);
+      assert.ok(result.findings.some((finding) => finding.rule === "uppercase-sensitive-identifier"));
+    });
+  }
+  withTempWorkspace((root) => {
+    createPdfJsFixture(root, PDFJS_ENUM_CHUNK.replace("6.4.299", "6.5.438"), true, "6.5.438");
+    writeFileSync(resolve(root, "frontend/node_modules/pdfjs-dist/build/pdf.mjs"),
+      'const PasswordResponses = { NEED_PASSWORD: 1, INCORRECT_PASSWORD: 2 }; const version = "6.4.299";');
+    const result = runAuditor(root);
+    assert.equal(result.ok, false);
+  });
+});
+
+test("PDF.js 6.5.438 enum classification still blocks secrets and duplicated identifiers", () => {
+  const chunk = PDFJS_ENUM_CHUNK.replace("6.4.299", "6.5.438");
+  for (const extra of ['const ADMIN_PASSWORD=0;', "const duplicate={NEED_PASSWORD:1};"]) {
+    withTempWorkspace((root) => {
+      createPdfJsFixture(root, `${chunk}${extra}`, true, "6.5.438");
+      const result = runAuditor(root);
+      assert.equal(result.ok, false);
+    });
+  }
+  withTempWorkspace((root) => {
+    createPdfJsFixture(root, `${chunk}const leaked="${DEFAULT_CANARY_SECRET_VALUE}";`, true, "6.5.438");
+    const result = runAuditor(root, { [CANARY_ENV_VALUE_VAR]: DEFAULT_CANARY_SECRET_VALUE });
+    assert.ok(result.findings.some((finding) => finding.rule === "env-sensitive-value-leak"));
   });
 });
 
