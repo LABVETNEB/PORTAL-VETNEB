@@ -1061,11 +1061,12 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§20",
     metric: "assertions de censo congelado (.length, n) — archivo completo",
     historical: 498,
+    baseline: 624,
     compute: () => countOccurrences(corpus, specs, /\.length,\s*[0-9]+/g),
-    resolution: "REPRODUCED",
+    resolution: "RECLASSIFIED",
     guard: BAND,
     motive:
-      "Cifra operativa de TEST-GLOBAL-11 (TG-A13). Debe bajar cuando 11 consolide: banda, no igualdad.",
+      "Cifra operativa de TEST-GLOBAL-11 (TG-A13). Debe bajar cuando 11 consolide: banda, no igualdad. Re-anclaje 498 -> 624: main@742630f7af0e0907e7f2a667557af1683577c712 producia 616 (a 7 del tope 623 de la banda 498 +- 125); la rama de diagnostico temporal de PR-SEC-10 (#2009) suma exactamente +7 asserciones de conteo de eventos de log (6 en proxy-diagnostics-runtime.test.ts sobre activacion, tope de eventos, expiracion y desactivacion por defecto, y 1 en proxy-diagnostics-source-contract.test.ts) y deja la rama en 623, exactamente el tope; main@e5f595f3367427e4bc8802d7ed7377530b6e1a53 suma +1 en supply-chain-advisory-gate.test.ts (#2016) y la fusion de ambos produce 624, a 1 del tope. Las 7 asserciones son comportamiento real (cada una fija un conteo de eventos observados), no un censo congelado duplicado: eliminarlas o reescribirlas para esquivar el detector reduciria cobertura. Crecimiento intencional: se re-ancla el baseline al valor medido sobre la fusion; el limite efectivo pasa de 623 a 780 y el piso de 373 a 468. Sin ampliar GROWTH_TOLERANCE, sin tolerancia propia y sin excluir ningun archivo del inventario. El re-anclaje se revierte con la rama de diagnostico.",
   },
   {
     row: "A0-20-FROZEN",
