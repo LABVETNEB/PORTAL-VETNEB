@@ -21,7 +21,9 @@ import {
 } from "../lib/cors-headers.ts";
 import {
   createPersistentRateLimitStore,
+  consumeGlobalCeiling,
   consumeRateLimitAttempt,
+  GLOBAL_CEILING_MULTIPLIER,
   type RateLimitStore,
 } from "../lib/rate-limit-store.ts";
 
@@ -330,6 +332,33 @@ export const contactNativeRoutes: FastifyPluginAsync<
         windowMs: contactRateLimitWindowMs,
         count: rateLimitEntry.count,
         resetAt: rateLimitEntry.resetAt,
+        now: currentTime,
+      });
+
+      reply.header("Retry-After", String(Math.max(retryAfterSeconds, 1)));
+
+      return reply.code(429).send({
+        success: false,
+        error: CONTACT_RATE_LIMIT_ERROR_MESSAGE,
+      });
+    }
+
+    const globalCeilingEntry = await consumeGlobalCeiling(
+      contactRateLimitStore,
+      {
+        scope: "contact",
+        windowMs: contactRateLimitWindowMs,
+        now: currentTime,
+        maxAttempts: contactRateLimitMaxAttempts * GLOBAL_CEILING_MULTIPLIER,
+      },
+    );
+
+    if (globalCeilingEntry) {
+      const retryAfterSeconds = setRateLimitHeaders(reply, {
+        max: contactRateLimitMaxAttempts,
+        windowMs: contactRateLimitWindowMs,
+        count: contactRateLimitMaxAttempts + 1,
+        resetAt: globalCeilingEntry.resetAt,
         now: currentTime,
       });
 

@@ -16,7 +16,9 @@ import {
 } from "../lib/public-report-access-rate-limit.ts";
 import {
   createPersistentRateLimitStore,
+  consumeGlobalCeiling,
   consumeRateLimitAttempt,
+  GLOBAL_CEILING_MULTIPLIER,
   type RateLimitStore,
 } from "../lib/rate-limit-store.ts";
 import {
@@ -288,6 +290,32 @@ export const publicReportAccessNativeRoutes: FastifyPluginAsync<
         windowMs: publicReportAccessRateLimitWindowMs,
         count: accessEntry.count,
         resetAt: accessEntry.resetAt,
+        now: currentTime,
+      });
+
+      return reply.code(429).send({
+        success: false,
+        error: PUBLIC_REPORT_ACCESS_RATE_LIMIT_ERROR_MESSAGE,
+      });
+    }
+
+    const globalCeilingEntry = await consumeGlobalCeiling(
+      publicReportAccessRateLimitStore,
+      {
+        scope: "public-report-access",
+        windowMs: publicReportAccessRateLimitWindowMs,
+        now: currentTime,
+        maxAttempts:
+          publicReportAccessRateLimitMaxAttempts * GLOBAL_CEILING_MULTIPLIER,
+      },
+    );
+
+    if (globalCeilingEntry) {
+      setRateLimitHeaders(reply, {
+        max: publicReportAccessRateLimitMaxAttempts,
+        windowMs: publicReportAccessRateLimitWindowMs,
+        count: publicReportAccessRateLimitMaxAttempts + 1,
+        resetAt: globalCeilingEntry.resetAt,
         now: currentTime,
       });
 

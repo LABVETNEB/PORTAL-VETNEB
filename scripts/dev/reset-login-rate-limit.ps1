@@ -20,6 +20,11 @@
     IP opcional. Si se omite, borra por surface + identifier_hash en filas con
     metadata segura. Filas legacy previas a la metadata requieren IP exacta.
 
+.PARAMETER IncludeIdentifierCeiling
+    El techo SEC-10 por identificador es compartido por todas las superficies e
+    independiente de la IP. Sin -IpAddress se reinicia junto con los contadores
+    por IP; con -IpAddress se conserva salvo que se indique este switch.
+
 .PARAMETER Force
     Ejecuta el DELETE. Sin -Force es dry-run.
 
@@ -41,6 +46,9 @@ param(
 
     [Parameter(Mandatory = $false)]
     [string]$IpAddress = "",
+
+    [Parameter(Mandatory = $false)]
+    [switch]$IncludeIdentifierCeiling,
 
     [Parameter(Mandatory = $false)]
     [switch]$Force
@@ -79,6 +87,10 @@ $nodeArgs = @(
 $normalizedIp = $IpAddress.Trim()
 if ($normalizedIp.Length -gt 0) {
     $nodeArgs += @("--ip-address", $normalizedIp)
+}
+
+if ($IncludeIdentifierCeiling) {
+    $nodeArgs += "--include-identifier-ceiling"
 }
 
 if ($Force) {

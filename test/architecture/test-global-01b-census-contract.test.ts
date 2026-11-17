@@ -637,12 +637,12 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§7.2",
     metric: "specs sólo con import dinámico",
     historical: 61,
-    baseline: 59,
+    baseline: 75,
     compute: () => classification.byBucket.DYNAMIC_IMPORT_ONLY,
     resolution: "RECLASSIFIED",
     guard: BAND,
     motive:
-      "La definición versionada exige que el `import()` dinámico apunte a un path de producción; un `import()` de soporte ya no cuenta como runtime.",
+      "La definición versionada exige que el `import()` dinámico apunte a un path de producción; un `import()` de soporte ya no cuenta como runtime. Re-anclaje 59 -> 75: el árbol producía 74, al tope de la banda 59 +- 15. PR-SEC-10 suma dos specs que cargan el router sólo por import dinámico porque deben fijar el entorno antes de importar (el techo global de profesionales públicos contra PostgreSQL real con dos instancias y el fallo cerrado del store). Crecimiento intencional: se re-ancla el baseline al valor medido, sin ampliar la tolerancia ni excluir ningún archivo del inventario.",
   },
   {
     row: "A0-07-BUCKETS",
@@ -1132,11 +1132,12 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§15",
     metric: "specs de integración",
     historical: 58,
+    baseline: 74,
     compute: () => specsUnder("test/integration").length,
-    resolution: "REPRODUCED",
+    resolution: "RECLASSIFIED",
     guard: BAND,
     motive:
-      "TEST-GLOBAL-09 debe aumentarlo poblando repositorios y servicios externos: congelarlo sería contradictorio.",
+      "TEST-GLOBAL-09 debe aumentarlo poblando repositorios y servicios externos: congelarlo sería contradictorio. Re-anclaje 58 -> 74: el árbol producía 73, exactamente el tope de la banda 58 +- 15, y PR-SEC-10 suma test/integration/app/login-rate-limit-reset-postgres.test.ts, el spec contra PostgreSQL real (portal_vetneb_ci) del reset administrativo del techo por identificador, lo que lleva el valor a 74. Crecimiento intencional: se re-ancla el baseline al valor medido, sin ampliar la tolerancia ni excluir ningún archivo del inventario.",
   },
   {
     row: "A0-15-INTEGRATION",
@@ -1206,12 +1207,12 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§22",
     metric: "assertions de status 2xx (200 y 201)",
     historical: 312,
-    baseline: 316,
+    baseline: 396,
     compute: () => statusAssertions("200") + statusAssertions("201"),
     resolution: "RECLASSIFIED",
     guard: BAND,
     motive:
-      "La gramática versionada cuenta `status`/`statusCode` seguidos del código en la misma assertion; captura 4 casos de 200 que el censo original no recogía. El hallazgo de §22 —el error-path domina— se conserva y se verifica aparte.",
+      "La gramática versionada cuenta `status`/`statusCode` seguidos del código en la misma assertion; captura 4 casos de 200 que el censo original no recogía. El hallazgo de §22 —el error-path domina— se conserva y se verifica aparte. Re-anclaje 316 -> 396: main@742630f7af0e0907e7f2a667557af1683577c712 producía 392 (3 por debajo del tope 395 de la banda 316 +- 79); PR-SEC-10 (#2010) suma exactamente +3 en public-professionals-rate-limit-postgres.fastify.test.ts (395, exactamente el tope) y la rama de diagnóstico temporal (#2009) suma exactamente +1 en proxy-diagnostics-runtime.test.ts (393); el árbol combinado produce 396, a 1 del tope. Crecimiento intencional por esas dos specs, ambas ya presentes en sus ramas: se re-ancla el baseline al valor medido sin ampliar GROWTH_TOLERANCE ni excluir ningún spec del inventario.",
   },
   {
     row: "A0-23-OWNERSHIP",
@@ -1736,7 +1737,8 @@ test("censo 05A: la deuda de lectores ad hoc rompe al crecer y la adopción del 
   // +1: global-search-state-retention lee la migración 0031, el repositorio y el preflight por el lector canónico.
   // +1: security-client-ip-proxy-signing lee proxy.ts y next.config.ts por el lector canónico (PR-SEC-10).
   // +1: proxy-diagnostics-source-contract lee el módulo, fastify-app y trusted-proxy por el lector canónico (rama de diagnóstico PR-SEC-10).
-  assert.equal(current, 443, "proxy-diagnostics-source-contract se suma a los 442 importadores del lector canónico (tras security-client-ip-proxy-signing)");
+  // +1: security-ip-independent-ceilings lee las rutas de login, contacto y públicas por el lector canónico (PR-SEC-10).
+  assert.equal(current, 444, "proxy-diagnostics-source-contract y security-ip-independent-ceilings se suman a los 442 importadores del lector canónico (tras security-client-ip-proxy-signing)");
   assert.equal(
     guardViolation(adoptionEntry, evaluateEntry(adoptionEntry)),
     null,

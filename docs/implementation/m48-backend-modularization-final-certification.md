@@ -278,17 +278,19 @@ PR-SEC-10 (resolución estructural de proxies confiables, opt-in e inactiva por 
 
 PR-SEC-10 (IP de cliente firmada, opt-in: módulos nuevos `server/lib/signed-client-ip.ts` y `server/lib/signed-forwarded-ip-hook.ts`, variable `CLIENT_IP_SIGNING_SECRET` en `server/lib/env.ts` y registro del hook en `server/fastify-app.ts`) lleva `server/lib` de 33/5.710 a 35/5.863 y la raíz `server/*.ts` de 9/2.625 a 9/2.628. Total 244/49.885 → 246/50.041.
 
-PR-SEC-10, rama de diagnóstico temporal `diag/sec-10-e4-observability` (hook de diagnóstico de proxies con observación E4; módulo nuevo `server/lib/proxy-diagnostics.ts` y una llamada en `server/fastify-app.ts`; se retira con la rama y su realineación se revierte con ella) lleva `server/lib` de 35/5.863 a 36/6.415 y la raíz `server/*.ts` de 9/2.628 a 9/2.630. Total 246/50.041 → 247/50.595.
+PR-SEC-10 (topes independientes de IP: `applyLoginIdentifierCeiling` en `server/lib/login-rate-limit.ts`, `consumeGlobalCeiling` en `server/lib/rate-limit-store.ts` y su uso en las rutas de login, contacto y públicas) lleva `server/routes` de 21.919 a 22.059 y `server/lib` de 5.863 a 5.930. Total 246/50.041 → 246/50.248.
+
+PR-SEC-10, rama de diagnóstico temporal `diag/sec-10-e4-observability` (hook de diagnóstico de proxies con observación E4; módulo nuevo `server/lib/proxy-diagnostics.ts` y una llamada en `server/fastify-app.ts`; se retira con la rama y su realineación se revierte con ella) lleva `server/lib` de 35/5.930 a 36/6.482 y la raíz `server/*.ts` de 9/2.628 a 9/2.630. Total 246/50.248 → 247/50.802.
 
 | Área | Archivos TypeScript | LOC |
 | --- | ---: | ---: |
 | `server/features` | 161 | 19.202 |
-| `server/routes` | 38 | 21.919 |
-| `server/lib` | 36 | 6.415 |
+| `server/routes` | 38 | 22.059 |
+| `server/lib` | 36 | 6.482 |
 | `server/middlewares` | 3 | 429 |
 | raíz/entrypoints `server/*.ts` | 9 | 2.630 |
 | otros | 0 | 0 |
-| **Total `server`** | **247** | **50.595** |
+| **Total `server`** | **247** | **50.802** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por
