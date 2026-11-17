@@ -24,6 +24,7 @@ export interface ArchitectureDecisionContractInput {
   entries: GovernanceChangedFileEntry[];
   rootDir: string;
   trustedDependabot?: boolean;
+  verifiedActionsRealignment?: boolean;
 }
 
 export interface ArchitectureDecisionContractResult {
@@ -32,18 +33,31 @@ export interface ArchitectureDecisionContractResult {
   status: "PASS" | "FAIL" | "N/A";
 }
 
+export type GovernanceBlobReader = (revision: string, path: string) => string | null;
+
 export interface DependabotAutomationContractInput {
   event: unknown;
   entries: GovernanceChangedFileEntry[];
+  baseSha?: string;
+  headSha?: string;
+  readBlob?: GovernanceBlobReader;
 }
 
 export interface DependabotAutomationContractResult {
   failures: string[];
   details: string[];
   primary: string[];
+  realigned: boolean;
+}
+
+export interface DependabotActionsRealignmentResult {
+  failures: string[];
+  details: string[];
 }
 
 export const CATEGORY_ORDER: string[];
+
+export const DEPENDABOT_ACTIONS_CONTRACT_TESTS: readonly string[];
 
 export function classifyPath(inputPath: string): string;
 
@@ -68,5 +82,9 @@ export function isTrustedDependabotPullRequest(event: unknown): boolean;
 export function evaluateDependabotAutomationContract(
   input: DependabotAutomationContractInput,
 ): DependabotAutomationContractResult;
+
+export function evaluateDependabotActionsRealignment(
+  input: DependabotAutomationContractInput,
+): DependabotActionsRealignmentResult;
 
 export function main(): number;

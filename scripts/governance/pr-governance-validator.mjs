@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { basename, posix, resolve, sep } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -8,6 +9,7 @@ import {
   renderQualityGateImpactSummary,
   validateQualityGateImpact,
 } from "./quality-gate-impact-validator.mjs";
+import { APPROVED_EXTERNAL_ACTIONS } from "./workflow-security-policy.mjs";
 
 const ROOT = resolve(process.cwd());
 const EVENT_NAME = process.env.GITHUB_EVENT_NAME ?? "";
@@ -37,6 +39,20 @@ const DEPENDABOT_ALLOWED_PATH_PATTERNS = [
   /(^|\/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock|npm-shrinkwrap\.json)$/i,
   /^\.github\/workflows\/[^/]+\.ya?ml$/i,
 ];
+const DEPENDABOT_ACTIONS_BRANCH_PREFIX = "dependabot/github_actions/";
+export const DEPENDABOT_ACTIONS_CONTRACT_TESTS = Object.freeze([
+  "test/architecture/toolchain-contract.test.ts",
+  "test/unit/infrastructure/frontend-ci-workflow.test.ts",
+  "test/unit/infrastructure/supply-chain-governance-contract.test.ts",
+  "test/unit/infrastructure/workflow-security-policy-contract.test.ts",
+]);
+const WORKFLOW_PATH_RE = /^\.github\/workflows\/[^/]+\.ya?ml$/i;
+const USES_LINE_RE =
+  /^(\s*(?:-\s+)?uses:\s+)([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_./-]+)?)@([0-9a-f]{40})(\s+#\s+\S.*)?$/;
+const DIGEST_LINE_RE =
+  /^(\s*\[\s*")(\.github\/workflows\/[^"/]+\.ya?ml)("\s*,\s*")([0-9a-f]{64})("\s*\],?\s*)$/;
+const ACTION_REF_RE =
+  /(?<![0-9a-fA-F])([0-9a-f]{40})(?![0-9a-fA-F])(\s+# v?\d[\w.-]*)?/g;
 const SCOPE_LABEL_TO_CATEGORY = new Map([
   ["backend runtime", "backend"],
   ["frontend runtime", "frontend"],
@@ -419,7 +435,244 @@ export function isTrustedDependabotPullRequest(event) {
   );
 }
 
-export function evaluateDependabotAutomationContract({ event, entries }) {
+function isApprovedActionPath(actionPath) {
+  const repository = actionPath.split("/").slice(0, 2).join("/");
+  return APPROVED_EXTERNAL_ACTIONS.some((action) => action.repository === repository);
+}
+
+function compareWorkflowReferences(path, baseText, headText) {
+  const failures = [];
+  const replacements = new Map();
+  const baseLines = baseText.split("\n");
+  const headLines = headText.split("\n");
+
+  if (baseLines.length !== headLines.length) {
+    failures.push(`${path}: line count changed; only in-place action reference updates are permitted.`);
+    return { failures, replacements };
+  }
+
+  for (let index = 0; index < baseLines.length; index += 1) {
+    const before = baseLines[index];
+    const after = headLines[index];
+    if (before === after) continue;
+
+    const location = `${path}:${index + 1}`;
+    if (before.endsWith("\r") !== after.endsWith("\r")) {
+      failures.push(`${location}: line ending changed.`);
+      continue;
+    }
+
+    const oldMatch = USES_LINE_RE.exec(before.replace(/\r$/, ""));
+    const newMatch = USES_LINE_RE.exec(after.replace(/\r$/, ""));
+    if (!oldMatch || !newMatch) {
+      failures.push(`${location}: change is not a full-SHA pinned \`uses:\` reference update.`);
+      continue;
+    }
+    if (oldMatch[1] !== newMatch[1] || oldMatch[2] !== newMatch[2]) {
+      failures.push(`${location}: the action identity or line structure changed.`);
+      continue;
+    }
+    if (oldMatch[3] === newMatch[3]) {
+      failures.push(`${location}: the pinned SHA did not change.`);
+      continue;
+    }
+    if (!isApprovedActionPath(newMatch[2])) {
+      failures.push(`${location}: action ${newMatch[2]} is not in the approved external action allowlist.`);
+      continue;
+    }
+
+    const key = `${newMatch[2]}@${oldMatch[3]}`;
+    const previous = replacements.get(key);
+    if (previous !== undefined && previous !== newMatch[3]) {
+      failures.push(`${location}: ${key} maps to more than one new SHA.`);
+      continue;
+    }
+    replacements.set(key, newMatch[3]);
+  }
+
+  if (failures.length === 0 && replacements.size === 0) {
+    failures.push(`${path}: no pinned action reference change was found.`);
+  }
+  return { failures, replacements };
+}
+
+function extractActionRefs(line) {
+  const refs = [];
+  const text = line.replace(ACTION_REF_RE, (match, sha, label, offset) => {
+    const action = /([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_./-]+)?)@$/.exec(
+      line.slice(0, offset),
+    );
+    refs.push({ action: action?.[1] ?? null, sha, label: label ?? "" });
+    return "\u0000REF";
+  });
+  return { text, refs };
+}
+
+function compareContractTest(path, baseText, headText, replacements, headWorkflows) {
+  const failures = [];
+  const baseLines = baseText.split("\n");
+  const headLines = headText.split("\n");
+
+  if (baseLines.length !== headLines.length) {
+    failures.push(`${path}: line count changed; only reference and digest lines may change.`);
+    return failures;
+  }
+
+  for (let index = 0; index < baseLines.length; index += 1) {
+    const before = baseLines[index];
+    const after = headLines[index];
+    if (before === after) continue;
+
+    const location = `${path}:${index + 1}`;
+    const oldDigest = DIGEST_LINE_RE.exec(before.replace(/\r$/, ""));
+    const newDigest = DIGEST_LINE_RE.exec(after.replace(/\r$/, ""));
+    if (oldDigest && newDigest) {
+      const workflow = newDigest[2];
+      const actual = headWorkflows.has(workflow)
+        ? createHash("sha256").update(headWorkflows.get(workflow), "utf8").digest("hex")
+        : null;
+      if (
+        before.endsWith("\r") !== after.endsWith("\r") ||
+        oldDigest[1] !== newDigest[1] ||
+        oldDigest[2] !== workflow ||
+        oldDigest[3] !== newDigest[3] ||
+        oldDigest[5] !== newDigest[5]
+      ) {
+        failures.push(`${location}: digest line structure changed.`);
+      } else if (actual === null) {
+        failures.push(`${location}: digest changed for ${workflow}, which this pull request does not modify.`);
+      } else if (newDigest[4] !== actual) {
+        failures.push(`${location}: digest for ${workflow} does not match the real workflow content.`);
+      }
+      continue;
+    }
+
+    const oldRefs = extractActionRefs(before);
+    const newRefs = extractActionRefs(after);
+    if (
+      oldRefs.refs.length === 0 ||
+      oldRefs.text !== newRefs.text ||
+      oldRefs.refs.length !== newRefs.refs.length
+    ) {
+      failures.push(`${location}: change is not limited to expected action references or reviewed digests.`);
+      continue;
+    }
+
+    let changed = false;
+    let valid = true;
+    oldRefs.refs.forEach((oldRef, position) => {
+      const newRef = newRefs.refs[position];
+      if (oldRef.action !== newRef.action || oldRef.action === null) {
+        valid = false;
+      } else if (oldRef.sha === newRef.sha) {
+        if (oldRef.label !== newRef.label) valid = false;
+      } else if (replacements.get(`${oldRef.action}@${oldRef.sha}`) === newRef.sha) {
+        changed = true;
+      } else {
+        valid = false;
+      }
+    });
+    if (!valid || !changed) {
+      failures.push(`${location}: action reference does not match a verified workflow reference update.`);
+    }
+  }
+
+  return failures;
+}
+
+export function evaluateDependabotActionsRealignment({
+  event,
+  entries,
+  baseSha,
+  headSha,
+  readBlob,
+}) {
+  const failures = [];
+  const details = [];
+
+  if (!isTrustedDependabotPullRequest(event)) {
+    failures.push("Contract realignment requires a trusted Dependabot pull request.");
+    return { failures, details };
+  }
+  const headRef = event?.pull_request?.head?.ref ?? "";
+  if (!headRef.startsWith(DEPENDABOT_ACTIONS_BRANCH_PREFIX)) {
+    failures.push(
+      `Contract realignment requires a ${DEPENDABOT_ACTIONS_BRANCH_PREFIX}* Dependabot branch.`,
+    );
+    return { failures, details };
+  }
+  if (typeof readBlob !== "function" || !baseSha || !headSha) {
+    failures.push("Contract realignment requires readable base and head file contents.");
+    return { failures, details };
+  }
+
+  const workflowEntries = [];
+  const testEntries = [];
+  for (const entry of entries) {
+    const path = normalizePath(entry.path);
+    if (entry.status !== "M") {
+      failures.push(`${entry.display ?? path}: additions, deletions, renames and copies are not permitted.`);
+    } else if (WORKFLOW_PATH_RE.test(path)) {
+      workflowEntries.push(path);
+    } else if (DEPENDABOT_ACTIONS_CONTRACT_TESTS.includes(path)) {
+      testEntries.push(path);
+    } else {
+      failures.push(`${path}: not a workflow or an allowed contract test.`);
+    }
+  }
+  if (failures.length > 0) return { failures, details };
+  if (workflowEntries.length === 0) {
+    failures.push("Contract realignment requires at least one modified workflow.");
+    return { failures, details };
+  }
+
+  const replacements = new Map();
+  const headWorkflows = new Map();
+  for (const path of workflowEntries) {
+    const baseText = readBlob(baseSha, path);
+    const headText = readBlob(headSha, path);
+    if (typeof baseText !== "string" || typeof headText !== "string") {
+      failures.push(`${path}: base or head content is unavailable.`);
+      continue;
+    }
+    const result = compareWorkflowReferences(path, baseText, headText);
+    failures.push(...result.failures);
+    result.replacements.forEach((value, key) => {
+      const previous = replacements.get(key);
+      if (previous !== undefined && previous !== value) {
+        failures.push(`${path}: ${key} maps to more than one new SHA across workflows.`);
+      }
+      replacements.set(key, value);
+    });
+    headWorkflows.set(path, headText);
+  }
+  if (failures.length > 0) return { failures, details };
+
+  for (const path of testEntries) {
+    const baseText = readBlob(baseSha, path);
+    const headText = readBlob(headSha, path);
+    if (typeof baseText !== "string" || typeof headText !== "string") {
+      failures.push(`${path}: base or head content is unavailable.`);
+      continue;
+    }
+    failures.push(...compareContractTest(path, baseText, headText, replacements, headWorkflows));
+  }
+
+  if (failures.length === 0) {
+    details.push(
+      `Verified ${replacements.size} action reference update(s) across ${workflowEntries.length} workflow(s) and ${testEntries.length} contract test(s).`,
+    );
+  }
+  return { failures, details };
+}
+
+export function evaluateDependabotAutomationContract({
+  event,
+  entries,
+  baseSha,
+  headSha,
+  readBlob,
+}) {
   const failures = [];
   const details = [];
 
@@ -432,14 +685,35 @@ export function evaluateDependabotAutomationContract({ event, entries }) {
       failures,
       details,
       primary: [],
+      realigned: false,
     };
+  }
+
+  const hasContractTests = entries.some((entry) =>
+    DEPENDABOT_ACTIONS_CONTRACT_TESTS.includes(normalizePath(entry.path)),
+  );
+  let realigned = false;
+  if (hasContractTests) {
+    const realignment = evaluateDependabotActionsRealignment({
+      event,
+      entries,
+      baseSha,
+      headSha,
+      readBlob,
+    });
+    realigned = realignment.failures.length === 0;
+    if (!realigned) failures.push(...realignment.failures);
+    details.push(...realignment.details);
   }
 
   const unsupportedEntries = entries.filter(
     (entry) =>
       entry.status !== "M" ||
-      !DEPENDABOT_ALLOWED_PATH_PATTERNS.some((pattern) =>
-        pattern.test(normalizePath(entry.path)),
+      !(
+        DEPENDABOT_ALLOWED_PATH_PATTERNS.some((pattern) =>
+          pattern.test(normalizePath(entry.path)),
+        ) ||
+        (realigned && DEPENDABOT_ACTIONS_CONTRACT_TESTS.includes(normalizePath(entry.path)))
       ),
   );
 
@@ -472,6 +746,7 @@ export function evaluateDependabotAutomationContract({ event, entries }) {
     failures,
     details,
     primary,
+    realigned: realigned && failures.length === 0,
   };
 }
 
@@ -625,6 +900,7 @@ export function evaluateArchitectureDecisionContract({
   entries,
   rootDir,
   trustedDependabot,
+  verifiedActionsRealignment = false,
 }) {
   const failures = [];
   const details = [];
@@ -647,6 +923,23 @@ export function evaluateArchitectureDecisionContract({
 
   if (trustedWorkflowOnly) {
     details.push("Architecture Decision: N/A — trusted dependency automation.");
+    return { status: "N/A", failures, details };
+  }
+
+  if (
+    trustedDependabot &&
+    verifiedActionsRealignment === true &&
+    entries.length > 0 &&
+    entries.every(
+      (entry) =>
+        entry.status === "M" &&
+        (normalizePath(entry.path).startsWith(".github/workflows/") ||
+          DEPENDABOT_ACTIONS_CONTRACT_TESTS.includes(normalizePath(entry.path))),
+    )
+  ) {
+    details.push(
+      "Architecture Decision: N/A — trusted dependency automation with verified action reference realignment.",
+    );
     return { status: "N/A", failures, details };
   }
 
@@ -797,6 +1090,11 @@ function determineRange(event, fail, detail) {
 
   fail("scope", `Unsupported event: ${EVENT_NAME || "(empty)"}.`);
   return ["", ""];
+}
+
+function readGitBlob(revision, path) {
+  const result = runGit(["show", `${revision}:${path}`]);
+  return result.status === 0 ? result.stdout : null;
 }
 
 function changedFiles(baseSha, headSha) {
@@ -1066,6 +1364,7 @@ export function main() {
       if (EVENT_NAME === "pull_request") {
         const trustedDependabot = isTrustedDependabotPullRequest(event);
         const body = event.pull_request?.body ?? "";
+        let actionsRealigned = false;
 
         if (trustedDependabot) {
           pass(
@@ -1076,7 +1375,11 @@ export function main() {
           const automation = evaluateDependabotAutomationContract({
             event,
             entries,
+            baseSha,
+            headSha,
+            readBlob: readGitBlob,
           });
+          actionsRealigned = automation.realigned === true;
 
           automation.details.forEach((message) =>
             detail("scope", message),
@@ -1135,6 +1438,7 @@ export function main() {
             entries,
             rootDir: ROOT,
             trustedDependabot,
+            verifiedActionsRealignment: actionsRealigned,
           });
 
           architecture.details.forEach((message) =>
