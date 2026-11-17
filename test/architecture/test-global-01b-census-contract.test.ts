@@ -637,12 +637,12 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§7.2",
     metric: "specs sólo con import dinámico",
     historical: 61,
-    baseline: 59,
+    baseline: 75,
     compute: () => classification.byBucket.DYNAMIC_IMPORT_ONLY,
     resolution: "RECLASSIFIED",
     guard: BAND,
     motive:
-      "La definición versionada exige que el `import()` dinámico apunte a un path de producción; un `import()` de soporte ya no cuenta como runtime.",
+      "La definición versionada exige que el `import()` dinámico apunte a un path de producción; un `import()` de soporte ya no cuenta como runtime. Re-anclaje 59 -> 75: el árbol producía 74, al tope de la banda 59 +- 15. PR-SEC-10 suma dos specs que cargan el router sólo por import dinámico porque deben fijar el entorno antes de importar (el techo global de profesionales públicos contra PostgreSQL real con dos instancias y el fallo cerrado del store). Crecimiento intencional: se re-ancla el baseline al valor medido, sin ampliar la tolerancia ni excluir ningún archivo del inventario.",
   },
   {
     row: "A0-07-BUCKETS",

@@ -1,6 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import Fastify from "fastify";
 import { readSourceFile } from "../helpers/tracked-source-files.ts";
+
+process.env.NODE_ENV ??= "development";
+process.env.SUPABASE_URL ??= "https://example.supabase.co";
+process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
+process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
+process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
+process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
+
+const { publicProfessionalsNativeRoutes } = await import(
+  "../../server/routes/public-professionals.fastify.ts"
+);
 
 import {
   applyLoginIdentifierCeiling,
@@ -114,6 +126,58 @@ test("techo global: se supera con IPs distintas y se renueva", async () => {
     maxAttempts,
   });
   assert.equal(renewed, null);
+});
+
+test("profesionales públicos: fallo del store responde 503 sin ejecutar el handler", async () => {
+  const failing = {
+    get: async () => {
+      throw new Error("store down");
+    },
+    set: async () => {
+      throw new Error("store down");
+    },
+    consume: async () => {
+      throw new Error("store down");
+    },
+  };
+  let handlerCalls = 0;
+  const app = Fastify();
+  await app.register(publicProfessionalsNativeRoutes, {
+    prefix: "/api/public/professionals",
+    searchRateLimitStore: failing,
+    detailRateLimitStore: failing,
+    searchPublicProfessionals: async () => {
+      handlerCalls += 1;
+      return { rows: [], total: 0, limit: 20, offset: 0 };
+    },
+    getPublicProfessionalByClinicId: async () => {
+      handlerCalls += 1;
+      return null;
+    },
+    createSignedStorageUrl: async (path: string) => path,
+  });
+
+  try {
+    for (const url of ["/api/public/professionals/search", "/api/public/professionals/5"]) {
+      const response = await app.inject({ method: "GET", url });
+      assert.equal(response.statusCode, 503, url);
+      assert.deepEqual(response.json(), {
+        success: false,
+        error: "Servicio temporalmente no disponible",
+      });
+    }
+    assert.equal(handlerCalls, 0);
+  } finally {
+    await app.close();
+  }
+});
+
+test("profesionales públicos: sin store inyectado no hay fallback en memoria", () => {
+  const source = readSourceFile("server/routes/public-professionals.fastify.ts");
+
+  assert.doesNotMatch(source, /createMemoryRateLimitStore/);
+  assert.match(source, /createPersistentRateLimitStore\(/);
+  assert.match(source, /public-professionals:\$\{config\.scope\}:ip:/);
 });
 
 test("contrato de fuente: login, contacto y rutas públicas usan los topes", () => {

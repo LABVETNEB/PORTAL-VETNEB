@@ -14,6 +14,9 @@ process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 const {
   publicProfessionalsNativeRoutes,
 } = await import("../../../../server/routes/public-professionals.fastify.ts");
+const { createMemoryRateLimitStore } = await import(
+  "../../../../server/lib/rate-limit-store.ts"
+);
 
 type TimedResult = {
   statusCode: number;
@@ -97,6 +100,8 @@ async function createPerformanceApp() {
 
   await app.register(publicProfessionalsNativeRoutes as any, {
     prefix: "/api/public/professionals",
+    searchRateLimitStore: createMemoryRateLimitStore(),
+    detailRateLimitStore: createMemoryRateLimitStore(),
     searchPublicProfessionals: async ({
       limit,
       offset,

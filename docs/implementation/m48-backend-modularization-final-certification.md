@@ -278,17 +278,17 @@ PR-SEC-10 (resolución estructural de proxies confiables, opt-in e inactiva por 
 
 PR-SEC-10 (IP de cliente firmada, opt-in: módulos nuevos `server/lib/signed-client-ip.ts` y `server/lib/signed-forwarded-ip-hook.ts`, variable `CLIENT_IP_SIGNING_SECRET` en `server/lib/env.ts` y registro del hook en `server/fastify-app.ts`) lleva `server/lib` de 33/5.710 a 35/5.863 y la raíz `server/*.ts` de 9/2.625 a 9/2.628. Total 244/49.885 → 246/50.041.
 
-PR-SEC-10 (topes independientes de IP: `applyLoginIdentifierCeiling` en `server/lib/login-rate-limit.ts`, `consumeGlobalCeiling` en `server/lib/rate-limit-store.ts` y su uso en las rutas de login, contacto y públicas) lleva `server/routes` de 21.919 a 22.028 y `server/lib` de 5.863 a 5.930. Total 246/50.041 → 246/50.217.
+PR-SEC-10 (topes independientes de IP: `applyLoginIdentifierCeiling` en `server/lib/login-rate-limit.ts`, `consumeGlobalCeiling` en `server/lib/rate-limit-store.ts` y su uso en las rutas de login, contacto y públicas) lleva `server/routes` de 21.919 a 22.059 y `server/lib` de 5.863 a 5.930. Total 246/50.041 → 246/50.248.
 
 | Área | Archivos TypeScript | LOC |
 | --- | ---: | ---: |
 | `server/features` | 161 | 19.202 |
-| `server/routes` | 38 | 22.028 |
+| `server/routes` | 38 | 22.059 |
 | `server/lib` | 35 | 5.930 |
 | `server/middlewares` | 3 | 429 |
 | raíz/entrypoints `server/*.ts` | 9 | 2.628 |
 | otros | 0 | 0 |
-| **Total `server`** | **246** | **50.217** |
+| **Total `server`** | **246** | **50.248** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por

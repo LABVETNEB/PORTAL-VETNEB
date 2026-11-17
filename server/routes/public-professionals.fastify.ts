@@ -20,10 +20,9 @@ import {
 } from "../features/public-professionals/infrastructure/public-professionals-rate-limit.ts";
 import {
   consumeGlobalCeiling,
-  createMemoryRateLimitStore,
+  consumeRateLimitAttempt,
+  createPersistentRateLimitStore,
   GLOBAL_CEILING_MULTIPLIER,
-  getOrCreateRateLimitEntry,
-  incrementRateLimitEntry,
   type RateLimitStore,
 } from "../lib/rate-limit-store.ts";
 import {
@@ -209,6 +208,31 @@ function setRateLimitHeaders(
   );
 }
 
+let defaultRateLimitStorePromise: Promise<RateLimitStore> | undefined;
+
+// SEC-10: en producción los contadores viven en la tabla compartida de rate
+// limit (atómicos entre instancias). El store en memoria sólo entra por
+// inyección explícita (tests); nunca como fallback.
+function loadDefaultRateLimitStore(): Promise<RateLimitStore> {
+  if (!defaultRateLimitStorePromise) {
+    defaultRateLimitStorePromise = import("../db.ts").then((db) =>
+      createPersistentRateLimitStore({
+        get: db.getLoginRateLimitEntry,
+        set: db.setLoginRateLimitEntry,
+        increment: db.incrementLoginRateLimitEntry,
+        consume: db.consumeLoginRateLimitAttempt,
+        cleanupExpired: db.deleteExpiredLoginRateLimitEntries,
+        delete: db.deleteLoginRateLimitEntry,
+      }),
+    );
+    defaultRateLimitStorePromise.catch(() => {
+      defaultRateLimitStorePromise = undefined;
+    });
+  }
+
+  return defaultRateLimitStorePromise;
+}
+
 function createFixedWindowRateLimit(config: {
   scope: string;
   windowMs: number;
@@ -217,35 +241,42 @@ function createFixedWindowRateLimit(config: {
   store?: RateLimitStore;
   now?: () => number;
 }) {
-  const store = config.store ?? createMemoryRateLimitStore();
   const now = config.now ?? (() => Date.now());
 
   return async (request: FastifyRequest, reply: FastifyReply) => {
-    const key = request.ip || "unknown";
     const currentTime = now();
-    const entry = await getOrCreateRateLimitEntry(
-      store,
-      key,
-      config.windowMs,
-      currentTime,
-    );
-    const updatedEntry = await incrementRateLimitEntry(store, key, entry);
+    let entry: { count: number; resetAt: number };
 
-    entry.count = updatedEntry.count;
-    entry.resetAt = updatedEntry.resetAt;
+    try {
+      const store = config.store ?? (await loadDefaultRateLimitStore());
 
-    if (entry.count <= config.max) {
-      const globalCeilingEntry = await consumeGlobalCeiling(store, {
-        scope: config.scope,
-        windowMs: config.windowMs,
-        now: currentTime,
-        maxAttempts: config.max * GLOBAL_CEILING_MULTIPLIER,
-      });
+      entry = await consumeRateLimitAttempt(
+        store,
+        `public-professionals:${config.scope}:ip:${request.ip || "unknown"}`,
+        { windowMs: config.windowMs, now: currentTime },
+      );
 
-      if (globalCeilingEntry) {
-        entry.count = config.max + 1;
-        entry.resetAt = globalCeilingEntry.resetAt;
+      if (entry.count <= config.max) {
+        const globalCeilingEntry = await consumeGlobalCeiling(store, {
+          scope: config.scope,
+          windowMs: config.windowMs,
+          now: currentTime,
+          maxAttempts: config.max * GLOBAL_CEILING_MULTIPLIER,
+        });
+
+        if (globalCeilingEntry) {
+          entry = {
+            count: config.max + 1,
+            resetAt: globalCeilingEntry.resetAt,
+          };
+        }
       }
+    } catch {
+      // Fail-closed: sin store no se evalúa el límite ni se sirve la request.
+      return reply.code(503).send({
+        success: false,
+        error: "Servicio temporalmente no disponible",
+      });
     }
 
     setRateLimitHeaders(reply, {
