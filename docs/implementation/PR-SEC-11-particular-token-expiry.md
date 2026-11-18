@@ -9,7 +9,8 @@ Estado base: `828b8440` (`origin/main`). Scope: backend runtime (R2, auth). Deci
 ## Cambio
 
 - `isParticularTokenExpired(createdAt, ttlDays, nowMs)` (`server/lib/session-expiry.ts`, junto a `isSessionExpired`; función pura sin `ENV`): vencido cuando `nowMs >= createdAt + ttlDays × 24 h` (UTC, epoch). Fecha no `Date`, inválida, TTL no finito o ≤ 0, o reloj no finito ⇒ vencido (fail-closed).
-- `PARTICULAR_TOKEN_TTL_DAYS` (`server/lib/env.ts`, `.env.example`): entero 1–365. Ausente o vacío ⇒ 90 (la política rige por defecto; no existe modo «sin vencimiento»). Presente e inválido (decimal, ≤ 0, > 365, no numérico) ⇒ el arranque aborta.
+- `PARTICULAR_TOKEN_TTL_DAYS` (`server/lib/env.ts`, `.env.example`): **obligatoria**, entero 1–365, **sin valor por defecto en runtime**. Ausente, vacía, solo espacios o inválida (decimal, ≤ 0, > 365, no numérica) ⇒ el arranque aborta en cualquier `NODE_ENV` (error de validación que nombra la variable). `.env.example` documenta el valor operativo elegido: 90. No existe modo «sin vencimiento».
+- Preload exclusivo del runner de tests: `test/helpers/test-env-preload.mjs` (`process.env.PARTICULAR_TOKEN_TTL_DAYS ??= "90"`), cargado con `--import` en los scripts `test` y `test:coverage` de `package.json`. Solo fija esa variable, solo si está `undefined` (un valor explícito, vacío o inválido no se enmascara) y no participa de `dev`, `build` ni `start`. Los tests que arrancan procesos hijos con entorno propio (sin preload) verifican el rechazo real.
 - Aplicado en los cinco puntos que aceptan el token: login de `particular-auth`, el candidato particular del login unificado de `auth` (`POST /api/auth/login`, mismo error genérico «Credenciales inválidas») y la autenticación de sesión de `particular-auth`, `particular-audit` y `particular-study-tracking`. Un token vencido invalida también las sesiones vivas: 401, sesión borrada y cookie limpiada.
 - Sin migración, sin cambios de esquema ni de datos. Sin renovación automática ni periodo de gracia.
 
@@ -19,9 +20,21 @@ Login con token vencido ⇒ 401 `Token inválido` (login unificado: `Credenciale
 
 ## Tests
 
-`test/security/particular-token-ttl.test.ts` (23 casos) y un caso en `auth.fastify.test.ts` para el login unificado (vigente, borde exacto, vencido, fecha inválida): helper (vigente, borde exacto, vencido, fechas/TTL/reloj inválidos), cada superficie (vigente, vencido, 1 ms antes, `createdAt` inválido, inactivo, inexistente/cookie reutilizada), login (vencido, inactivo, inexistente indistinguibles; vigente conserva el contrato), aislamiento por clínica (informe ajeno ⇒ 404) y configuración (ausente ⇒ 90, válidos, inválidos abortan). Verificado por mutación: sin el control fallan 5 casos.
+`test/security/particular-token-ttl.test.ts` (24 casos) y un caso en `auth.fastify.test.ts` para el login unificado (vigente, borde exacto, vencido, fecha inválida): helper (vigente, borde exacto, vencido, fechas/TTL/reloj inválidos), cada superficie (vigente, vencido, 1 ms antes, `createdAt` inválido, inactivo, inexistente/cookie reutilizada), login (vencido, inactivo, inexistente indistinguibles; vigente conserva el contrato), aislamiento por clínica (informe ajeno ⇒ 404) y configuración en procesos aislados sin preload (ausente o vacío abortan en development, test y production; valores válidos se respetan; inválidos abortan). Verificado por mutación: sin el control fallan 5 casos.
 
-Se realinearon los fixtures de token de siete tests existentes y los guards de arquitectura que anclan literales de estas rutas (`security-write-attribution-boundaries`: allowlist de imports, sandbox del autenticador y conteo exacto de `deleteParticularSession` de 2 a 3; hashes de `particular-auth` y `particular-study-tracking` en M33 y en los tres guards de study-tracking; censo LOC M48 y su documento). Fixtures:  que carecían de `createdAt` o lo tenían fuera de la ventana de 90 días respecto de su reloj. No se debilitó ninguna aserción.
+Se realinearon los fixtures de token de siete tests existentes (carecían de `createdAt` o lo tenían fuera de la ventana de 90 días respecto de su reloj) y los guards de arquitectura que anclan literales de estas rutas (`security-write-attribution-boundaries`: allowlist de imports, sandbox del autenticador y conteo exacto de `deleteParticularSession` de 2 a 3; hashes de `particular-auth` y `particular-study-tracking` en M33 y en los tres guards de study-tracking; censo LOC M48 —`server/routes` 22.150, total 50.368— y su documento). Por el preload y la variable obligatoria se realinearon además las constantes exactas del script `test`/`test:coverage` en cinco tests de contrato de `package.json` y el entorno del proceso hijo de `env-db-pool.test.ts`. Ninguna aserción se debilitó ni se marcó como skip: las comparaciones siguen siendo de igualdad exacta.
+
+## Validación (local, Windows, sin `DATABASE_URL`)
+
+- `pnpm typecheck` y `pnpm typecheck:test`: PASSED. `pnpm build`: PASSED.
+- `pnpm test` (corrida completa): 5935 tests, 5922 pass, 12 fail, 1 skipped. Los 12 fallos no se relacionan con SEC-11:
+  - 9 archivos Postgres (`e2e-global-03b`, cuatro `global-search-*`, `login-rate-limit-reset`, `password-change-session-revocation`, `public-professionals-rate-limit`, `report-by-id-postgres-isolation`): exigen `DATABASE_URL`/`SUPABASE_DB_URL` hacia la DB aislada `portal_vetneb_ci` (mensaje explícito) ⇒ BLOCKED en este entorno.
+  - 3 pruebas de la auditoría de superficie pública: los marcadores `NEED_PASSWORD`/`INCORRECT_PASSWORD` provienen de `frontend/.next/static/chunks/…` (build local viejo, ignorado por Git; ausentes en `frontend/src`) ⇒ artefacto del entorno local, no del diff.
+- La evidencia autoritativa es el CI de GitHub sobre el head que se publique (§5.7).
+
+## Impacto sobre Render (NO desplegar sin decisión)
+
+`PARTICULAR_TOKEN_TTL_DAYS` es obligatoria: **si un servicio de Render que ejecuta este backend (producción y staging) no la define antes del despliegue, el proceso no arranca**. Debe cargarse antes de promover el build, con el valor de la opción de transición elegida (ver abajo). Este PR no modifica Render ni producción.
 
 ## Tokens históricos — impacto (NO desplegar sin decisión)
 
@@ -49,4 +62,4 @@ Login/logout general (PR-SEC-13), rate limiting (SEC-10), RLS, CSP, `report_acce
 
 ## Rollback
 
-Revert del commit. Sin migraciones ni datos. Alternativa operativa sin revert: fijar `PARTICULAR_TOKEN_TTL_DAYS=365`.
+Revert del commit. Sin migraciones ni datos. Alternativa operativa sin revert: fijar `PARTICULAR_TOKEN_TTL_DAYS=365`. Tras un revert, la variable ya definida en Render se ignora.

@@ -357,11 +357,13 @@ async function authenticateParticularUser(
     return null;
   }
 
-  if (isParticularTokenExpired(
+  if (
+    isParticularTokenExpired(
       particularToken.createdAt,
       ENV.particularTokenTtlDays,
       now(),
-    )) {
+    )
+  ) {
     await deps.deleteParticularSession(tokenHash);
 
     reply.header("set-cookie", buildClearParticularSessionCookie());

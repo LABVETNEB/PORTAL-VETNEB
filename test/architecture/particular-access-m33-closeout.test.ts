@@ -357,7 +357,7 @@ test("M44 retira paths legacy y realinea los siete consumidores externos", () =>
 test("Auth preserva contrato y Reports usa composition M41", () => {
   assert.equal(
     digest("server/routes/particular-auth.fastify.ts"),
-    "50b61c9d816a7eed114dcefcc99d1efbfdb9f7ce27d206434ada5c4022b51da1",
+    "ae4783409543c7800ae842f8c937ec0c461f338d9ad3bd7d3933b657a4b34029",
   );
   const reports = readSource("server/routes/admin-reports.fastify.ts");
   assert.ok(reports.includes("createAdminReportsRouteComposition"));

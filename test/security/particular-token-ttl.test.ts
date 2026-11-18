@@ -10,7 +10,7 @@ process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
 process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
-delete process.env.PARTICULAR_TOKEN_TTL_DAYS;
+process.env.PARTICULAR_TOKEN_TTL_DAYS = "90";
 
 const { ENV } = await import("../../server/lib/env.ts");
 const { isParticularTokenExpired } = await import("../../server/lib/session-expiry.ts");
@@ -138,7 +138,7 @@ test("isParticularTokenExpired: fecha, TTL o reloj inválidos fallan cerrado", (
   assert.equal(isParticularTokenExpired(valid, TTL_DAYS, Number.NaN), true);
 });
 
-test("ENV.particularTokenTtlDays: default efectivo 90 días", () => {
+test("ENV.particularTokenTtlDays: refleja el valor configurado (90 días)", () => {
   assert.equal(ENV.particularTokenTtlDays, TTL_DAYS);
 });
 
@@ -362,12 +362,18 @@ function readTtlFromChild(overrides: Record<string, string | undefined>) {
     : { ok: false as const, stderr: result.stderr };
 }
 
-test("PARTICULAR_TOKEN_TTL_DAYS: ausente usa 90 y valores válidos se respetan", () => {
-  const absent = readTtlFromChild({});
+test("PARTICULAR_TOKEN_TTL_DAYS: ausente o vacío aborta el arranque sin default (proceso aislado)", () => {
+  for (const overrides of [{}, { PARTICULAR_TOKEN_TTL_DAYS: "" }, { PARTICULAR_TOKEN_TTL_DAYS: "   " }]) {
+    for (const nodeEnv of ["development", "test", "production"]) {
+      const result = readTtlFromChild({ ...overrides, NODE_ENV: nodeEnv, CORS_ORIGIN: "https://example.test" });
 
-  assert.ok(absent.ok);
-  assert.equal(absent.value.ttl, 90);
+      assert.equal(result.ok, false, `${JSON.stringify(overrides)} NODE_ENV=${nodeEnv} debe rechazarse`);
+      assert.match(String(result.ok ? "" : result.stderr), /PARTICULAR_TOKEN_TTL_DAYS/);
+    }
+  }
+});
 
+test("PARTICULAR_TOKEN_TTL_DAYS: valores válidos se respetan", () => {
   for (const [raw, expected] of [["90", 90], ["1", 1], ["30", 30], ["365", 365], [" 45 ", 45]] as const) {
     const result = readTtlFromChild({ PARTICULAR_TOKEN_TTL_DAYS: raw });
 

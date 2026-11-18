@@ -191,7 +191,7 @@ const envSchema = z.object({
     .optional(),
   PARTICULAR_TOKEN_TTL_DAYS: z.preprocess(
     emptyToUndefined,
-    z.coerce.number().int().min(1).max(365).optional(),
+    z.coerce.number().int().min(1).max(365),
   ),
   SESSION_TTL_HOURS: z.coerce
     .number()
@@ -337,7 +337,7 @@ export const ENV = {
   signedUrlExpiresInSeconds:
     rawEnv.SUPABASE_SIGNED_URL_EXPIRES_IN_SECONDS ?? 60 * 15,
   sessionTtlHours: rawEnv.SESSION_TTL_HOURS ?? 24,
-  particularTokenTtlDays: rawEnv.PARTICULAR_TOKEN_TTL_DAYS ?? 90,
+  particularTokenTtlDays: rawEnv.PARTICULAR_TOKEN_TTL_DAYS,
   adminSessionIdleTimeoutMs:
     (rawEnv.ADMIN_SESSION_IDLE_TIMEOUT_MINUTES ??
       ADMIN_SESSION_IDLE_TIMEOUT_DEFAULT_MINUTES) *

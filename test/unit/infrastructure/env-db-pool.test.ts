@@ -11,6 +11,7 @@ function readDatabaseMaxConnectionsFromChild(overrides: Record<string, string>) 
     SUPABASE_SERVICE_ROLE_KEY: "test-service-role-key",
     DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/postgres",
     SUPABASE_DB_URL: "postgresql://postgres:postgres@127.0.0.1:5432/postgres",
+    PARTICULAR_TOKEN_TTL_DAYS: "90",
     DATABASE_MAX_CONNECTIONS: "",
     ...overrides,
   };

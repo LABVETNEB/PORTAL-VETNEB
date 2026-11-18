@@ -29,7 +29,7 @@ const routes = {
 const routeHashes = new Map<string, string>([
   // WBR-08c: migrated to the canonical clinic auth helper.
   [routes.clinic, "9c5a2a407dfb22b2ccb2cb197bb10bc108fb5a246bfa906374f2de5c370a7669"],
-  [routes.particular, "6b39941547d093ca130bde9d0990d29e9d8875114ea46bc7a17438d08b80f392"],
+  [routes.particular, "927dc2ea3285529a4f4da6f490a169dadabfa1c05ec87c0b15241f0fcdfadcf2"],
   [routes.admin, "eb11f9b1508edd16d5ec3b7353dcfc29ca70963ee9427735eef40857bd0dac79"],
 ]);
 

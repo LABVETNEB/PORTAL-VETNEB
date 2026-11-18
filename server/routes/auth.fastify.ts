@@ -82,7 +82,8 @@ type ParticularTokenAuthRecord = {
   id: number;
   clinicId: number;
   reportId: number | null;
-  isActive: boolean;  createdAt: Date;
+  isActive: boolean;
+  createdAt: Date;
 };
 
 type ActiveSessionRecord = {
