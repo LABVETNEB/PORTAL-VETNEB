@@ -74,6 +74,7 @@ function createParticularAuthStubs(overrides: Record<string, unknown> = {}) {
       clinicId: 3,
       reportId: 55,
       isActive: true,
+      createdAt: new Date("2026-04-20T12:00:00.000Z"),
     }),
     updateParticularSessionLastAccess: async () => {},
     hashSessionToken: (token: string) => `hash:${token}`,

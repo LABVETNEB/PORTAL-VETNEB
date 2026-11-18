@@ -30,6 +30,30 @@ export function isSessionExpired(
 }
 
 /**
+ * Vencimiento del token credencial de particulares: `createdAt + ttlDays`.
+ * Fail-closed: fecha inválida o TTL no finito o <= 0 se tratan como vencidos;
+ * el límite exacto también está vencido.
+ */
+export function isParticularTokenExpired(
+  createdAt: Date | null | undefined,
+  ttlDays: number,
+  nowMs: number,
+) {
+  const createdAtMs = toValidTimeMs(createdAt);
+
+  if (
+    createdAtMs === null ||
+    !Number.isFinite(ttlDays) ||
+    ttlDays <= 0 ||
+    !Number.isFinite(nowMs)
+  ) {
+    return true;
+  }
+
+  return nowMs >= createdAtMs + ttlDays * 24 * 60 * 60 * 1000;
+}
+
+/**
  * Inactividad administrativa medida contra `lastAccess`.
  * - `lastAccess` ausente o inválido: inactiva (fail-closed).
  * - Futuro dentro de la tolerancia de reloj: actividad en curso.

@@ -12,6 +12,7 @@ import {
   getRequestOrigin,
 } from "../lib/cors-headers.ts";
 import { ENV } from "../lib/env.ts";
+import { isParticularTokenExpired } from "../lib/session-expiry.ts";
 import {
   buildLoginRateLimitResponse,
   buildLoginRateLimitHeaders,
@@ -81,7 +82,7 @@ type ParticularTokenAuthRecord = {
   id: number;
   clinicId: number;
   reportId: number | null;
-  isActive: boolean;
+  isActive: boolean;  createdAt: Date;
 };
 
 type ActiveSessionRecord = {
@@ -716,6 +717,16 @@ async function authenticateParticularCandidate(
   const particularToken = await deps.getParticularTokenByTokenHash(tokenHash);
 
   if (!particularToken || !particularToken.isActive) {
+    return null;
+  }
+
+  if (
+    isParticularTokenExpired(
+      particularToken.createdAt,
+      ENV.particularTokenTtlDays,
+      input.currentTime,
+    )
+  ) {
     return null;
   }
 

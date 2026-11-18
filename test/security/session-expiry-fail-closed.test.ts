@@ -62,7 +62,7 @@ const PARTICULAR_TOKEN = {
   shippingDate: new Date("2026-01-11T00:00:00.000Z"),
   isActive: true,
   lastLoginAt: null,
-  createdAt: new Date("2026-01-10T00:00:00.000Z"),
+  createdAt: new Date("2026-11-10T00:00:00.000Z"),
   updatedAt: new Date("2026-01-12T00:00:00.000Z"),
   createdByAdminId: 91,
   createdByClinicUserId: null,
