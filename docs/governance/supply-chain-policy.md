@@ -134,21 +134,16 @@ su huella exacta en `TEMPORARY_AUDIT_EXCEPTIONS` y está cubierta por
 otro advisory, si la huella cambia (paquete, rango, versión, ruta o alcance dev) o si la
 excepción deja de reportarse (stale): en ese caso se retira en un PR propio.
 
-| Campo | Valor |
-| --- | --- |
-| ID | `GHSA-fc5q-39xc-vjpf` |
-| Package | `picomatch` |
-| Vulnerable range | `<=4.0.7` (ReDoS por extglobs repetidos de una sola rama; severidad high) |
-| Effective versions | `4.0.7` (36 rutas) y `2.3.2` (1 ruta) |
-| Scope | development dependency only: `@typescript-eslint/*` > `tinyglobby` > `picomatch` / `fdir` > `picomatch` (raíz y `frontend > eslint-config-next`), y `frontend > eslint-config-next > @next/eslint-plugin-next > fast-glob > micromatch > picomatch`. Las 37 rutas exactas están en `TEMPORARY_AUDIT_EXCEPTIONS` |
-| Production exposure | none según `pnpm audit --prod`; los patrones los fijan configuraciones de lint del repositorio, no entradas de usuarios |
-| Reason | no patched upstream version exists (`first_patched_version: null`; último `picomatch` publicado: 4.0.7) |
-| Owner | Security / Dependency owner |
-| Removal trigger | upstream patched release available; o las rutas dejan de resolver `picomatch` vulnerable; o el advisory se retira o reclasifica de forma que invalida la excepción |
+Estado actual: **no hay excepciones activas** (`TEMPORARY_AUDIT_EXCEPTIONS` está vacía y congelada).
 
-El `pnpm audit` crudo sigue fallando mientras el advisory exista: la excepción sólo se aplica en
-`scripts/supply-chain/dependency-audit-gate.mjs`, que es el gate oficial de CI. La excepción
-anterior (`GHSA-vfj7-8cjw-p6xm`, `braces`) fue retirada por stale.
+Historial de excepciones retiradas por stale:
+
+| ID | Package | Motivo de retiro |
+| --- | --- | --- |
+| `GHSA-vfj7-8cjw-p6xm` | `braces` | el advisory dejó de reportarse |
+| `GHSA-fc5q-39xc-vjpf` | `picomatch` | advisory retirado (`withdrawn_at` 2026-11-18T15:38:56Z); `pnpm audit` y `pnpm audit --prod` salen limpios con el lockfile sin cambios |
+
+Con la lista vacía, cualquier advisory (productivo o de desarrollo) hace fallar el gate.
 
 ## 10. Requisitos de lockfile
 
