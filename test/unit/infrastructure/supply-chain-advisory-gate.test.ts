@@ -136,10 +136,7 @@ test("7 · a clean full audit passes, while an injected stale exception fails", 
 
 test("the default gate rejects the formerly excepted GHSA", () => {
   assert.deepEqual(gate(audits([], [bracesAdvisory()])), {
-    failures: [
-      `advisory ${ALLOWED_GHSA} (braces) has no exception`,
-      "exception GHSA-fc5q-39xc-vjpf (picomatch) is stale: the audit no longer reports it; remove the temporary exception",
-    ],
+    failures: [`advisory ${ALLOWED_GHSA} (braces) has no exception`],
     tolerated: [],
   });
 });
@@ -185,7 +182,6 @@ test("9 · a failed or inconsistent audit command fails closed", () => {
 const PICOMATCH_GHSA = "GHSA-fc5q-39xc-vjpf";
 
 function picomatchAdvisory(overrides: Partial<RawAdvisory> = {}): RawAdvisory {
-  const [exception] = TEMPORARY_AUDIT_EXCEPTIONS;
   return {
     id: 1247710,
     github_advisory_id: PICOMATCH_GHSA,
@@ -193,69 +189,31 @@ function picomatchAdvisory(overrides: Partial<RawAdvisory> = {}): RawAdvisory {
     severity: "high",
     vulnerable_versions: "<=4.0.7",
     patched_versions: ">=4.0.8",
-    findings: exception.findings.map((finding) => ({
-      version: finding.version,
-      paths: [...finding.paths],
-      dev: finding.dev,
-      optional: false,
-      bundled: false,
-    })),
+    findings: [
+      { version: "4.0.7", paths: ["frontend>eslint-config-next>tinyglobby>picomatch"], dev: true, optional: false, bundled: false },
+      { version: "2.3.2", paths: ["frontend>eslint-config-next>@next/eslint-plugin-next>fast-glob>micromatch>picomatch"], dev: true, optional: false, bundled: false },
+    ],
     ...overrides,
   };
 }
 
-test("picomatch · the exact advisory fingerprint is tolerated only as a development dependency", () => {
-  assert.deepEqual(gate(audits([], [picomatchAdvisory()])).failures, []);
-  assert.deepEqual(gate(audits([], [picomatchAdvisory()])).tolerated, [PICOMATCH_GHSA]);
+test("picomatch · the withdrawn advisory is no longer excepted: a development finding fails the default gate", () => {
+  assert.deepEqual(gate(audits([], [picomatchAdvisory()])), {
+    failures: [`advisory ${PICOMATCH_GHSA} (picomatch) has no exception`],
+    tolerated: [],
+  });
 });
 
-test("picomatch · production exposure, other advisories and fingerprint drift fail", () => {
-  assert.equal(gate(audits([picomatchAdvisory()], [picomatchAdvisory()])).failures.length >= 1, true);
-
-  const base = picomatchAdvisory();
-  const first = base.findings[0];
-  const drift: RawAdvisory[] = [
-    picomatchAdvisory({ findings: base.findings.map((f, i) => (i === 0 ? { ...f, dev: false } : f)) }),
-    picomatchAdvisory({ findings: base.findings.map((f, i) => (i === 0 ? { ...f, version: "4.0.6" } : f)) }),
-    picomatchAdvisory({ findings: base.findings.map((f, i) => (i === 0 ? { ...f, paths: [...f.paths, "frontend>new-tool>picomatch"] } : f)) }),
-    picomatchAdvisory({ findings: base.findings.map((f, i) => (i === 0 ? { ...f, paths: f.paths.slice(1) } : f)) }),
-    picomatchAdvisory({ findings: base.findings.slice(1) }),
-    picomatchAdvisory({ findings: [...base.findings, { ...first, version: "3.0.0" }] }),
-    picomatchAdvisory({ vulnerable_versions: "<=4.0.8" }),
-    picomatchAdvisory({ module_name: "picomatch-fork" }),
-  ];
-  for (const changed of drift) {
-    const { failures } = gate(audits([], [changed]));
-    assert.ok(failures.length >= 1, JSON.stringify(changed).slice(0, 120));
-  }
-
-  const withOther = gate(audits([], [picomatchAdvisory(), otherAdvisory()]));
-  assert.deepEqual(withOther.failures, ["advisory GHSA-2222-3333-4444 (left-pad) has no exception"]);
+test("picomatch · a production finding still fails the production audit", () => {
+  const { failures, tolerated } = gate(audits([picomatchAdvisory({ findings: [{ ...picomatchAdvisory().findings[0], dev: false }] })], []));
+  assert.equal(failures.length, 1);
+  assert.match(failures[0], /^production advisory .* is never tolerated$/);
+  assert.deepEqual(tolerated, []);
 });
 
-test("picomatch · the exception goes stale when the advisory disappears or a patched version exists", () => {
-  assert.deepEqual(gate(audits([], [])).failures, [
-    `exception ${PICOMATCH_GHSA} (picomatch) is stale: the audit no longer reports it; remove the temporary exception`,
-  ]);
-});
-
-test("the default exception list holds only the exact picomatch entry, frozen, with no wildcard or severity rule", () => {
-  assert.equal(TEMPORARY_AUDIT_EXCEPTIONS.length, 1);
-  const [exception] = TEMPORARY_AUDIT_EXCEPTIONS;
-  assert.equal(exception.githubAdvisoryId, PICOMATCH_GHSA);
-  assert.equal(exception.moduleName, "picomatch");
-  assert.equal(exception.vulnerableVersions, "<=4.0.7");
-  assert.deepEqual(exception.findings.map((finding) => finding.version), ["2.3.2", "4.0.7"]);
-  for (const finding of exception.findings) {
-    assert.equal(finding.dev, true);
-    assert.ok(finding.paths.length > 0);
-    for (const path of finding.paths) {
-      assert.ok(path.endsWith(">picomatch"), path);
-      assert.equal(/[*?]/.test(path), false, "no wildcard path");
-    }
-  }
+test("the default exception list is empty and frozen, with no wildcard or severity rule", () => {
+  assert.deepEqual(TEMPORARY_AUDIT_EXCEPTIONS, []);
   assert.ok(Object.isFrozen(TEMPORARY_AUDIT_EXCEPTIONS));
-  assert.ok(Object.isFrozen(exception));
 
   // The executable gate, read from the loaded functions themselves.
   const code = [parseAuditReport, evaluateProductionAudit, evaluateFullAudit, runPnpmAudit, runDependencyAuditGate, main]
