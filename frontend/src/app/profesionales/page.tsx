@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 
 import { ProfesionalesSearchContent } from "@/components/public/ProfesionalesSearchContent";
 import { createPageMetadata, getProfessionalsPageJsonLd } from "@/lib/seo";
+import { serializeJsonLd } from "@/lib/json-ld";
 
 export const metadata: Metadata = createPageMetadata(
   "Clínicas y Profesionales Verificados VETNEB",
@@ -18,7 +19,7 @@ export default function ProfesionalesPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(professionalsPageJsonLd),
+          __html: serializeJsonLd(professionalsPageJsonLd),
         }}
       />
       <Suspense fallback={null}>

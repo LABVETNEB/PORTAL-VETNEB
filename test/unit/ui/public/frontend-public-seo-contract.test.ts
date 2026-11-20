@@ -42,7 +42,7 @@ test("root layout embeds institutional JSON-LD script", () => {
   assert.ok(source.includes('type="application/ld+json"'));
   assert.ok(
     source.includes(
-      "dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}",
+      "dangerouslySetInnerHTML={{ __html: serializeJsonLd(orgJsonLd) }}",
     ),
   );
 });
@@ -142,7 +142,7 @@ test("professionals public page exposes verifiable structured data", () => {
   assert.ok(profesionalesSource.includes('type="application/ld+json"'));
   assert.ok(
     profesionalesSource.includes(
-      "__html: JSON.stringify(professionalsPageJsonLd),",
+      "__html: serializeJsonLd(professionalsPageJsonLd),",
     ),
   );
 });

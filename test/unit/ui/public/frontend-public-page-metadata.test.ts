@@ -16,7 +16,7 @@ test("servicios public page defines SEO metadata and services JSON-LD", () => {
   assert.ok(source.includes('"/servicios"'));
   assert.ok(source.includes("const jsonLd = getServicesJsonLd();"));
   assert.ok(source.includes('type="application/ld+json"'));
-  assert.ok(source.includes("dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}"));
+  assert.ok(source.includes("dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}"));
 });
 
 test("profesionales public page defines SEO metadata", () => {

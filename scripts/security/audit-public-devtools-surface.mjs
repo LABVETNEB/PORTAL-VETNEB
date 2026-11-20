@@ -86,7 +86,7 @@ const LINK_TAG_REGEX = /<Link\b/;
 const ANCHOR_TAG_REGEX = /<a\b/;
 const IFRAME_TAG_REGEX = /<iframe\b/;
 const JSON_LD_GUARD_REGEX = /application\/ld\+json/;
-const JSON_STRINGIFY_REGEX = /JSON\.stringify\s*\(/;
+const JSON_LD_SAFE_SERIALIZER_REGEX = /__html\s*:\s*serializeJsonLd\s*\(/;
 
 const SENSITIVE_STORAGE_KEY_REGEX =
   /(token|secret|password|passwd|session|auth|jwt|cookie|email|mail|phone|telefono|cel|dni|document|ssn|profile|personal|pii|access|refresh)/i;
@@ -328,8 +328,10 @@ function auditDangerouslySetInnerHtml() {
 
     for (const match of matchAll(DANGEROUSLY_SET_INNER_HTML_REGEX, content)) {
       const snippet = getWindow(content, match.index, 220);
+      const sinkExpression = content.slice(match.index, match.index + 220);
       const justified =
-        (JSON_LD_GUARD_REGEX.test(snippet) && JSON_STRINGIFY_REGEX.test(snippet)) ||
+        (JSON_LD_GUARD_REGEX.test(snippet) &&
+          JSON_LD_SAFE_SERIALIZER_REGEX.test(sinkExpression)) ||
         /security-reviewed-dangerouslysetinnerhtml/i.test(snippet);
 
       if (!justified) {
@@ -338,7 +340,7 @@ function auditDangerouslySetInnerHtml() {
           file,
           line: getLineFromIndex(content, match.index),
           message:
-            "dangerouslySetInnerHTML found without JSON-LD safeguard or explicit security review marker.",
+            "dangerouslySetInnerHTML found without serializeJsonLd JSON-LD safeguard or explicit security review marker.",
           publicExposure: true,
         });
       }

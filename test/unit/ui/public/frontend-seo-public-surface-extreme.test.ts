@@ -176,8 +176,8 @@ test("service pages emit getDiagnosticServiceJsonLd structured data", () => {
       `${page.name} must emit application/ld+json script`,
     );
     assert.ok(
-      source.includes("JSON.stringify("),
-      `${page.name} JSON-LD must use JSON.stringify`,
+      source.includes("serializeJsonLd("),
+      `${page.name} JSON-LD must use serializeJsonLd`,
     );
     assert.ok(
       source.includes("dangerouslySetInnerHTML="),
@@ -207,8 +207,8 @@ test("contacto page emits ContactPage JSON-LD", () => {
     "contacto page must emit application/ld+json",
   );
   assert.ok(
-    pageSource.includes("JSON.stringify("),
-    "contacto page JSON-LD must use JSON.stringify",
+    pageSource.includes("serializeJsonLd("),
+    "contacto page JSON-LD must use serializeJsonLd",
   );
 });
 
@@ -276,7 +276,7 @@ test("seo.ts JSON-LD helpers do not include unverifiable schema types", () => {
   assert.equal(source.includes("MedicalClaim"), false, "seo.ts must not contain MedicalClaim");
 });
 
-test("JSON-LD across all public pages uses JSON.stringify and not manual interpolation", () => {
+test("JSON-LD across all public pages uses serializeJsonLd and not manual interpolation", () => {
   const pagePaths = [
     SERVICIOS_PATH,
     CITOLOGIA_PATH,
@@ -297,8 +297,8 @@ test("JSON-LD across all public pages uses JSON.stringify and not manual interpo
     }
 
     assert.ok(
-      source.includes("JSON.stringify("),
-      `${pagePath}: JSON-LD script must use JSON.stringify for safe serialization`,
+      source.includes("serializeJsonLd("),
+      `${pagePath}: JSON-LD script must use serializeJsonLd for safe serialization`,
     );
     assert.equal(
       source.includes("__html: `{"),

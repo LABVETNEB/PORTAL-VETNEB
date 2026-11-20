@@ -18,6 +18,7 @@ import {
   createPageMetadata,
   getDiagnosticServiceJsonLd,
 } from "@/lib/seo";
+import { serializeJsonLd } from "@/lib/json-ld";
 
 export const metadata: Metadata = createPageMetadata(
   "Informes Veterinarios | Resultados Veterinarios Online",
@@ -94,7 +95,7 @@ export default function InformesVeterinariosPage() {
     <PublicLayout>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
       />
 
       <section
