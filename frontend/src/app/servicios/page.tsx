@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/card";
 import { VisualIcon } from "@/components/public/VisualAccents";
 import { createPageMetadata, getServicesJsonLd } from "@/lib/seo";
+import { serializeJsonLd } from "@/lib/json-ld";
 import { ROUTES } from "@/lib/routes";
 
 export const metadata: Metadata = createPageMetadata(
@@ -176,7 +177,7 @@ export default function ServiciosPage() {
     <PublicLayout>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
       />
 
       <section

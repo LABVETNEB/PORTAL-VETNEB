@@ -13,7 +13,7 @@
 //   new Function()           → 0 occurrences ✓
 //   inline event handlers    → 0 occurrences ✓
 //   bare <script> (non-LD)   → 0 occurrences ✓ (all 7 are type="application/ld+json")
-//   dangerouslySetInnerHTML  → 7 uses, ALL JSON-LD guarded ✓
+//   dangerouslySetInnerHTML  → 10 uses, ALL JSON-LD sinks via serializeJsonLd ✓
 //
 // If any test fails, the failing pattern is a BLOCKER for CSP enforcement:
 // it would require 'unsafe-inline'/'unsafe-eval', a nonce, or elimination
@@ -30,6 +30,7 @@ import {
   THEME_INIT_SCRIPT_SRC,
   THEME_INIT_SCRIPT_VERSION,
 } from "../../../../frontend/src/lib/theme.ts";
+import { serializeJsonLd } from "../../../../frontend/src/lib/json-ld.ts";
 import { listSourceFiles, readSourceFile } from "../../../helpers/tracked-source-files.ts";
 
 const FRONTEND_SRC = resolve(process.cwd(), "frontend/src");
@@ -179,35 +180,141 @@ test("the allowlisted external script src is the same-origin, content-versioned 
 
 // ── 5. dangerouslySetInnerHTML guard (complements security:public-surface) ──
 
-test("all dangerouslySetInnerHTML uses in frontend/src are JSON-LD guarded (application/ld+json + JSON.stringify)", () => {
-  // dangerouslySetInnerHTML injects raw HTML — under enforcing CSP it would require
-  // 'unsafe-inline' or a nonce on the parent script/style context.
-  // All current uses are JSON-LD structured data blocks serialized via JSON.stringify.
-  // security:public-surface applies the same guard at the script level.
+// Un sink JSON-LD es seguro sólo si el `__html` es exactamente la llamada a
+// `serializeJsonLd(...)`: `JSON.stringify` crudo no escapa `</script>`.
+function isSafeJsonLdSink(content: string, pos: number): boolean {
+  const before = content.slice(Math.max(0, pos - 150), pos);
+  const sink = content.slice(pos, pos + 250);
+  return (
+    /type="application\/ld\+json"/.test(before + sink.slice(0, 40)) &&
+    /^dangerouslySetInnerHTML=\{\{\s*__html:\s*serializeJsonLd\(/.test(sink)
+  );
+}
+
+function findUnsafeInnerHtmlSinks(files: Array<{ file: string; content: string }>): Violation[] {
   const violations: Violation[] = [];
-  for (const file of runtimeFiles) {
-    const content = readSourceFile(relative(process.cwd(), file));
+  for (const { file, content } of files) {
     let searchFrom = 0;
     let pos: number;
     while ((pos = content.indexOf("dangerouslySetInnerHTML", searchFrom)) !== -1) {
-      const lineNum = content.slice(0, pos).split("\n").length;
-      const snippet = content.slice(Math.max(0, pos - 150), pos + 250);
-      const isJsonLd =
-        /application\/ld\+json/.test(snippet) &&
-        /JSON\.stringify\s*\(/.test(snippet);
-      if (!isJsonLd) {
+      if (!isSafeJsonLdSink(content, pos)) {
         violations.push({
-          file: relative(process.cwd(), file),
-          line: lineNum,
-          snippet: snippet.replace(/\s+/g, " ").trim().slice(0, 120),
+          file,
+          line: content.slice(0, pos).split("\n").length,
+          snippet: content
+            .slice(Math.max(0, pos - 150), pos + 250)
+            .replace(/\s+/g, " ")
+            .trim()
+            .slice(0, 120),
         });
       }
       searchFrom = pos + 1;
     }
   }
+  return violations;
+}
+
+test("all dangerouslySetInnerHTML uses in frontend/src are JSON-LD sinks serialized with serializeJsonLd", () => {
+  // dangerouslySetInnerHTML injects raw HTML. Los únicos usos admitidos son bloques
+  // JSON-LD cuyo contenido pasa por serializeJsonLd (escapa <, >, &, U+2028/2029).
+  const violations = findUnsafeInnerHtmlSinks(
+    runtimeFiles.map((file) => {
+      const path = relative(process.cwd(), file);
+      return { file: path, content: readSourceFile(path) };
+    }),
+  );
   assert.deepEqual(
     violations,
     [],
-    `dangerouslySetInnerHTML without JSON-LD guard found — BLOCKER for CSP enforcement (requires nonce or elimination):\n${JSON.stringify(violations, null, 2)}`,
+    `dangerouslySetInnerHTML without safe JSON-LD serialization found — XSS/CSP BLOCKER:\n${JSON.stringify(violations, null, 2)}`,
   );
+});
+
+test("serializeJsonLd has a single definition in lib/json-ld.ts and every consumer imports it from @/lib/json-ld", () => {
+  const definitions: string[] = [];
+  const badImports: string[] = [];
+  let consumers = 0;
+  for (const file of runtimeFiles) {
+    const path = relative(process.cwd(), file).replaceAll("\\", "/");
+    const content = readSourceFile(path);
+    if (/(?:function|const|let|var)\s+serializeJsonLd\b/.test(content)) definitions.push(path);
+    if (/\bserializeJsonLd\s*\(/.test(content) && !/export function serializeJsonLd/.test(content)) {
+      consumers += 1;
+      const imported = /import\s*\{[^}]*\bserializeJsonLd\b[^}]*\}\s*from\s*"@\/lib\/json-ld"/.test(content);
+      if (!imported) badImports.push(path);
+    }
+  }
+  assert.deepEqual(definitions, ["frontend/src/lib/json-ld.ts"]);
+  assert.deepEqual(badImports, []);
+  assert.equal(consumers, 10);
+});
+
+test("the JSON-LD sink guard rejects raw JSON.stringify and other synthetic unsafe sinks", () => {
+  const sink = (html: string) =>
+    `<script\n type="application/ld+json"\n dangerouslySetInnerHTML={{ __html: ${html} }}\n/>`;
+  const run = (html: string) =>
+    findUnsafeInnerHtmlSinks([{ file: "synthetic.tsx", content: sink(html) }]).length;
+
+  assert.equal(run("serializeJsonLd(data)"), 0);
+  assert.equal(run("JSON.stringify(data)"), 1);
+  assert.equal(run("JSON.stringify(data).replace(/</g, '')"), 1);
+  assert.equal(run("userHtml"), 1);
+  assert.equal(run("`${serializeJsonLd(data)}`"), 1);
+  assert.equal(
+    findUnsafeInnerHtmlSinks([
+      { file: "synthetic.tsx", content: "<div dangerouslySetInnerHTML={{ __html: serializeJsonLd(data) }} />" },
+    ]).length,
+    1,
+    "serializeJsonLd outside a type=application/ld+json script is not an admitted sink",
+  );
+});
+
+// ── 6. serializeJsonLd: contrato de comportamiento (SEC-17) ─────────────────
+
+test("serializeJsonLd escapes <, >, &, U+2028 and U+2029 and never closes the script element", () => {
+  const hostile = {
+    a: "</script><script>alert(1)</script>",
+    b: "<!-- x --> & <b>bold</b> > <",
+    c: "line\u2028sep\u2029para",
+  };
+  const out = serializeJsonLd(hostile);
+
+  assert.equal(/[<>&\u2028\u2029]/.test(out), false);
+  assert.equal(out.toLowerCase().includes("</script"), false);
+  assert.ok(out.includes("\\u003c/script\\u003e\\u003cscript\\u003ealert(1)\\u003c/script\\u003e"));
+  assert.ok(out.includes("\\u0026"));
+  assert.ok(out.includes("\\u2028") && out.includes("\\u2029"));
+  assert.deepEqual(JSON.parse(out), hostile);
+});
+
+test("serializeJsonLd keeps valid, semantically identical JSON and does not mutate or double-encode", () => {
+  const input = {
+    quote: 'he said "hi" \ back\slash',
+    unicode: "áéíóñ ü ✓ 😀",
+    nested: { list: [1, "<x>", { deep: ["&", null, true, 1.5] }], empty: {} },
+    arr: [],
+  };
+  const snapshot = structuredClone(input);
+  const out = serializeJsonLd(input);
+
+  assert.deepEqual(input, snapshot);
+  assert.deepEqual(JSON.parse(out), snapshot);
+  assert.equal(out.includes("\\\\u003c"), false, "no double-escaped backslash before the u003c sequence");
+  assert.equal(serializeJsonLd(input), out);
+  assert.equal(serializeJsonLd({ plain: "texto" }), JSON.stringify({ plain: "texto" }));
+  assert.equal(JSON.parse(serializeJsonLd("</script>")), "</script>");
+});
+
+test("every JSON-LD sink file serializes with serializeJsonLd and never with raw JSON.stringify", () => {
+  const sinkFiles = runtimeFiles
+    .map((file) => relative(process.cwd(), file).replaceAll("\\", "/"))
+    .filter((path) => readSourceFile(path).includes("dangerouslySetInnerHTML"));
+
+  assert.equal(sinkFiles.length, 10);
+  for (const path of sinkFiles) {
+    const source = readSourceFile(path);
+    assert.match(source, /__html:\s*serializeJsonLd\(/, `${path} must serialize JSON-LD with serializeJsonLd`);
+    assert.equal(source.includes("JSON.stringify"), false, `${path} must not use raw JSON.stringify`);
+    assert.equal((source.match(/dangerouslySetInnerHTML/g) ?? []).length, 1, `${path} must have exactly one sink`);
+  }
 });

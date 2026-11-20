@@ -49,7 +49,7 @@ test("veterinary diagnostic reports landing page uses truthful Service JSON-LD",
   assert.ok(source.includes('type="application/ld+json"'));
   assert.ok(
     source.includes(
-      "dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}",
+      "dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}",
     ),
   );
 });

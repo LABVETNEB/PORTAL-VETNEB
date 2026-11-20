@@ -6,6 +6,7 @@ import { AppVersionGate } from "@/components/app-version/AppVersionGate";
 import { PwaServiceWorkerRegistrar } from "@/components/pwa/PwaServiceWorkerRegistrar";
 import { INTER_FONT_PATH } from "@/lib/fonts";
 import { baseMetadata, getOrganizationJsonLd } from "@/lib/seo";
+import { serializeJsonLd } from "@/lib/json-ld";
 import { SITE_THEME_COLOR } from "@/lib/seo";
 import { NORMAL_THEME_MODE, THEME_INIT_SCRIPT_SRC } from "@/lib/theme";
 
@@ -36,7 +37,7 @@ export default function RootLayout({
         />
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(orgJsonLd) }}
         />
       </head>
       <body className="min-h-screen bg-background antialiased">

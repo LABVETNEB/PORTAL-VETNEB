@@ -17,6 +17,7 @@ import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { PublicScrollReveal } from "@/components/public/PublicScrollReveal";
 import { VisualIcon } from "@/components/public/VisualAccents";
 import { createPageMetadata, getClinicasPageJsonLd } from "@/lib/seo";
+import { serializeJsonLd } from "@/lib/json-ld";
 import { ROUTES } from "@/lib/routes";
 
 export const metadata: Metadata = createPageMetadata(
@@ -165,7 +166,7 @@ export default function ClinicasPage() {
     <PublicLayout>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
       />
       <section
         className="public-secondary-hero-surface py-16 text-white md:py-20"

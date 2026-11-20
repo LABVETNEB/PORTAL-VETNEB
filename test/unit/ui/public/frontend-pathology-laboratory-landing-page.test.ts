@@ -45,7 +45,7 @@ test("veterinary pathology laboratory landing page uses centralized diagnostic s
   assert.ok(source.includes('type="application/ld+json"'));
   assert.ok(
     source.includes(
-      "dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}",
+      "dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}",
     ),
   );
 });
