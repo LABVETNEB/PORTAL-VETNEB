@@ -237,6 +237,7 @@ export const publicReportAccessNativeRoutes: FastifyPluginAsync<
     (request as PublicReportAccessFastifyRequest)[REQUEST_TIMER_KEY] =
       createRuntimeTimer();
 
+    reply.header("cache-control", "no-store");
     applyCorsHeaders(request, reply, allowedOrigins);
 
     return undefined;
