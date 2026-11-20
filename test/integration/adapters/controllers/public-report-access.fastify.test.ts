@@ -78,6 +78,46 @@ async function createTestApp(overrides: Record<string, unknown> = {}) {
   return app;
 }
 
+
+test(
+  "publicReportAccessNativeRoutes conserva no-store en errores 500 y OPTIONS",
+  async () => {
+    const app = await createTestApp({
+      getReportAccessTokenWithReportByTokenHash: async () => {
+        throw new Error("synthetic-lookup-failure");
+      },
+    });
+
+    try {
+      const failure = await app.inject({
+        method: "GET",
+        url: `/api/public/report-access/${"a".repeat(64)}`,
+      });
+
+      assert.equal(failure.statusCode, 500);
+      assert.equal(failure.headers["cache-control"], "no-store");
+
+      const preflight = await app.inject({
+        method: "OPTIONS",
+        url: `/api/public/report-access/${"a".repeat(64)}`,
+        headers: {
+          origin: "http://localhost:3000",
+          "access-control-request-method": "GET",
+        },
+      });
+
+      assert.equal(preflight.statusCode, 204);
+      assert.equal(preflight.headers["cache-control"], "no-store");
+      assert.equal(
+        preflight.headers["access-control-allow-methods"],
+        "GET,OPTIONS",
+      );
+    } finally {
+      await app.close();
+    }
+  },
+);
+
 test(
   "publicReportAccessNativeRoutes responde acceso público con payload estable, urls firmadas y auditoria",
   async () => {
@@ -128,6 +168,7 @@ test(
       });
 
       assert.equal(response.statusCode, 200);
+      assert.equal(response.headers["cache-control"], "no-store");
       assert.equal(
         response.headers["access-control-allow-origin"],
         "http://localhost:3000",
@@ -188,6 +229,7 @@ test(
       });
 
       assert.equal(response.statusCode, 404);
+      assert.equal(response.headers["cache-control"], "no-store");
       assert.deepEqual(JSON.parse(response.body), {
         success: false,
         error: "Informe no encontrado",
@@ -218,6 +260,7 @@ test(
       });
 
       assert.equal(response.statusCode, 404);
+      assert.equal(response.headers["cache-control"], "no-store");
       assert.deepEqual(JSON.parse(response.body), {
         success: false,
         error: "Informe no encontrado",
@@ -265,6 +308,7 @@ test(
       });
 
       assert.equal(response.statusCode, 404);
+      assert.equal(response.headers["cache-control"], "no-store");
       assert.deepEqual(JSON.parse(response.body), {
         success: false,
         error: "Informe no encontrado",
@@ -305,6 +349,7 @@ test(
       });
 
       assert.equal(response.statusCode, 404);
+      assert.equal(response.headers["cache-control"], "no-store");
       assert.deepEqual(JSON.parse(response.body), {
         success: false,
         error: "Informe no encontrado",
@@ -338,6 +383,7 @@ test(
       });
 
       assert.equal(response.statusCode, 409);
+      assert.equal(response.headers["cache-control"], "no-store");
       assert.deepEqual(JSON.parse(response.body), {
         success: false,
         error: "El informe todavía no está disponible para acceso público",
@@ -381,8 +427,11 @@ test(
       });
 
       assert.equal(first.statusCode, 404);
+      assert.equal(first.headers["cache-control"], "no-store");
       assert.equal(second.statusCode, 404);
+      assert.equal(second.headers["cache-control"], "no-store");
       assert.equal(third.statusCode, 429);
+      assert.equal(third.headers["cache-control"], "no-store");
       assert.equal(third.headers["ratelimit-limit"], "2");
       assert.equal(third.headers["ratelimit-remaining"], "0");
       assert.deepEqual(JSON.parse(third.body), {
