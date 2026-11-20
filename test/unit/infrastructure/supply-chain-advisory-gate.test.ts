@@ -127,7 +127,7 @@ test("6 · a version, path, scope or range outside an injected exception fails",
 });
 
 test("7 · a clean full audit passes, while an injected stale exception fails", () => {
-  assert.deepEqual(gate(audits([], [])), { failures: [], tolerated: [] });
+  assert.deepEqual(gate(audits([], []), []), { failures: [], tolerated: [] });
   const { failures } = gate(audits([], []), [TEST_EXCEPTION]);
   assert.deepEqual(failures, [
     `exception ${ALLOWED_GHSA} (braces) is stale: the audit no longer reports it; remove the temporary exception`,
@@ -177,6 +177,38 @@ test("9 · a failed or inconsistent audit command fails closed", () => {
       assert.deepEqual(tolerated, []);
     }
   }
+});
+
+const PICOMATCH_GHSA = "GHSA-fc5q-39xc-vjpf";
+
+function picomatchAdvisory(overrides: Partial<RawAdvisory> = {}): RawAdvisory {
+  return {
+    id: 1247710,
+    github_advisory_id: PICOMATCH_GHSA,
+    module_name: "picomatch",
+    severity: "high",
+    vulnerable_versions: "<=4.0.7",
+    patched_versions: ">=4.0.8",
+    findings: [
+      { version: "4.0.7", paths: ["frontend>eslint-config-next>tinyglobby>picomatch"], dev: true, optional: false, bundled: false },
+      { version: "2.3.2", paths: ["frontend>eslint-config-next>@next/eslint-plugin-next>fast-glob>micromatch>picomatch"], dev: true, optional: false, bundled: false },
+    ],
+    ...overrides,
+  };
+}
+
+test("picomatch · the withdrawn advisory is no longer excepted: a development finding fails the default gate", () => {
+  assert.deepEqual(gate(audits([], [picomatchAdvisory()])), {
+    failures: [`advisory ${PICOMATCH_GHSA} (picomatch) has no exception`],
+    tolerated: [],
+  });
+});
+
+test("picomatch · a production finding still fails the production audit", () => {
+  const { failures, tolerated } = gate(audits([picomatchAdvisory({ findings: [{ ...picomatchAdvisory().findings[0], dev: false }] })], []));
+  assert.equal(failures.length, 1);
+  assert.match(failures[0], /^production advisory .* is never tolerated$/);
+  assert.deepEqual(tolerated, []);
 });
 
 test("the default exception list is empty and frozen, with no wildcard or severity rule", () => {

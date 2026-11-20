@@ -178,6 +178,7 @@ import {
   type ObservabilityRequestFinalizer,
 } from "./lib/observability-metrics.ts";
 import { createRuntimeTimer, type RuntimeTimer } from "./lib/runtime-timing.ts";
+import { registerSignedClientIp } from "./lib/signed-forwarded-ip-hook.ts";
 
 type HealthCheckResponse = {
   statusCode: number;
@@ -407,6 +408,8 @@ export async function createFastifyApp(
     logger: false,
     trustProxy: ENV.trustProxy,
   });
+
+  registerSignedClientIp(app, { secret: ENV.clientIpSigningSecret });
 
   const metricsRegistry =
     options.observabilityMetricsRegistry ?? getObservabilityMetricsRegistry();

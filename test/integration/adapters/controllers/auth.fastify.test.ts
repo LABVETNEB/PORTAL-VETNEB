@@ -690,6 +690,7 @@ test(
           clinicId: 7,
           reportId: 301,
           isActive: true,
+          createdAt: new Date(Date.UTC(2026, 4, 1, 0, 0, 0)),
         };
       },
       generateSessionToken: () => "particular-session-123",
@@ -776,6 +777,63 @@ test("clinicAuthNativeRoutes login unificado responde error genérico para crede
     });
   } finally {
     await app.close();
+  }
+});
+
+test("clinicAuthNativeRoutes login unificado rechaza token particular vencido sin crear sesión y con el error genérico", async () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const clock = Date.UTC(2026, 10, 12, 12, 0, 0);
+  const cases: Array<[string, Date, boolean]> = [
+    ["un milisegundo antes del vencimiento", new Date(clock - ENV.particularTokenTtlDays * DAY + 1), true],
+    ["vencimiento exacto", new Date(clock - ENV.particularTokenTtlDays * DAY), false],
+    ["vencido", new Date(clock - (ENV.particularTokenTtlDays + 1) * DAY), false],
+    ["fecha inválida", new Date("invalid"), false],
+  ];
+
+  for (const [label, createdAt, accepted] of cases) {
+    let sessions = 0;
+    const app = await createTestApp({
+      now: () => clock,
+      getAdminUserByUsername: async () => null,
+      getClinicUserByUsername: async () => null,
+      getParticularTokenByTokenHash: async () => ({
+        id: 501,
+        clinicId: 7,
+        reportId: 301,
+        isActive: true,
+        createdAt,
+      }),
+      generateSessionToken: () => "particular-session-123",
+      hashSessionToken: (token: string) => `hash:${token}`,
+      createParticularSession: async () => {
+        sessions += 1;
+      },
+      updateParticularTokenLastLogin: async () => {},
+    });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/login",
+        headers: { origin: "http://localhost:3000" },
+        payload: { identifier: "PARTICULAR-TOKEN-1", password: "PARTICULAR-TOKEN-1" },
+      });
+
+      assert.equal(sessions, accepted ? 1 : 0, label);
+
+      if (accepted) {
+        assert.notEqual(response.statusCode, 401, label);
+      } else {
+        assert.equal(response.statusCode, 401, label);
+        assert.deepEqual(JSON.parse(response.body), {
+          success: false,
+          error: "Credenciales inválidas",
+        });
+        assert.equal(getSetCookieHeader(response).includes(ENV.particularCookieName), false, label);
+      }
+    } finally {
+      await app.close();
+    }
   }
 });
 
@@ -866,7 +924,7 @@ test("clinicAuthNativeRoutes login unificado registra payload inválido como mis
   }
 });
 
-test("clinicAuthNativeRoutes login unificado mantiene 401 cuando falla lectura de rate-limit store", async () => {
+test("clinicAuthNativeRoutes login unificado responde 503 sin verificar credenciales cuando falla lectura de rate-limit store", async () => {
   const app = await createTestApp({
     loginRateLimitStore: {
       get: async () => {
@@ -879,9 +937,15 @@ test("clinicAuthNativeRoutes login unificado mantiene 401 cuando falla lectura d
         throw new Error("rate limit increment failed");
       },
     },
-    getAdminUserByUsername: async () => null,
-    getClinicUserByUsername: async () => null,
-    getParticularTokenByTokenHash: async () => null,
+    getAdminUserByUsername: async () => {
+      throw new Error("credentials must not be checked without a charged attempt");
+    },
+    getClinicUserByUsername: async () => {
+      throw new Error("credentials must not be checked without a charged attempt");
+    },
+    getParticularTokenByTokenHash: async () => {
+      throw new Error("credentials must not be checked without a charged attempt");
+    },
   });
 
   try {
@@ -897,17 +961,21 @@ test("clinicAuthNativeRoutes login unificado mantiene 401 cuando falla lectura d
       },
     });
 
-    assert.equal(response.statusCode, 401);
+    assert.equal(response.statusCode, 503);
+    assert.equal(response.headers["retry-after"], "30");
+    assert.equal(response.headers["set-cookie"], undefined);
     assert.deepEqual(JSON.parse(response.body), {
       success: false,
-      error: "Credenciales inválidas",
+      error: "No pudimos procesar la solicitud en este momento. Intentá nuevamente en unos minutos.",
+      code: "LOGIN_RATE_LIMIT_UNAVAILABLE",
+      retryAfterSeconds: 30,
     });
   } finally {
     await app.close();
   }
 });
 
-test("clinicAuthNativeRoutes login unificado mantiene 401 cuando falla incremento de rate-limit store", async () => {
+test("clinicAuthNativeRoutes login unificado responde 503 cuando falla el cobro del intento aunque la lectura funcione", async () => {
   const app = await createTestApp({
     loginRateLimitStore: {
       get: async () => ({
@@ -919,9 +987,15 @@ test("clinicAuthNativeRoutes login unificado mantiene 401 cuando falla increment
         throw new Error("rate limit increment failed");
       },
     },
-    getAdminUserByUsername: async () => null,
-    getClinicUserByUsername: async () => null,
-    getParticularTokenByTokenHash: async () => null,
+    getAdminUserByUsername: async () => {
+      throw new Error("credentials must not be checked without a charged attempt");
+    },
+    getClinicUserByUsername: async () => {
+      throw new Error("credentials must not be checked without a charged attempt");
+    },
+    getParticularTokenByTokenHash: async () => {
+      throw new Error("credentials must not be checked without a charged attempt");
+    },
   });
 
   try {
@@ -937,10 +1011,14 @@ test("clinicAuthNativeRoutes login unificado mantiene 401 cuando falla increment
       },
     });
 
-    assert.equal(response.statusCode, 401);
+    assert.equal(response.statusCode, 503);
+    assert.equal(response.headers["retry-after"], "30");
+    assert.equal(response.headers["set-cookie"], undefined);
     assert.deepEqual(JSON.parse(response.body), {
       success: false,
-      error: "Credenciales inválidas",
+      error: "No pudimos procesar la solicitud en este momento. Intentá nuevamente en unos minutos.",
+      code: "LOGIN_RATE_LIMIT_UNAVAILABLE",
+      retryAfterSeconds: 30,
     });
   } finally {
     await app.close();

@@ -119,3 +119,16 @@ test("reset scripts validate identifier and avoid sensitive output", () => {
   assert.equal(tsContent.includes("console.log(databaseUrl"), false);
   assert.equal(psContent.includes("Write-Host $databaseUrl"), false);
 });
+
+test("reset script clears the shared SEC-10 identifier ceiling with its canonical key", () => {
+  const tsContent = read(TS_SCRIPT_PATH);
+  const psContent = read(PS_SCRIPT_PATH);
+
+  assert.ok(tsContent.includes("buildLoginIdentifierCeilingKey(options.identifier)"));
+  assert.ok(tsContent.includes("hashRateLimitKey("));
+  assert.ok(tsContent.includes("--include-identifier-ceiling"));
+  assert.ok(tsContent.includes("Identifier ceiling: EXCLUDED"));
+  assert.ok(tsContent.includes("Identifier ceiling: INCLUDED"));
+  assert.ok(psContent.includes("IncludeIdentifierCeiling"));
+  assert.ok(psContent.includes("--include-identifier-ceiling"));
+});

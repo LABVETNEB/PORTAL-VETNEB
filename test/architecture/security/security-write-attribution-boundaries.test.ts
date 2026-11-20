@@ -1675,7 +1675,7 @@ const STUDY_TRACKING_DYNAMIC_IMPORTS = [
 const PARTICULAR_AUTHENTICATOR_SITES: readonly RouteCallSite[] = [
   { callee: "deps.hashSessionToken", sink: "effect", args: [null], principal: false },
   { callee: "deps.getParticularSessionByToken", sink: "read", args: [null], principal: false },
-  { callee: "deps.deleteParticularSession", sink: "session", args: [null], count: 2, principal: false },
+  { callee: "deps.deleteParticularSession", sink: "session", args: [null], count: 3, principal: false },
   { callee: "deps.getParticularTokenById", sink: "read", args: ["session.particularTokenId"], principal: false },
   { callee: "deps.updateParticularSessionLastAccess", sink: "session", args: [null], principal: false },
 ];
@@ -2097,6 +2097,7 @@ const ROUTE_SURFACES: readonly RouteSurface[] = [
         "buildParticularAuditCsvFilename as defaultBuildParticularAuditCsvFilename",
         "buildParticularAuditListFilters as defaultBuildParticularAuditListFilters",
       ],
+      "../lib/session-expiry.ts": ["isParticularTokenExpired", "isSessionExpired"],
       "../lib/session-last-access.ts": ["shouldRefreshSessionLastAccess"],
     },
     dynamicImports: ["../db-audit.ts", "../features/particular-access/infrastructure/index.ts", "../lib/auth-security.ts"],
@@ -2146,6 +2147,7 @@ const ROUTE_SURFACES: readonly RouteSurface[] = [
       ],
       "../lib/cors-headers.ts": REQUIRED_CORS_IMPORTS,
       "../lib/env.ts": ["ENV"],
+      "../lib/session-expiry.ts": ["isParticularTokenExpired", "isSessionExpired"],
       "../lib/session-last-access.ts": ["shouldRefreshSessionLastAccess"],
     },
     dynamicImports: [
@@ -2185,7 +2187,7 @@ const ROUTE_SURFACES: readonly RouteSurface[] = [
         "PUBLIC_REPORT_ACCESS_RATE_LIMIT_MAX_ATTEMPTS",
         "PUBLIC_REPORT_ACCESS_RATE_LIMIT_WINDOW_MS",
       ],
-      "../lib/rate-limit-store.ts": ["consumeRateLimitAttempt", "createPersistentRateLimitStore"],
+      "../lib/rate-limit-store.ts": ["consumeGlobalCeiling", "consumeRateLimitAttempt", "createPersistentRateLimitStore", "GLOBAL_CEILING_MULTIPLIER"],
       "../lib/supabase.ts": [
         "createSignedReportDownloadUrl as defaultCreateSignedReportDownloadUrl",
         "createSignedReportUrl as defaultCreateSignedReportUrl",
@@ -3084,6 +3086,9 @@ async function checkRouteHelpers(file: ts.SourceFile, surface: RouteSurface, vio
       const authenticate = compileDeclaration(file, "authenticateParticularUser", {
         getParticularSessionToken: () => RAW_PARTICULAR_SESSION,
         buildClearParticularSessionCookie: () => "cleared",
+        isSessionExpired: () => false,
+        isParticularTokenExpired: () => false,
+        ENV: { particularTokenTtlDays: 90 },
         shouldRefreshSessionLastAccess: () => false,
       });
       const principal = asRecord(

@@ -270,6 +270,24 @@ export async function incrementRateLimitEntry(
   return updated;
 }
 
+// SEC-10: techo global por endpoint, independiente de la IP. Acota el abuso
+// masivo aunque la IP del cliente sea rotable o falsa. Sólo se cobra cuando la
+// request ya pasó el límite por IP, para que una IP bloqueada no lo consuma.
+// Costo asumido: bajo abuso distribuido el techo bloquea también a legítimos.
+export const GLOBAL_CEILING_MULTIPLIER = 20;
+
+export async function consumeGlobalCeiling(
+  store: RateLimitStore,
+  input: { scope: string; windowMs: number; now: number; maxAttempts: number },
+): Promise<RateLimitEntry | null> {
+  const entry = await consumeRateLimitAttempt(store, `ceiling:global:${input.scope}`, {
+    windowMs: input.windowMs,
+    now: input.now,
+  });
+
+  return entry.count > input.maxAttempts ? entry : null;
+}
+
 export async function consumeRateLimitAttempt(
   store: RateLimitStore,
   key: string,

@@ -579,6 +579,8 @@ export function buildParticularStudyTrackingRouteStubs() {
 
 export function buildPublicProfessionalsRouteStubs() {
   return {
+    searchRateLimitStore: createMemoryRateLimitStore(),
+    detailRateLimitStore: createMemoryRateLimitStore(),
     searchPublicProfessionals: async () => ({
       rows: [],
       total: 0,

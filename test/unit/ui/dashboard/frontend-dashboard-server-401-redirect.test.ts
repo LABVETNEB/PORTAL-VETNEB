@@ -68,7 +68,7 @@ test("all dashboard server pages apply the unauthorized redirect before fallback
 test("dashboard proxy redirects missing clinic and admin sessions without a login loop", () => {
   const source = read(PROXY_PATH);
 
-  assert.ok(source.includes('matcher: ["/dashboard/:path*"]'));
+  assert.ok(source.includes('matcher: ["/dashboard/:path*", "/api/:path*"]'));
   assert.ok(source.includes("loginUrl.pathname = LOGIN_PATH;"));
   assert.ok(source.includes('loginUrl.searchParams.set("next", nextPath);'));
   assert.equal(source.includes('matcher: ["/login'), false);

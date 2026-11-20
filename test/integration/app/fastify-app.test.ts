@@ -20,6 +20,7 @@ const {
   serializeConsoleCalls,
 } = await import("../../helpers/api-request-id-contract.ts");
 const fastifyAppHelpers = await import("../../helpers/fastify-app-route-stubs.ts");
+const { createMemoryRateLimitStore } = await import("../../../server/lib/rate-limit-store.ts");
 
 test(
   "createFastifyApp aplica trusted origin global antes de rutas mutables",
@@ -221,7 +222,7 @@ test(
         getAdminSessionByToken: async () => ({
           adminUserId: 1,
           expiresAt: new Date("2099-01-01T00:00:00.000Z"),
-          lastAccess: new Date("2026-04-23T00:00:00.000Z"),
+          lastAccess: new Date(),
         }),
         getAdminUserById: async () => ({
           id: 1,
@@ -329,7 +330,7 @@ test(
         getAdminSessionByToken: async () => ({
           adminUserId: 7,
           expiresAt: new Date(Date.UTC(2026, 3, 24, 1, 0, 0)),
-          lastAccess: new Date(Date.UTC(2026, 3, 23, 23, 0, 0)),
+          lastAccess: new Date(),
         }),
         getAdminUserById: async () => ({
           id: 7,
@@ -824,6 +825,8 @@ test(
           offset: 0,
         }),
         getPublicProfessionalByClinicId: async () => null,
+        searchRateLimitStore: createMemoryRateLimitStore(),
+        detailRateLimitStore: createMemoryRateLimitStore(),
         createSignedStorageUrl: async (path: string) => `signed:${path}`,
       },
       publicReportAccessRoutes: fastifyAppHelpers.buildPublicReportAccessRouteStubs(),
@@ -1092,7 +1095,7 @@ test(
         getAdminSessionByToken: async () => ({
           adminUserId: 1,
           expiresAt: new Date("2099-01-01T00:00:00.000Z"),
-          lastAccess: new Date("2026-04-23T00:00:00.000Z"),
+          lastAccess: new Date(),
         }),
         getAdminUserById: async () => ({
           id: 1,
@@ -1137,7 +1140,7 @@ test(
         getAdminSessionByToken: async () => ({
           adminUserId: 1,
           expiresAt: new Date("2099-01-01T00:00:00.000Z"),
-          lastAccess: new Date("2026-04-23T00:00:00.000Z"),
+          lastAccess: new Date(),
         }),
         getAdminUserById: async () => ({
           id: 1,
@@ -1227,7 +1230,7 @@ test(
         getAdminSessionByToken: async () => ({
           adminUserId: 1,
           expiresAt: new Date("2099-01-01T00:00:00.000Z"),
-          lastAccess: new Date("2026-04-23T00:00:00.000Z"),
+          lastAccess: new Date(),
         }),
         getAdminUserById: async () => ({
           id: 1,
@@ -1371,7 +1374,7 @@ test(
         getAdminSessionByToken: async () => ({
           adminUserId: 1,
           expiresAt: new Date("2099-01-01T00:00:00.000Z"),
-          lastAccess: new Date("2026-04-23T00:00:00.000Z"),
+          lastAccess: new Date(),
         }),
         getAdminUserById: async () => ({
           id: 1,
@@ -1976,6 +1979,8 @@ test(
             "search dispatch must not call getPublicProfessionalByClinicId",
           );
         },
+        searchRateLimitStore: createMemoryRateLimitStore(),
+        detailRateLimitStore: createMemoryRateLimitStore(),
         createSignedStorageUrl: async (path: string) => `signed:${path}`,
       },
     });
@@ -2076,7 +2081,7 @@ test(
         getAdminSessionByToken: async () => ({
           adminUserId: 1,
           expiresAt: new Date("2099-01-01T00:00:00.000Z"),
-          lastAccess: new Date("2026-04-23T00:00:00.000Z"),
+          lastAccess: new Date(),
         }),
         getAdminUserById: async () => ({
           id: 1,
@@ -2218,6 +2223,8 @@ test(
             profileQualityScore: 0.91,
           };
         },
+        searchRateLimitStore: createMemoryRateLimitStore(),
+        detailRateLimitStore: createMemoryRateLimitStore(),
         createSignedStorageUrl: async (path: string) => `signed:${path}`,
       },
     });
@@ -2271,7 +2278,7 @@ test(
         getAdminSessionByToken: async () => ({
           adminUserId: 1,
           expiresAt: new Date("2099-01-01T00:00:00.000Z"),
-          lastAccess: new Date("2026-04-23T00:00:00.000Z"),
+          lastAccess: new Date(),
         }),
         getAdminUserById: async () => ({
           id: 1,
@@ -2337,7 +2344,7 @@ test(
           id: 99,
           adminUserId: 1,
           expiresAt: new Date("2099-01-01T00:00:00.000Z"),
-          lastAccess: new Date("2026-05-08T00:00:00.000Z"),
+          lastAccess: new Date(),
         }),
         getAdminUserById: async () => ({
           id: 1,
@@ -2408,7 +2415,7 @@ test(
           id: 99,
           adminUserId: 1,
           expiresAt: new Date("2099-01-01T00:00:00.000Z"),
-          lastAccess: new Date("2026-05-08T00:00:00.000Z"),
+          lastAccess: new Date(),
         }),
         getAdminUserById: async () => ({
           id: 1,
@@ -2856,6 +2863,7 @@ test(
           id: 1,
           adminUserId: 1,
           expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+          lastAccess: new Date(),
         }),
         getAdminUserById: async () => ({ id: 1, username: "VETNEB" }),
         updateAdminSessionLastAccess: async () => {},
@@ -3112,7 +3120,7 @@ function buildAuthenticatedAdminSystemHealthStubs(
     getAdminSessionByToken: async () => ({
       adminUserId: 1,
       expiresAt: new Date("2099-01-01T00:00:00.000Z"),
-      lastAccess: new Date("2026-07-31T00:00:00.000Z"),
+      lastAccess: new Date(),
     }),
     getAdminUserById: async () => ({ id: 1, username: "VETNEB" }),
     ...overrides,

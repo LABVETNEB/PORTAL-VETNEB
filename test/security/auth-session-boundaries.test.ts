@@ -72,7 +72,7 @@ const PARTICULAR_TOKEN = {
   shippingDate: new Date("2026-01-11T00:00:00.000Z"),
   isActive: true,
   lastLoginAt: new Date("2026-01-12T00:00:00.000Z"),
-  createdAt: new Date("2026-01-10T00:00:00.000Z"),
+  createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
   updatedAt: new Date("2026-01-12T00:00:00.000Z"),
   createdByAdminId: 91,
   createdByClinicUserId: null,
@@ -151,7 +151,7 @@ async function createAuthBoundariesHarness(): Promise<AuthBoundariesHarness> {
       adminSessions.set(input.tokenHash, {
         adminUserId: input.adminUserId,
         expiresAt: input.expiresAt,
-        lastAccess: input.lastAccess ?? null,
+        lastAccess: input.lastAccess ?? new Date(),
       });
     },
     deleteAdminSession: async (tokenHash: string) => {
@@ -444,7 +444,7 @@ test("frontend proxy mantiene separación dashboard/admin y deja particulares fu
   assert.ok(source.includes("return isAdminDashboardPath(pathname)"));
   assert.ok(source.includes("? ADMIN_SESSION_COOKIE_NAME"));
   assert.ok(source.includes(": CLINIC_SESSION_COOKIE_NAME"));
-  assert.ok(source.includes('matcher: ["/dashboard/:path*"]'));
+  assert.ok(source.includes('matcher: ["/dashboard/:path*", "/api/:path*"]'));
   assert.equal(source.includes("/particulares"), false);
   assert.equal(source.includes("hasClinicSession || hasAdminSession"), false);
 });

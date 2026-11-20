@@ -261,15 +261,36 @@ La limpieza de estados vencidos (borrado acotado en cada guardado, `deleteExpire
 resumen de `server/bootstrap.ts`) lleva `server/features/global-search` a 12/1.989, `server/features` a 161/19.185 y la raíz a 9/2.555.
 Total 242/49.519 → 242/49.580.
 
+SEC-01 (revocación de sesiones al cambiar contraseña: sentencias atómicas en `server/db.ts`, transacción de credenciales en
+`server/features/clinics/infrastructure/admin-clinics-repository.ts` y su uso en `auth`, `admin-auth` y `admin-users-roles`) lleva
+`server/features/clinics` de 10/2.747 a 10/2.764, `server/features` a 161/19.202, `server/routes` a 38/22.069 y la raíz a 9/2.626.
+Total 242/49.580 → 242/49.715.
+
+SEC-07 (eventos de seguridad de `auth`, `admin-auth` y `particular-auth` migrados de `request.log`, inerte con `logger: false`, al logger
+estructurado con `requestId`) lleva `server/routes` de 38/22.069 a 38/22.009. Total 242/49.715 → 242/49.655.
+
+SEC-08 (rate limit de login y cambio de contraseña fail-closed: el intento se cobra antes de verificar credenciales y un fallo del
+store responde 503) lleva `server/routes` de 38/22.009 a 38/21.916 y `server/lib` de 31/5.389 a 31/5.403. Total 242/49.655 → 242/49.576.
+
+PR-SEC-09 (expiración de sesión obligatoria, TTL máximo e inactividad administrativa; helper nuevo `server/lib/session-expiry.ts`) lleva `server/routes` de 38/21.916 a 38/21.919, `server/lib` de 31/5.403 a 32/5.523 y la raíz `server/*.ts` de 9/2.626 a 9/2.625. Total 242/49.576 → 243/49.698.
+
+PR-SEC-10 (resolución estructural de proxies confiables, opt-in e inactiva por defecto; módulo nuevo `server/lib/trusted-proxy.ts` y variables `TRUST_PROXY_CHAIN`/`TRUST_PROXY_EDGE_CIDRS` cableadas en `server/lib/env.ts`) lleva `server/lib` de 32/5.523 a 33/5.710. Total 243/49.698 → 244/49.885.
+
+PR-SEC-10 (IP de cliente firmada, opt-in: módulos nuevos `server/lib/signed-client-ip.ts` y `server/lib/signed-forwarded-ip-hook.ts`, variable `CLIENT_IP_SIGNING_SECRET` en `server/lib/env.ts` y registro del hook en `server/fastify-app.ts`) lleva `server/lib` de 33/5.710 a 35/5.863 y la raíz `server/*.ts` de 9/2.625 a 9/2.628. Total 244/49.885 → 246/50.041.
+
+PR-SEC-10 (topes independientes de IP: `applyLoginIdentifierCeiling` en `server/lib/login-rate-limit.ts`, `consumeGlobalCeiling` en `server/lib/rate-limit-store.ts` y su uso en las rutas de login, contacto y públicas) lleva `server/routes` de 21.919 a 22.059 y `server/lib` de 5.863 a 5.930. Total 246/50.041 → 246/50.248.
+
+PR-SEC-11 (expiración del token credencial de particulares: `isParticularTokenExpired` en `server/lib/session-expiry.ts`, variable `PARTICULAR_TOKEN_TTL_DAYS` en `server/lib/env.ts` y su aplicación en las rutas `auth` (login unificado), `particular-auth`, `particular-audit` y `particular-study-tracking`) lleva `server/routes` de 22.059 a 22.150 y `server/lib` de 5.930 a 5.959; `server/features` no cambia. Total 246/50.248 → 246/50.368.
+
 | Área | Archivos TypeScript | LOC |
 | --- | ---: | ---: |
-| `server/features` | 161 | 19.185 |
-| `server/routes` | 38 | 22.022 |
-| `server/lib` | 31 | 5.389 |
+| `server/features` | 161 | 19.202 |
+| `server/routes` | 38 | 22.150 |
+| `server/lib` | 35 | 5.959 |
 | `server/middlewares` | 3 | 429 |
-| raíz/entrypoints `server/*.ts` | 9 | 2.555 |
+| raíz/entrypoints `server/*.ts` | 9 | 2.628 |
 | otros | 0 | 0 |
-| **Total `server`** | **242** | **49.580** |
+| **Total `server`** | **246** | **50.368** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por
@@ -279,7 +300,7 @@ features.
 
 - Features: 10.
 - Rutas productivas `*.fastify.ts`: 37.
-- Módulos `server/lib` raíz: 25.
+- Módulos `server/lib` raíz: 26.
 - Módulos `server/lib/http`: 3.
 
 ## 8. Inventario y topología por feature
@@ -289,7 +310,7 @@ porque ésa es su topología proporcional documentada.
 
 | Feature | Archivos | LOC | Capas/directorios reales | Barrel raíz | Entrantes | Salientes | Closeout |
 | --- | ---: | ---: | --- | --- | --- | --- | --- |
-| Clinics | 10 | 2.747 | domain, infrastructure, servicios directos | sí | Users/Roles (2 refs) | Public Professionals (3) | M29 |
+| Clinics | 10 | 2.764 | domain, infrastructure, servicios directos | sí | Users/Roles (2 refs) | Public Professionals (3) | M29 |
 | Global Search | 12 | 1.989 | domain, application, infrastructure | sí | ninguna | ninguna | GLOBAL-SEARCH-1 |
 | Logistics | 46 | 4.238 | domain, application, infrastructure | no requerido | ninguna | ninguna | M17 |
 | Particular Access | 12 | 1.086 | domain, application, infrastructure | sí | Reports (1) | Reports/ST (7) | M33/M35b |

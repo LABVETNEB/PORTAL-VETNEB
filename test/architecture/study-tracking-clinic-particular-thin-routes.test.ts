@@ -264,6 +264,6 @@ test("M44 preserva rutas M32 y realinea sólo el specifier Particular Access", (
     createHash("sha256")
       .update(readFileSync(resolve(repoRoot, particularRoute)))
       .digest("hex"),
-    "24c6fa65a94def117e8e155ef1d14672409ac42ed2452e62667763b79ce5cc72",
+    "927dc2ea3285529a4f4da6f490a169dadabfa1c05ec87c0b15241f0fcdfadcf2",
   );
 });

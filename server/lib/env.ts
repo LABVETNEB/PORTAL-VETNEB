@@ -6,7 +6,19 @@ import {
   ADMIN_SESSION_COOKIE_NAME,
   CLINIC_SESSION_COOKIE_NAME,
 } from "../../shared/session-cookie-names.ts";
+import { SIGNED_CLIENT_IP_MIN_SECRET_LENGTH } from "./signed-client-ip.ts";
 import { resolveParticularSessionCookieName } from "./session-cookie-names.ts";
+import {
+  isValidEdgeCidrList,
+  parseTrustedHopChain,
+  resolveTrustProxy,
+} from "./trusted-proxy.ts";
+import {
+  ADMIN_SESSION_IDLE_TIMEOUT_DEFAULT_MINUTES,
+  ADMIN_SESSION_IDLE_TIMEOUT_MAX_MINUTES,
+  ADMIN_SESSION_IDLE_TIMEOUT_MIN_MINUTES,
+  SESSION_MAX_TTL_HOURS,
+} from "./session-expiry.ts";
 
 const emptyToUndefined = (value: unknown) => {
   if (typeof value !== "string") return value;
@@ -137,6 +149,35 @@ const envSchema = z.object({
       })
       .optional(),
   ),
+  TRUST_PROXY_CHAIN: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .refine((value) => parseTrustedHopChain(value) !== null, {
+        message:
+          "TRUST_PROXY_CHAIN debe ser una lista ordenada (peer primero, máximo 4) de loopback, private o edge",
+      })
+      .optional(),
+  ),
+  TRUST_PROXY_EDGE_CIDRS: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .refine(isValidEdgeCidrList, {
+        message:
+          "TRUST_PROXY_EDGE_CIDRS debe ser una lista de IP/CIDR acotados (IPv4 >= /8, IPv6 >= /16)",
+      })
+      .optional(),
+  ),
+  CLIENT_IP_SIGNING_SECRET: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .min(SIGNED_CLIENT_IP_MIN_SECRET_LENGTH, {
+        message: `CLIENT_IP_SIGNING_SECRET debe tener al menos ${SIGNED_CLIENT_IP_MIN_SECRET_LENGTH} caracteres`,
+      })
+      .optional(),
+  ),
   OWNER_OPEN_ID: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   LAB_UPLOAD_USERNAMES: z.preprocess(
     emptyToUndefined,
@@ -148,7 +189,30 @@ const envSchema = z.object({
     .int()
     .positive()
     .optional(),
-  SESSION_TTL_HOURS: z.coerce.number().positive().optional(),
+  PARTICULAR_TOKEN_TTL_DAYS: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().int().min(1).max(365),
+  ),
+  SESSION_TTL_HOURS: z.coerce
+    .number()
+    .positive()
+    .max(SESSION_MAX_TTL_HOURS, {
+      message: `SESSION_TTL_HOURS no puede superar ${SESSION_MAX_TTL_HOURS} horas`,
+    })
+    .refine((hours) => Number.isInteger(hours * 3600), {
+      message:
+        "SESSION_TTL_HOURS debe equivaler a una cantidad entera de segundos (p. ej. 24, 8, 1.5)",
+    })
+    .optional(),
+  ADMIN_SESSION_IDLE_TIMEOUT_MINUTES: z.preprocess(
+    emptyToUndefined,
+    z.coerce
+      .number()
+      .int()
+      .min(ADMIN_SESSION_IDLE_TIMEOUT_MIN_MINUTES)
+      .max(ADMIN_SESSION_IDLE_TIMEOUT_MAX_MINUTES)
+      .optional(),
+  ),
   SMTP_HOST: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   SMTP_PORT: z.coerce.number().int().positive().optional(),
   SMTP_SECURE: z.preprocess(parseBooleanishEnv, z.boolean().optional()),
@@ -178,6 +242,12 @@ const envSchema = z.object({
 });
 
 const rawEnv = envSchema.parse(process.env);
+
+const resolvedTrustProxy = resolveTrustProxy({
+  trustProxy: rawEnv.TRUST_PROXY,
+  chain: rawEnv.TRUST_PROXY_CHAIN,
+  edgeCidrs: rawEnv.TRUST_PROXY_EDGE_CIDRS,
+});
 
 const nodeEnv = rawEnv.NODE_ENV ?? "development";
 const port = rawEnv.PORT ?? 3000;
@@ -254,7 +324,8 @@ export const ENV = {
   ),
   corsOrigins,
   publicSiteUrl,
-  trustProxy: rawEnv.TRUST_PROXY ?? false,
+  trustProxy: resolvedTrustProxy,
+  clientIpSigningSecret: rawEnv.CLIENT_IP_SIGNING_SECRET,
   cookieSecure: nodeEnv === "production",
   cookieSameSite: (nodeEnv === "production" ? "none" : "lax") as
     | "none"
@@ -266,6 +337,12 @@ export const ENV = {
   signedUrlExpiresInSeconds:
     rawEnv.SUPABASE_SIGNED_URL_EXPIRES_IN_SECONDS ?? 60 * 15,
   sessionTtlHours: rawEnv.SESSION_TTL_HOURS ?? 24,
+  particularTokenTtlDays: rawEnv.PARTICULAR_TOKEN_TTL_DAYS,
+  adminSessionIdleTimeoutMs:
+    (rawEnv.ADMIN_SESSION_IDLE_TIMEOUT_MINUTES ??
+      ADMIN_SESSION_IDLE_TIMEOUT_DEFAULT_MINUTES) *
+    60 *
+    1000,
   smtp: {
     enabled: smtpEnabled,
     host: rawEnv.SMTP_HOST ?? "",

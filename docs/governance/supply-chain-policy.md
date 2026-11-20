@@ -134,16 +134,16 @@ su huella exacta en `TEMPORARY_AUDIT_EXCEPTIONS` y está cubierta por
 otro advisory, si la huella cambia (paquete, rango, versión, ruta o alcance dev) o si la
 excepción deja de reportarse (stale): en ese caso se retira en un PR propio.
 
-| Campo | Valor |
-| --- | --- |
-| ID | `GHSA-vfj7-8cjw-p6xm` |
-| Package | `braces` |
-| Effective version | `3.0.3` |
-| Scope | development dependency only (`frontend > eslint-config-next > @next/eslint-plugin-next > fast-glob > micromatch > braces`) |
-| Production exposure | none según `pnpm audit --prod` |
-| Reason | no patched upstream version exists (`first_patched_version: null`; último `braces` publicado: 3.0.3) |
-| Owner | Security / Dependency owner |
-| Removal trigger | upstream patched release available; o la ruta deja de resolver `braces` vulnerable; o el advisory se retira o reclasifica de forma que invalida la excepción |
+Estado actual: **no hay excepciones activas** (`TEMPORARY_AUDIT_EXCEPTIONS` está vacía y congelada).
+
+Historial de excepciones retiradas por stale:
+
+| ID | Package | Motivo de retiro |
+| --- | --- | --- |
+| `GHSA-vfj7-8cjw-p6xm` | `braces` | el advisory dejó de reportarse |
+| `GHSA-fc5q-39xc-vjpf` | `picomatch` | advisory retirado (`withdrawn_at` 2026-11-18T15:38:56Z); `pnpm audit` y `pnpm audit --prod` salen limpios con el lockfile sin cambios |
+
+Con la lista vacía, cualquier advisory (productivo o de desarrollo) hace fallar el gate.
 
 ## 10. Requisitos de lockfile
 

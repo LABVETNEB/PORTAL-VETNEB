@@ -188,7 +188,7 @@ test("middleware session separation contract is intact after next.config changes
     "session check must not mix clinic and admin",
   );
   assert.ok(
-    source.includes('matcher: ["/dashboard/:path*"]'),
-    "middleware must only match dashboard routes",
+    source.includes('matcher: ["/dashboard/:path*", "/api/:path*"]'),
+    "middleware must match only dashboard routes and the /api signed-client-ip forwarder",
   );
 });

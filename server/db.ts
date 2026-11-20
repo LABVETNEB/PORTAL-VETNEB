@@ -515,6 +515,51 @@ export async function deleteActiveSession(tokenHash: string): Promise<void> {
     .where(eq(activeSessions.tokenHash, tokenHash));
 }
 
+export type PasswordChangeRevocationResult = {
+  revokedSessionCount: number;
+};
+
+type PasswordChangeStatementRow = { updated: number; revoked: number };
+
+function toPasswordChangeRevocationResult(
+  rows: unknown,
+): PasswordChangeRevocationResult | null {
+  const row = (rows as PasswordChangeStatementRow[])[0];
+
+  return row && Number(row.updated) === 1
+    ? { revokedSessionCount: Number(row.revoked) }
+    : null;
+}
+
+// One statement with data-modifying CTEs: PostgreSQL applies the credential
+// write and the revocation of every other session of that identity atomically,
+// so a new password never coexists with sessions opened under the old one.
+export async function changeClinicUserPasswordAndRevokeOtherSessions(input: {
+  clinicUserId: number;
+  passwordHash: string;
+  keepSessionTokenHash: string;
+}): Promise<PasswordChangeRevocationResult | null> {
+  const rows = await db.execute(sql`
+    with updated as (
+      update "clinic_users"
+      set "password_hash" = ${input.passwordHash}, "updated_at" = now()
+      where "id" = ${input.clinicUserId}
+      returning "id"
+    ),
+    revoked as (
+      delete from "active_sessions"
+      where "clinic_user_id" in (select "id" from updated)
+        and "token_hash" <> ${input.keepSessionTokenHash}
+      returning "id"
+    )
+    select
+      (select count(*) from updated)::int as "updated",
+      (select count(*) from revoked)::int as "revoked"
+  `);
+
+  return toPasswordChangeRevocationResult(rows);
+}
+
 export async function deleteExpiredSessions(): Promise<number> {
   const now = new Date();
 
@@ -610,6 +655,32 @@ export async function deleteAdminSession(tokenHash: string): Promise<void> {
   await db
     .delete(adminSessions)
     .where(eq(adminSessions.tokenHash, tokenHash));
+}
+
+export async function changeAdminPasswordAndRevokeOtherSessions(input: {
+  adminUserId: number;
+  passwordHash: string;
+  keepSessionTokenHash: string;
+}): Promise<PasswordChangeRevocationResult | null> {
+  const rows = await db.execute(sql`
+    with updated as (
+      update "admin_users"
+      set "password_hash" = ${input.passwordHash}, "updated_at" = now()
+      where "id" = ${input.adminUserId}
+      returning "id"
+    ),
+    revoked as (
+      delete from "admin_sessions"
+      where "admin_user_id" in (select "id" from updated)
+        and "token_hash" <> ${input.keepSessionTokenHash}
+      returning "id"
+    )
+    select
+      (select count(*) from updated)::int as "updated",
+      (select count(*) from revoked)::int as "revoked"
+  `);
+
+  return toPasswordChangeRevocationResult(rows);
 }
 
 export async function deleteExpiredAdminSessions(): Promise<number> {

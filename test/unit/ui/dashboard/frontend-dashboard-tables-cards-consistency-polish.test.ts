@@ -281,15 +281,32 @@ test("PR-7 TableHead keeps uppercase tracking and muted-foreground color", () =>
   );
 });
 
-test("PR-7 TableRow keeps hover state and vetneb-line border", () => {
+test("PR-7 TableRow keeps hover state and paints no permanent row separator", () => {
   const source = read(TABLE_COMPONENT_PATH);
   assert.ok(
     source.includes("hover:bg-vetneb-surface-muted/45"),
     "TableRow must keep hover:bg-vetneb-surface-muted/45 for consistent row hover",
   );
-  assert.ok(
+  assert.equal(
     source.includes("border-b border-vetneb-line/60"),
-    "TableRow must keep border-b border-vetneb-line/60 for row separators",
+    false,
+    "TableRow must not paint permanent row separators; the header keeps its own border",
+  );
+});
+
+test("dashboard tables paint no decorative row lines in empty regions", () => {
+  const css = read("frontend/src/styles/dashboard/mobile-clinic.css");
+  const slots = /\[data-clinic-access-future-slots="true"\]\s*\{[^}]*\}/.exec(css)?.[0] ?? "";
+  assert.ok(slots.length > 0, "the future-slots filler keeps its layout rule");
+  assert.equal(/gradient|border/.test(slots), false, "the filler must not draw rows or borders");
+});
+
+test("admin tokens loading state does not hand a flex display to the list skeleton", () => {
+  const source = read("frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx");
+  assert.equal(
+    /variant="loading" skeleton="list"[^>]*className=\{className\}/.test(source),
+    false,
+    "the loading skeleton must sit inside a flex-col wrapper, not receive the flex display itself",
   );
 });
 

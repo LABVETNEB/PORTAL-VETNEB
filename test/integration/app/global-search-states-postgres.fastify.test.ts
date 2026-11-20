@@ -87,7 +87,7 @@ test("GLOBAL-SEARCH-STATES-DB: tabla, índices, restricciones, cascada, caducida
       .returning({ id: adminUsers.id });
     adminIds.push(admin.id);
     const tokenHash = `${label}${suffix}`.replace(/[^a-z0-9]/gi, "").padEnd(64, "0").slice(0, 64);
-    await db.insert(adminSessions).values({ adminUserId: admin.id, tokenHash, expiresAt: future });
+    await db.insert(adminSessions).values({ adminUserId: admin.id, tokenHash, expiresAt: future, lastAccess: new Date() });
     return { surface: "admin" as const, sessionTokenHash: tokenHash };
   }
   const repository = infrastructure.createGlobalSearchStateRepository();

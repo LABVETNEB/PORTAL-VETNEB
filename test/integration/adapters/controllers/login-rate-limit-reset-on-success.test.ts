@@ -506,6 +506,7 @@ test("particular login exitoso resetea el rate limit", async () => {
   const particularToken = {
     id: 1, clinicId: 5, reportId: null,
     isActive: true, token: TOKEN,
+    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
   };
 
   const app = Fastify();

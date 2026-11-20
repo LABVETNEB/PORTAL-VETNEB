@@ -3,10 +3,8 @@ import type {
   FastifyReply,
   FastifyRequest,
 } from "fastify";
-import { eq } from "drizzle-orm";
-
-import { adminUsers } from "../../drizzle/schema.ts";
 import { AUDIT_EVENTS } from "../lib/audit.ts";
+import { logError, logWarn, serializeError } from "../lib/logger.ts";
 import {
   enforceTrustedOrigin,
   getAllowedOriginForCors,
@@ -21,18 +19,20 @@ import {
 import {
   buildLoginRateLimitResponse,
   buildLoginRateLimitHeaders,
+  buildLoginRateLimitUnavailableResponse,
+  applyLoginIdentifierCeiling,
   buildLoginRateLimitKey,
   buildMissingCredentialsLoginRateLimitKey,
   getLoginRateLimitKeyMetadata,
   LOGIN_RATE_LIMIT_EXPOSED_HEADERS,
   LOGIN_RATE_LIMIT_MAX_ATTEMPTS,
+  LOGIN_RATE_LIMIT_UNAVAILABLE_RETRY_SECONDS,
   LOGIN_RATE_LIMIT_WINDOW_MS,
 } from "../lib/login-rate-limit.ts";
 import {
   createMemoryRateLimitStore,
   createPersistentRateLimitStore,
   consumeRateLimitAttempt,
-  getOrCreateRateLimitEntry,
   type RateLimitEntry,
   type RateLimitStore,
 } from "../lib/rate-limit-store.ts";
@@ -114,10 +114,11 @@ export type AdminAuthNativeRoutesOptions = {
     adminUserId: number,
   ) => Promise<AdminUserRecord | null>;
   updateAdminSessionLastAccess?: (tokenHash: string) => Promise<void>;
-  updateAdminPasswordHash?: (
-    adminUserId: number,
-    passwordHash: string,
-  ) => Promise<unknown>;
+  changeAdminPasswordAndRevokeOtherSessions?: (input: {
+    adminUserId: number;
+    passwordHash: string;
+    keepSessionTokenHash: string;
+  }) => Promise<{ revokedSessionCount: number } | null>;
   generateSessionToken?: () => string;
   hashPassword?: (password: string) => Promise<string>;
   hashSessionToken?: (token: string) => string;
@@ -154,7 +155,7 @@ type NativeAdminAuthDeps = Required<
     | "getAdminUserByUsername"
     | "getAdminUserForPasswordChange"
     | "updateAdminSessionLastAccess"
-    | "updateAdminPasswordHash"
+    | "changeAdminPasswordAndRevokeOtherSessions"
     | "generateSessionToken"
     | "hashPassword"
     | "hashSessionToken"
@@ -185,18 +186,8 @@ async function loadDefaultDeps(): Promise<NativeAdminAuthDefaultDeps> {
         getAdminUserByUsername: db.getAdminUserByUsername,
         getAdminUserForPasswordChange: db.getAdminUserById,
         updateAdminSessionLastAccess: db.updateAdminSessionLastAccess,
-        updateAdminPasswordHash: async (
-          adminUserId: number,
-          passwordHash: string,
-        ) => {
-          await db.db
-            .update(adminUsers)
-            .set({
-              passwordHash,
-              updatedAt: new Date(),
-            })
-            .where(eq(adminUsers.id, adminUserId));
-        },
+        changeAdminPasswordAndRevokeOtherSessions:
+          db.changeAdminPasswordAndRevokeOtherSessions,
         generateSessionToken: authSecurity.generateSessionToken,
         hashPassword: authSecurity.hashPassword,
         hashSessionToken: authSecurity.hashSessionToken,
@@ -307,6 +298,12 @@ function setLoginRateLimitHeaders(
   )) {
     reply.header(headerName, headerValue);
   }
+}
+
+function sendLoginRateLimitUnavailable(reply: FastifyReply) {
+  reply.header("Retry-After", String(LOGIN_RATE_LIMIT_UNAVAILABLE_RETRY_SECONDS));
+
+  return reply.code(503).send(buildLoginRateLimitUnavailableResponse());
 }
 
 function isPasswordChangeBody(
@@ -426,10 +423,12 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
     updateAdminSessionLastAccess:
       options.updateAdminSessionLastAccess ??
       defaultDeps!.updateAdminSessionLastAccess,
-    updateAdminPasswordHash:
-      options.updateAdminPasswordHash ??
-      defaultDeps?.updateAdminPasswordHash ??
-      createMissingAdminPasswordChangeDep("updateAdminPasswordHash"),
+    changeAdminPasswordAndRevokeOtherSessions:
+      options.changeAdminPasswordAndRevokeOtherSessions ??
+      defaultDeps?.changeAdminPasswordAndRevokeOtherSessions ??
+      createMissingAdminPasswordChangeDep(
+        "changeAdminPasswordAndRevokeOtherSessions",
+      ),
     generateSessionToken:
       options.generateSessionToken ?? defaultDeps!.generateSessionToken,
     hashPassword:
@@ -545,15 +544,12 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
           createdAt: new Date(currentTime),
         });
       } catch (error) {
-        request.log.warn(
-          {
-            err: error,
-            code: "ADMIN_LOGIN_FAILED_ATTEMPT_RECORD_FAILED",
-            surface: "admin",
-            reason: input.reason,
-          },
-          "No se pudo persistir intento fallido de login admin",
-        );
+        logWarn("ADMIN_LOGIN_FAILED_ATTEMPT_RECORD_FAILED", {
+          requestId: request.id,
+          surface: "admin",
+          reason: input.reason,
+          errorName: serializeError(error).name,
+        });
       }
     };
 
@@ -578,14 +574,11 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
           now: currentTime,
         });
       } catch (error) {
-        request.log.error(
-          {
-            err: error,
-            code: "ADMIN_LOGIN_MISSING_CREDENTIALS_RATE_LIMIT_FAILED",
-            route: "/api/admin/auth/login",
-          },
-          "No se pudo actualizar el rate limit de credenciales faltantes admin",
-        );
+        logError("ADMIN_LOGIN_MISSING_CREDENTIALS_RATE_LIMIT_FAILED", {
+          requestId: request.id,
+          route: "/api/admin/auth/login",
+          errorName: serializeError(error).name,
+        });
       }
 
       await recordFailedLoginAttempt({
@@ -609,40 +602,40 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
       ipAddress: request.ip || null,
     });
 
-    const failureEntry: RateLimitEntry = {
-      count: 0,
-      resetAt: currentTime + loginRateLimitWindowMs,
-    };
-    let canUseRateLimitStore = true;
+    let chargedEntry: RateLimitEntry;
 
     try {
-      const existingEntry = await getOrCreateRateLimitEntry(
+      chargedEntry = await consumeRateLimitAttempt(
         loginRateLimitStore,
         rateLimitKey,
-        loginRateLimitWindowMs,
-        currentTime,
+        { windowMs: loginRateLimitWindowMs, now: currentTime },
       );
-
-      failureEntry.count = existingEntry.count;
-      failureEntry.resetAt = existingEntry.resetAt;
-    } catch (error) {
-      canUseRateLimitStore = false;
-      request.log.error(
+      chargedEntry = await applyLoginIdentifierCeiling(
+        loginRateLimitStore,
+        chargedEntry,
         {
-          err: error,
-          code: "ADMIN_LOGIN_RATE_LIMIT_GET_FAILED",
-          route: "/api/admin/auth/login",
+          identifier: username,
+          windowMs: loginRateLimitWindowMs,
+          now: currentTime,
+          maxAttempts: loginRateLimitMaxAttempts,
         },
-        "No se pudo leer el rate limit de login admin",
       );
+    } catch (error) {
+      logError("ADMIN_LOGIN_RATE_LIMIT_GET_FAILED", {
+        requestId: request.id,
+        route: "/api/admin/auth/login",
+        errorName: serializeError(error).name,
+      });
+
+      return sendLoginRateLimitUnavailable(reply);
     }
 
-    if (canUseRateLimitStore && failureEntry.count >= loginRateLimitMaxAttempts) {
+    if (chargedEntry.count > loginRateLimitMaxAttempts) {
       setLoginRateLimitHeaders(reply, {
         max: loginRateLimitMaxAttempts,
         windowMs: loginRateLimitWindowMs,
-        failedCount: failureEntry.count,
-        resetAt: failureEntry.resetAt,
+        failedCount: chargedEntry.count,
+        resetAt: chargedEntry.resetAt,
         now: currentTime,
         includeRetryAfter: true,
       });
@@ -654,7 +647,7 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
 
       return reply.code(429).send(
         buildLoginRateLimitResponse({
-          resetAt: failureEntry.resetAt,
+          resetAt: chargedEntry.resetAt,
           now: currentTime,
         }),
       );
@@ -664,57 +657,36 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
       username?: string | null;
       reason: LoginFailedAttemptReason;
     }) => {
-      if (canUseRateLimitStore) {
-        try {
-          const updatedEntry = await consumeRateLimitAttempt(
-            loginRateLimitStore,
-            rateLimitKey,
-            { windowMs: loginRateLimitWindowMs, now: currentTime },
-          );
-
-          failureEntry.count = updatedEntry.count;
-          failureEntry.resetAt = updatedEntry.resetAt;
-
-          setLoginRateLimitHeaders(reply, {
-            max: loginRateLimitMaxAttempts,
-            windowMs: loginRateLimitWindowMs,
-            failedCount: failureEntry.count,
-            resetAt: failureEntry.resetAt,
-            now: currentTime,
-          });
-        } catch (error) {
-          canUseRateLimitStore = false;
-          request.log.error(
-            {
-              err: error,
-              code: "ADMIN_LOGIN_RATE_LIMIT_INCREMENT_FAILED",
-              route: "/api/admin/auth/login",
-            },
-            "No se pudo actualizar el rate limit de login admin",
-          );
-        }
-      }
+      setLoginRateLimitHeaders(reply, {
+        max: loginRateLimitMaxAttempts,
+        windowMs: loginRateLimitWindowMs,
+        failedCount: chargedEntry.count,
+        resetAt: chargedEntry.resetAt,
+        now: currentTime,
+      });
 
       await recordFailedLoginAttempt(input);
     };
 
     const markSuccess = async () => {
-      if (!canUseRateLimitStore) {
-        return;
-      }
-
       if (loginRateLimitStore.delete) {
         try {
           await loginRateLimitStore.delete(rateLimitKey);
         } catch (error) {
-          request.log.warn(
-            {
-              err: error,
-              code: "ADMIN_LOGIN_RATE_LIMIT_RESET_FAILED",
-              route: "/api/admin/auth/login",
-            },
-            "No se pudo limpiar el rate limit de login admin tras login exitoso",
-          );
+          logWarn("ADMIN_LOGIN_RATE_LIMIT_RESET_FAILED", {
+            requestId: request.id,
+            route: "/api/admin/auth/login",
+            errorName: serializeError(error).name,
+          });
+          setLoginRateLimitHeaders(reply, {
+            max: loginRateLimitMaxAttempts,
+            windowMs: loginRateLimitWindowMs,
+            failedCount: chargedEntry.count,
+            resetAt: chargedEntry.resetAt,
+            now: currentTime,
+          });
+
+          return;
         }
       }
 
@@ -831,104 +803,71 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
       ipAddress: request.ip || null,
     });
 
-    const failureEntry: RateLimitEntry = {
-      count: 0,
-      resetAt: currentTime + loginRateLimitWindowMs,
-    };
-    let canUseRateLimitStore = true;
+    let chargedEntry: RateLimitEntry;
 
     try {
-      const existingEntry = await getOrCreateRateLimitEntry(
+      chargedEntry = await consumeRateLimitAttempt(
         loginRateLimitStore,
         rateLimitKey,
-        loginRateLimitWindowMs,
-        currentTime,
+        { windowMs: loginRateLimitWindowMs, now: currentTime },
       );
-
-      failureEntry.count = existingEntry.count;
-      failureEntry.resetAt = existingEntry.resetAt;
     } catch (error) {
-      canUseRateLimitStore = false;
-      request.log.error(
-        {
-          err: error,
-          code: "ADMIN_PASSWORD_CHANGE_RATE_LIMIT_GET_FAILED",
-          route: "/api/admin/auth/change-password",
-        },
-        "No se pudo leer el rate limit de cambio de contraseña admin",
-      );
+      logError("ADMIN_PASSWORD_CHANGE_RATE_LIMIT_GET_FAILED", {
+        requestId: request.id,
+        route: "/api/admin/auth/change-password",
+        errorName: serializeError(error).name,
+      });
+
+      return sendLoginRateLimitUnavailable(reply);
     }
 
-    if (canUseRateLimitStore && failureEntry.count >= loginRateLimitMaxAttempts) {
+    if (chargedEntry.count > loginRateLimitMaxAttempts) {
       setLoginRateLimitHeaders(reply, {
         max: loginRateLimitMaxAttempts,
         windowMs: loginRateLimitWindowMs,
-        failedCount: failureEntry.count,
-        resetAt: failureEntry.resetAt,
+        failedCount: chargedEntry.count,
+        resetAt: chargedEntry.resetAt,
         now: currentTime,
         includeRetryAfter: true,
       });
 
       return reply.code(429).send(
         buildLoginRateLimitResponse({
-          resetAt: failureEntry.resetAt,
+          resetAt: chargedEntry.resetAt,
           now: currentTime,
         }),
       );
     }
 
     const markFailure = async () => {
-      if (!canUseRateLimitStore) {
-        return;
-      }
-
-      try {
-        const updatedEntry = await consumeRateLimitAttempt(
-          loginRateLimitStore,
-          rateLimitKey,
-          { windowMs: loginRateLimitWindowMs, now: currentTime },
-        );
-
-        failureEntry.count = updatedEntry.count;
-        failureEntry.resetAt = updatedEntry.resetAt;
-
-        setLoginRateLimitHeaders(reply, {
-          max: loginRateLimitMaxAttempts,
-          windowMs: loginRateLimitWindowMs,
-          failedCount: failureEntry.count,
-          resetAt: failureEntry.resetAt,
-          now: currentTime,
-        });
-      } catch (error) {
-        canUseRateLimitStore = false;
-        request.log.error(
-          {
-            err: error,
-            code: "ADMIN_PASSWORD_CHANGE_RATE_LIMIT_INCREMENT_FAILED",
-            route: "/api/admin/auth/change-password",
-          },
-          "No se pudo actualizar el rate limit de cambio de contraseña admin",
-        );
-      }
+      setLoginRateLimitHeaders(reply, {
+        max: loginRateLimitMaxAttempts,
+        windowMs: loginRateLimitWindowMs,
+        failedCount: chargedEntry.count,
+        resetAt: chargedEntry.resetAt,
+        now: currentTime,
+      });
     };
 
     const markSuccess = async () => {
-      if (!canUseRateLimitStore) {
-        return;
-      }
-
       if (loginRateLimitStore.delete) {
         try {
           await loginRateLimitStore.delete(rateLimitKey);
         } catch (error) {
-          request.log.warn(
-            {
-              err: error,
-              code: "ADMIN_PASSWORD_CHANGE_RATE_LIMIT_RESET_FAILED",
-              route: "/api/admin/auth/change-password",
-            },
-            "No se pudo limpiar el rate limit tras cambio de contraseña admin",
-          );
+          logWarn("ADMIN_PASSWORD_CHANGE_RATE_LIMIT_RESET_FAILED", {
+            requestId: request.id,
+            route: "/api/admin/auth/change-password",
+            errorName: serializeError(error).name,
+          });
+          setLoginRateLimitHeaders(reply, {
+            max: loginRateLimitMaxAttempts,
+            windowMs: loginRateLimitWindowMs,
+            failedCount: chargedEntry.count,
+            resetAt: chargedEntry.resetAt,
+            now: currentTime,
+          });
+
+          return;
         }
       }
 
@@ -980,7 +919,29 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
 
     const newPasswordHash = await deps.hashPassword(request.body.newPassword);
 
-    await deps.updateAdminPasswordHash(admin.id, newPasswordHash);
+    let revocation: { revokedSessionCount: number } | null;
+
+    try {
+      revocation = await deps.changeAdminPasswordAndRevokeOtherSessions({
+        adminUserId: admin.id,
+        passwordHash: newPasswordHash,
+        keepSessionTokenHash: deps.hashSessionToken(admin.sessionToken),
+      });
+    } catch (error) {
+      logError("ADMIN_PASSWORD_CHANGE_COMMIT_FAILED", {
+        requestId: request.id,
+        route: "/api/admin/auth/change-password",
+        errorName: serializeError(error).name,
+      });
+      revocation = null;
+    }
+
+    if (!revocation) {
+      return reply.code(500).send({
+        success: false,
+        error: PASSWORD_CHANGE_ERROR_MESSAGE,
+      });
+    }
 
     await deps.writeAuditLog(createAuditRequestLike(request, admin), {
       event: ADMIN_PASSWORD_CHANGED_AUDIT_EVENT,
@@ -989,6 +950,7 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
         username: admin.username,
         selfService: true,
         sessionMaintained: true,
+        otherSessionsRevoked: revocation.revokedSessionCount,
       },
       actor: {
         type: "admin_user",

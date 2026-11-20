@@ -105,6 +105,7 @@ export type AdminClinicUserCredentialsUpdateResult =
       previousUsername: string;
       usernameChanged: boolean;
       credentialUpdated: boolean;
+      revokedSessionCount: number;
     }
   | {
       ok: false;
@@ -720,10 +721,25 @@ export async function updateAdminClinicUserCredentials(
     values.passwordHash = input.passwordHash;
   }
 
-  await db
-    .update(clinicUsers)
-    .set(values)
-    .where(eq(clinicUsers.id, input.clinicUserId));
+  // A new password ends every session the target user already holds; the
+  // write and the revocation commit together or not at all.
+  const revokedSessionCount = await db.transaction(async (tx) => {
+    await tx
+      .update(clinicUsers)
+      .set(values)
+      .where(eq(clinicUsers.id, input.clinicUserId));
+
+    if (!input.passwordHash) {
+      return 0;
+    }
+
+    const revoked = await tx
+      .delete(activeSessions)
+      .where(eq(activeSessions.clinicUserId, input.clinicUserId))
+      .returning({ id: activeSessions.id });
+
+    return revoked.length;
+  });
 
   const updated = await getClinicUserRow(input.clinicUserId);
 
@@ -740,5 +756,6 @@ export async function updateAdminClinicUserCredentials(
     previousUsername: current.username,
     usernameChanged: updated.username !== current.username,
     credentialUpdated: Boolean(input.passwordHash),
+    revokedSessionCount,
   };
 }

@@ -361,11 +361,12 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§6.2",
     metric: "specs en test/security",
     historical: 10,
+    baseline: 14,
     compute: () => folderFiles("test/security"),
-    resolution: "REPRODUCED",
+    resolution: "RECLASSIFIED",
     guard: BAND,
     motive:
-      "Volumen por carpeta: TEST-GLOBAL-04 añade prueba negativa aquí y la cifra debe poder subir.",
+      "Volumen por carpeta: TEST-GLOBAL-04 añade prueba negativa aquí y la cifra debe poder subir. Re-anclaje 10 -> 14: main@4830a7d9f90ae78b9d94211e7b924b1860c3bd10 producia 13 specs, exactamente el tope de la banda 10 +- 3 (13), y PR-SEC-10 suma test/security/security-trusted-proxy-client-ip.test.ts, la prueba adversarial de la resolución estructural de proxies confiables (spoofing de XFF y de cabeceras alternativas, buckets por cliente, IPv6, topología desconocida), lo que lleva el valor a 14. Crecimiento intencional dentro de PR-SEC-10: se re-ancla el baseline a 14 sin ampliar la tolerancia y sin excluir ningun archivo del inventario.",
   },
   // ── §6.3 ratio test : producción ──────────────────────────────────────────
   {
@@ -624,7 +625,7 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§7.2",
     metric: "specs MIXED estructural (filesystem y runtime)",
     historical: 59,
-    baseline: 48,
+    baseline: 49,
     compute: () => classification.byBucket.FILESYSTEM_AND_RUNTIME,
     resolution: "RECLASSIFIED",
     guard: BAND,
@@ -636,12 +637,12 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§7.2",
     metric: "specs sólo con import dinámico",
     historical: 61,
-    baseline: 59,
+    baseline: 75,
     compute: () => classification.byBucket.DYNAMIC_IMPORT_ONLY,
     resolution: "RECLASSIFIED",
     guard: BAND,
     motive:
-      "La definición versionada exige que el `import()` dinámico apunte a un path de producción; un `import()` de soporte ya no cuenta como runtime.",
+      "La definición versionada exige que el `import()` dinámico apunte a un path de producción; un `import()` de soporte ya no cuenta como runtime. Re-anclaje 59 -> 75: el árbol producía 74, al tope de la banda 59 +- 15. PR-SEC-10 suma dos specs que cargan el router sólo por import dinámico porque deben fijar el entorno antes de importar (el techo global de profesionales públicos contra PostgreSQL real con dos instancias y el fallo cerrado del store). Crecimiento intencional: se re-ancla el baseline al valor medido, sin ampliar la tolerancia ni excluir ningún archivo del inventario.",
   },
   {
     row: "A0-07-BUCKETS",
@@ -1131,11 +1132,12 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§15",
     metric: "specs de integración",
     historical: 58,
+    baseline: 74,
     compute: () => specsUnder("test/integration").length,
-    resolution: "REPRODUCED",
+    resolution: "RECLASSIFIED",
     guard: BAND,
     motive:
-      "TEST-GLOBAL-09 debe aumentarlo poblando repositorios y servicios externos: congelarlo sería contradictorio.",
+      "TEST-GLOBAL-09 debe aumentarlo poblando repositorios y servicios externos: congelarlo sería contradictorio. Re-anclaje 58 -> 74: el árbol producía 73, exactamente el tope de la banda 58 +- 15, y PR-SEC-10 suma test/integration/app/login-rate-limit-reset-postgres.test.ts, el spec contra PostgreSQL real (portal_vetneb_ci) del reset administrativo del techo por identificador, lo que lleva el valor a 74. Crecimiento intencional: se re-ancla el baseline al valor medido, sin ampliar la tolerancia ni excluir ningún archivo del inventario.",
   },
   {
     row: "A0-15-INTEGRATION",
@@ -1733,7 +1735,9 @@ test("censo 05A: la deuda de lectores ad hoc rompe al crecer y la adopción del 
   // +1: clinic-reports-study-type-label lee el owner de la columna ESTUDIO por el lector canónico.
   // +1: drizzle-config-db-url lee drizzle.config.ts y backend-ci.yml por el lector canónico.
   // +1: global-search-state-retention lee la migración 0031, el repositorio y el preflight por el lector canónico.
-  assert.equal(current, 441, "global-search-state-retention se suma a los 440 importadores del lector canónico (tras drizzle-config-db-url)");
+  // +1: security-client-ip-proxy-signing lee proxy.ts y next.config.ts por el lector canónico (PR-SEC-10).
+  // +1: security-ip-independent-ceilings lee las rutas de login, contacto y públicas por el lector canónico (PR-SEC-10).
+  assert.equal(current, 443, "security-ip-independent-ceilings se suma a los 442 importadores del lector canónico (tras security-client-ip-proxy-signing)");
   assert.equal(
     guardViolation(adoptionEntry, evaluateEntry(adoptionEntry)),
     null,
