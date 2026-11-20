@@ -16,6 +16,7 @@ import {
   createPageMetadata,
   getDiagnosticServiceJsonLd,
 } from "@/lib/seo";
+import { serializeJsonLd } from "@/lib/json-ld";
 
 export const metadata: Metadata = createPageMetadata(
   "Histopatología Veterinaria | Servicio Histopatológico Veterinario",
@@ -75,7 +76,7 @@ export default function HistopatologiaVeterinariaPage() {
     <PublicLayout>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
       />
 
       <section

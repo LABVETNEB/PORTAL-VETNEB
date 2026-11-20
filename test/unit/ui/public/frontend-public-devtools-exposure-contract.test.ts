@@ -452,3 +452,36 @@ test("env-value-leak check fails when the synthetic canary appears in the public
     assert.equal(JSON.stringify(result).includes(DEFAULT_CANARY_SECRET_VALUE), false);
   });
 });
+
+test("dangerouslySetInnerHTML audit accepts serializeJsonLd JSON-LD sinks and rejects raw JSON.stringify (SEC-17)", () => {
+  const sink = (html: string) =>
+    [
+      "export default function Page() {",
+      "  return (",
+      "    <script",
+      '      type="application/ld+json"',
+      `      dangerouslySetInnerHTML={{ __html: ${html} }}`,
+      "    />",
+      "  );",
+      "}",
+      "",
+    ].join("\n");
+  const cases: Array<[string, boolean]> = [
+    ["serializeJsonLd(data)", true],
+    ["JSON.stringify(data)", false],
+    ["JSON.stringify(data).replace(/</g, '')", false],
+    ["userControlledHtml", false],
+  ];
+
+  for (const [html, expectedSafe] of cases) {
+    withTempWorkspace((workspaceRoot) => {
+      createMinimalPublicWorkspace(workspaceRoot);
+      writeFileSync(resolve(workspaceRoot, "frontend/src/app-page.tsx"), sink(html), "utf8");
+
+      const result = runAuditor(workspaceRoot);
+      const finding = result.findings.find((entry) => entry.rule === "dangerously-set-inner-html");
+
+      assert.equal(finding === undefined, expectedSafe, `${html}: ${JSON.stringify(result.findings)}`);
+    });
+  }
+});
