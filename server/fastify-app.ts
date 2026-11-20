@@ -188,7 +188,29 @@ type HealthCheckResponse = {
 type HealthCheckFactory = () => Promise<HealthCheckResponse>;
 type ServiceInfoFactory = () => Record<string, unknown>;
 
+const POSTGRES_CLIENT_ERROR_SQLSTATES: ReadonlySet<string> = new Set([
+  "23505",
+  "23503",
+  "22P02",
+  "42703",
+]);
+const POSTGRES_CLIENT_ERROR_PUBLIC_MESSAGE = "Solicitud inválida";
+
+function isPostgresClientError(error: unknown) {
+  return (
+    !!error &&
+    typeof error === "object" &&
+    "code" in error &&
+    typeof (error as { code?: unknown }).code === "string" &&
+    POSTGRES_CLIENT_ERROR_SQLSTATES.has((error as { code: string }).code)
+  );
+}
+
 function getFastifyErrorMessage(error: unknown) {
+  if (isPostgresClientError(error)) {
+    return POSTGRES_CLIENT_ERROR_PUBLIC_MESSAGE;
+  }
+
   if (error instanceof Error) {
     return error.message;
   }
@@ -221,17 +243,8 @@ function getFastifyErrorStatus(error: unknown) {
     );
   }
 
-  if (
-    error &&
-    typeof error === "object" &&
-    "code" in error &&
-    typeof (error as { code?: string }).code === "string"
-  ) {
-    const code = (error as { code: string }).code;
-
-    if (["23505", "23503", "22P02", "42703"].includes(code)) {
-      return 400;
-    }
+  if (isPostgresClientError(error)) {
+    return 400;
   }
 
   return 500;
