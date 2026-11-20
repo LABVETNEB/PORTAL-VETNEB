@@ -33,7 +33,10 @@ import {
   type RuntimeTimer,
 } from "../lib/runtime-timing.ts";
 import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
-import { isSessionExpired } from "../lib/session-expiry.ts";
+import {
+  isParticularTokenExpired,
+  isSessionExpired,
+} from "../lib/session-expiry.ts";
 
 type ParticularSessionRecord = {
   particularTokenId: number;
@@ -43,7 +46,7 @@ type ParticularSessionRecord = {
 
 type ParticularTokenAuthRecord = Pick<
   ParticularToken,
-  "id" | "clinicId" | "reportId" | "isActive"
+  "id" | "clinicId" | "reportId" | "isActive" | "createdAt"
 >;
 
 type AuthenticatedParticularUser = {
@@ -344,6 +347,23 @@ async function authenticateParticularUser(
   );
 
   if (!particularToken || !particularToken.isActive) {
+    await deps.deleteParticularSession(tokenHash);
+
+    reply.header("set-cookie", buildClearParticularSessionCookie());
+    reply.code(401).send({
+      success: false,
+      error: "Token particular inválido o inactivo",
+    });
+    return null;
+  }
+
+  if (
+    isParticularTokenExpired(
+      particularToken.createdAt,
+      ENV.particularTokenTtlDays,
+      now(),
+    )
+  ) {
     await deps.deleteParticularSession(tokenHash);
 
     reply.header("set-cookie", buildClearParticularSessionCookie());

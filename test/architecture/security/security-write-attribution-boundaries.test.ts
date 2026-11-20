@@ -1675,7 +1675,7 @@ const STUDY_TRACKING_DYNAMIC_IMPORTS = [
 const PARTICULAR_AUTHENTICATOR_SITES: readonly RouteCallSite[] = [
   { callee: "deps.hashSessionToken", sink: "effect", args: [null], principal: false },
   { callee: "deps.getParticularSessionByToken", sink: "read", args: [null], principal: false },
-  { callee: "deps.deleteParticularSession", sink: "session", args: [null], count: 2, principal: false },
+  { callee: "deps.deleteParticularSession", sink: "session", args: [null], count: 3, principal: false },
   { callee: "deps.getParticularTokenById", sink: "read", args: ["session.particularTokenId"], principal: false },
   { callee: "deps.updateParticularSessionLastAccess", sink: "session", args: [null], principal: false },
 ];
@@ -2097,7 +2097,7 @@ const ROUTE_SURFACES: readonly RouteSurface[] = [
         "buildParticularAuditCsvFilename as defaultBuildParticularAuditCsvFilename",
         "buildParticularAuditListFilters as defaultBuildParticularAuditListFilters",
       ],
-      "../lib/session-expiry.ts": ["isSessionExpired"],
+      "../lib/session-expiry.ts": ["isParticularTokenExpired", "isSessionExpired"],
       "../lib/session-last-access.ts": ["shouldRefreshSessionLastAccess"],
     },
     dynamicImports: ["../db-audit.ts", "../features/particular-access/infrastructure/index.ts", "../lib/auth-security.ts"],
@@ -2147,7 +2147,7 @@ const ROUTE_SURFACES: readonly RouteSurface[] = [
       ],
       "../lib/cors-headers.ts": REQUIRED_CORS_IMPORTS,
       "../lib/env.ts": ["ENV"],
-      "../lib/session-expiry.ts": ["isSessionExpired"],
+      "../lib/session-expiry.ts": ["isParticularTokenExpired", "isSessionExpired"],
       "../lib/session-last-access.ts": ["shouldRefreshSessionLastAccess"],
     },
     dynamicImports: [
@@ -3087,6 +3087,8 @@ async function checkRouteHelpers(file: ts.SourceFile, surface: RouteSurface, vio
         getParticularSessionToken: () => RAW_PARTICULAR_SESSION,
         buildClearParticularSessionCookie: () => "cleared",
         isSessionExpired: () => false,
+        isParticularTokenExpired: () => false,
+        ENV: { particularTokenTtlDays: 90 },
         shouldRefreshSessionLastAccess: () => false,
       });
       const principal = asRecord(

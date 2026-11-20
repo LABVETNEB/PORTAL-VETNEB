@@ -334,6 +334,7 @@ test(
         clinicId: 3,
         reportId: 55,
         isActive: true,
+        createdAt: new Date("2026-04-20T12:00:00.000Z"),
       }),
       updateParticularSessionLastAccess: async () => {},
       deleteParticularSession: async (tokenHash: string) => {
@@ -386,6 +387,7 @@ test(
         clinicId: 3,
         reportId: 55,
         isActive: true,
+        createdAt: new Date("2026-04-20T12:00:00.000Z"),
       }),
       updateParticularSessionLastAccess: async () => {},
       getReportById: async () => report,
@@ -433,6 +435,7 @@ test(
         clinicId: 3,
         reportId: 55,
         isActive: true,
+        createdAt: new Date("2026-04-20T12:00:00.000Z"),
       }),
       updateParticularSessionLastAccess: async () => {},
       getReportById: async () => report,
@@ -481,6 +484,7 @@ test(
         clinicId: 3,
         reportId: 55,
         isActive: true,
+        createdAt: new Date("2026-04-20T12:00:00.000Z"),
       }),
       updateParticularSessionLastAccess: async () => {},
       createSignedReportUrl: async () => {
