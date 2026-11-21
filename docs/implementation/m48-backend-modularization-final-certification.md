@@ -288,15 +288,17 @@ PR-SEC-01 (SEC-04: `cache-control: no-store` en el hook de acceso público a inf
 
 PR-SEC-03 / SEC-08 (privacidad de auditoría y logs de informes: `resolveSafeErrorName` en `server/features/reports/application/report-route-service.ts` y `resolveReportSafeErrorName` en `server/features/reports/composition/report-route-composition.ts`, que reutiliza `serializeError`) lleva `server/features/reports` de 27/3.180 a 27/3.187 y `server/features` de 19.202 a 19.209; `server/routes`, `server/lib` y la raíz no cambian. Total 246/50.382 → 246/50.389.
 
+PR-SEC-16 (minimización de la divulgación pública de `GET /`, `/health` y `/api/health`: allowlist en los handlers de `server/fastify-app.ts` y retiro de `environment` en `server/lib/http-runtime.ts`) lleva la raíz `server/*.ts` de 9/2.641 a 9/2.650 y `server/lib` de 5.959 a 5.957; `server/features` y `server/routes` no cambian. Total 246/50.389 → 246/50.396.
+
 | Área | Archivos TypeScript | LOC |
 | --- | ---: | ---: |
 | `server/features` | 161 | 19.209 |
 | `server/routes` | 38 | 22.151 |
-| `server/lib` | 35 | 5.959 |
+| `server/lib` | 35 | 5.957 |
 | `server/middlewares` | 3 | 429 |
-| raíz/entrypoints `server/*.ts` | 9 | 2.641 |
+| raíz/entrypoints `server/*.ts` | 9 | 2.650 |
 | otros | 0 | 0 |
-| **Total `server`** | **246** | **50.389** |
+| **Total `server`** | **246** | **50.396** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por

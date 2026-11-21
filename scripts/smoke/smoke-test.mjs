@@ -65,8 +65,7 @@ async function run() {
   const healthJson = await readJson(healthRes);
 
   assert(healthRes.ok, `HEALTH FALLO: ${healthRes.status}`);
-  assert(healthJson?.checks?.database === "up", "DATABASE NO ESTA UP");
-  assert(healthJson?.checks?.storage === "up", "STORAGE NO ESTA UP");
+  assert(healthJson?.success === true, "HEALTH NO ESTA OK");
   console.log("OK /health");
 
   // LOGIN

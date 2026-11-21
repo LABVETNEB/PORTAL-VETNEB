@@ -132,6 +132,60 @@ test(
 );
 
 test(
+  "createFastifyApp mantiene 503 degradado sin detalle de infraestructura en health publico",
+  async () => {
+    const app = await createFastifyApp({
+      ...fastifyAppHelpers.buildFastifyDispatchRouteStubs(),
+      getNativeHealthCheckResponse: async () => ({
+        statusCode: 503,
+        payload: {
+          success: false,
+          status: "degraded",
+          checks: { database: "down", storage: "up" },
+          uptimeSeconds: 99,
+          responseTimeMs: 7,
+          timestamp: "2026-04-22T00:00:00.000Z",
+        },
+      }),
+      adminAuditRoutes: fastifyAppHelpers.buildAdminAuditRouteStubs(),
+      adminAuthRoutes: fastifyAppHelpers.buildAdminAuthRouteStubs(),
+      adminParticularTokensRoutes: fastifyAppHelpers.buildAdminParticularTokensRouteStubs(),
+      adminReportsRoutes: fastifyAppHelpers.buildAdminReportsRouteStubs(),
+      adminReportAccessTokensRoutes: fastifyAppHelpers.buildAdminReportAccessTokensRouteStubs(),
+      adminStudyTrackingRoutes: fastifyAppHelpers.buildAdminStudyTrackingRouteStubs(),
+      adminSystemHealthRoutes: fastifyAppHelpers.buildAdminSystemHealthRouteStubs(),
+      clinicAuthRoutes: fastifyAppHelpers.buildClinicAuthRouteStubs(),
+      clinicAuditRoutes: fastifyAppHelpers.buildClinicAuditRouteStubs(),
+      clinicPublicProfileRoutes: fastifyAppHelpers.buildClinicPublicProfileRouteStubs(),
+      particularAuditRoutes: fastifyAppHelpers.buildParticularAuditRouteStubs(),
+      particularAuthRoutes: fastifyAppHelpers.buildParticularAuthRouteStubs(),
+      particularTokensRoutes: fastifyAppHelpers.buildParticularTokensRouteStubs(),
+      publicReportAccessRoutes: fastifyAppHelpers.buildPublicReportAccessRouteStubs(),
+      reportAccessTokensRoutes: fastifyAppHelpers.buildReportAccessTokensRouteStubs(),
+      studyTrackingRoutes: fastifyAppHelpers.buildStudyTrackingRouteStubs(),
+      logisticsFieldVisitsRoutes: fastifyAppHelpers.buildLogisticsFieldVisitsRouteStubs(),
+    });
+
+    try {
+      for (const url of ["/health", "/api/health"]) {
+        const response = await app.inject({ method: "GET", url });
+
+        assert.equal(response.statusCode, 503);
+        assert.deepEqual(response.json(), {
+          success: false,
+          status: "degraded",
+        });
+        if (url.startsWith("/api/")) {
+          assert.ok(response.headers["x-request-id"]);
+        }
+      }
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
   "createFastifyApp expone root y health nativos",
   async () => {
     const app = await createFastifyApp({
@@ -139,7 +193,7 @@ test(
       getServiceInfoPayload: () => ({
         success: true,
         service: "portal-vetneb-api",
-        environment: "test",
+        environment: "production",
       }),
       getNativeHealthCheckResponse: async () => ({
         statusCode: 200,
@@ -191,6 +245,11 @@ test(
       });
 
       assert.equal(rootResponse.statusCode, 200);
+      // SEC-16: allowlist publica, sin `environment` aunque el factory lo emita.
+      assert.deepEqual(rootResponse.json(), {
+        success: true,
+        service: "portal-vetneb-api",
+      });
 
       const healthResponse = await app.inject({
         method: "GET",
@@ -198,6 +257,7 @@ test(
       });
       assert.equal(healthResponse.statusCode, 200);
       assert.equal(healthResponse.headers["x-legacy-bridge"], undefined);
+      assert.deepEqual(healthResponse.json(), { success: true, status: "ok" });
 
       const apiHealthResponse = await app.inject({
         method: "GET",
@@ -206,6 +266,10 @@ test(
 
       assert.equal(apiHealthResponse.statusCode, 200);
       assert.equal(apiHealthResponse.headers["x-legacy-bridge"], undefined);
+      assert.deepEqual(apiHealthResponse.json(), {
+        success: true,
+        status: "ok",
+      });
     } finally {
       await app.close();
     }

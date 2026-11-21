@@ -57,8 +57,6 @@ async function run() {
   if (healthJson?.status !== undefined) {
     assert(healthJson.status === "ok", `HEALTH status=${healthJson.status} (esperado ok)`);
   }
-  assert(healthJson?.checks?.database === "up", `HEALTH checks.database=${healthJson?.checks?.database} (esperado up)`);
-  assert(healthJson?.checks?.storage === "up", `HEALTH checks.storage=${healthJson?.checks?.storage} (esperado up)`);
   console.log("OK /health");
 
   // GET frontend /
