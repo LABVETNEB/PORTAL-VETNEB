@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   adminCreateReportAccessTokenSchema,
+  resolveReportAccessTokenExpiry,
 } from "../../../../server/features/report-access/index.ts";
 
 test("adminCreateReportAccessTokenSchema requiere clinicId y reportId válidos", () => {
@@ -68,5 +69,9 @@ test("adminCreateReportAccessTokenSchema rechaza expiresAt pasada", () => {
     expiresAt: past,
   });
 
-  assert.equal(parsed.success, false);
+  assert.equal(parsed.success, true);
+  assert.equal(
+    resolveReportAccessTokenExpiry(parsed.data?.expiresAt, Date.now()).ok,
+    false,
+  );
 });

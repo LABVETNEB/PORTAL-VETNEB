@@ -8,6 +8,7 @@ import {
   isReportAccessTokenExpired,
   isReportAccessTokenRevoked,
   reportAccessTokenRawTokenSchema,
+  resolveReportAccessTokenExpiry,
 } from "../../../server/features/report-access/index.ts";
 
 test("reportAccessTokenRawTokenSchema acepta tokens hex de 64 caracteres", () => {
@@ -23,7 +24,11 @@ test("clinicCreateReportAccessTokenSchema rechaza expiresAt pasado", () => {
     expiresAt: "2000-01-01T00:00:00.000Z",
   });
 
-  assert.equal(parsed.success, false);
+  assert.equal(parsed.success, true);
+  assert.equal(
+    resolveReportAccessTokenExpiry(parsed.data?.expiresAt, Date.now()).ok,
+    false,
+  );
 });
 
 test("report access token state distingue active expired y revoked", () => {
@@ -90,5 +95,53 @@ test("buildPublicReportAccessPath construye la ruta pÃºblica esperada", () => 
   assert.equal(
     buildPublicReportAccessPath(token),
     `/api/public/report-access/${token}`,
+  );
+});
+
+const SEC10_DAY = 24 * 60 * 60 * 1000;
+const SEC10_NOW = Date.UTC(2026, 10, 12, 12, 0, 0);
+
+test("SEC-10: política de expiración de tokens públicos (dominio compartido)", () => {
+  const def = resolveReportAccessTokenExpiry(undefined, SEC10_NOW);
+  assert.deepEqual(def, { ok: true, expiresAt: new Date(SEC10_NOW + 7 * SEC10_DAY) });
+
+  const inRange = new Date(SEC10_NOW + 10 * SEC10_DAY);
+  assert.deepEqual(resolveReportAccessTokenExpiry(inRange, SEC10_NOW), {
+    ok: true,
+    expiresAt: inRange,
+  });
+
+  const atLimit = new Date(SEC10_NOW + 30 * SEC10_DAY);
+  assert.equal(resolveReportAccessTokenExpiry(atLimit, SEC10_NOW).ok, true);
+
+  for (const rejected of [
+    null,
+    new Date(SEC10_NOW),
+    new Date(SEC10_NOW - 1),
+    new Date(SEC10_NOW + 30 * SEC10_DAY + 1),
+    new Date(Number.NaN),
+  ]) {
+    assert.equal(resolveReportAccessTokenExpiry(rejected, SEC10_NOW).ok, false);
+  }
+});
+
+test("SEC-10: token histórico sin vencimiento conserva su comportamiento; vencido y revocado se rechazan", () => {
+  assert.equal(
+    getReportAccessTokenState({ expiresAt: null, revokedAt: null }, new Date(SEC10_NOW)),
+    "active",
+  );
+  assert.equal(
+    getReportAccessTokenState(
+      { expiresAt: new Date(SEC10_NOW - 1), revokedAt: null },
+      new Date(SEC10_NOW),
+    ),
+    "expired",
+  );
+  assert.equal(
+    getReportAccessTokenState(
+      { expiresAt: null, revokedAt: new Date(SEC10_NOW - 1) },
+      new Date(SEC10_NOW),
+    ),
+    "revoked",
   );
 });
