@@ -21,7 +21,7 @@ test("frontend root layout wires base metadata and organization JSON-LD", () => 
   assert.ok(source.includes('type="application/ld+json"'));
   assert.ok(
     source.includes(
-      "dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}",
+      "dangerouslySetInnerHTML={{ __html: serializeJsonLd(orgJsonLd) }}",
     ),
   );
   assert.ok(source.includes('<html lang="es"'));

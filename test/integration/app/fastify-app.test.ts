@@ -1540,6 +1540,19 @@ test(
         throw error;
       });
 
+      const postgresLeaks: Record<string, string> = {
+        "23505": 'duplicate key value violates unique constraint "clinics_email_key"',
+        "23503": 'insert or update on table "reports" violates foreign key constraint "reports_clinic_id_fkey"',
+        "22P02": 'invalid input syntax for type uuid: "clinica-secreta"',
+        "42703": 'column "password_hash" of relation "admin_users" does not exist',
+      };
+
+      for (const [code, leak] of Object.entries(postgresLeaks)) {
+        app.get(`/__test/pg-${code}`, async () => {
+          throw Object.assign(new Error(leak), { code });
+        });
+      }
+
       const notFoundResponse = await app.inject({
         method: "GET",
         url: "/api/no-existe",
@@ -1580,6 +1593,26 @@ test(
         details: "Payload invalido",
         path: "/__test/bad-request",
       });
+
+      for (const [code, leak] of Object.entries(postgresLeaks)) {
+        const pgResponse = await app.inject({
+          method: "GET",
+          url: `/__test/pg-${code}`,
+        });
+
+        assert.equal(pgResponse.statusCode, 400, code);
+        assert.deepEqual(JSON.parse(pgResponse.body), {
+          success: false,
+          error: "Solicitud inválida",
+          details: "Solicitud inválida",
+          path: `/__test/pg-${code}`,
+        });
+        assert.equal(pgResponse.body.includes(leak), false, code);
+        assert.doesNotMatch(
+          pgResponse.body,
+          /clinics_email_key|reports_clinic_id_fkey|clinica-secreta|password_hash|admin_users/,
+        );
+      }
     } finally {
       await app.close();
     }

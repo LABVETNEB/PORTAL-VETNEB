@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createPageMetadata, getContactPageJsonLd } from "@/lib/seo";
+import { serializeJsonLd } from "@/lib/json-ld";
 import { ContactoContent } from "@/components/public/ContactoContent";
 
 export const metadata: Metadata = createPageMetadata(
@@ -15,7 +16,7 @@ export default function ContactoPage() {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
       />
       <ContactoContent />
     </>

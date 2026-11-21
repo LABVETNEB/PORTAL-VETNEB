@@ -231,7 +231,7 @@ test("invalid public report token is hidden before hashing lookup signing or aud
 
     assert.equal(response.statusCode, 404);
     assertPublicApiSecurityHeaders(response, "public report invalid token");
-    assert.notEqual(response.headers["cache-control"], "no-store");
+    assert.equal(response.headers["cache-control"], "no-store");
     assert.deepEqual(calls.hash, []);
     assert.deepEqual(calls.lookup, []);
     assert.deepEqual(calls.record, []);

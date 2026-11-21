@@ -16,6 +16,7 @@ import {
   createPageMetadata,
   getDiagnosticServiceJsonLd,
 } from "@/lib/seo";
+import { serializeJsonLd } from "@/lib/json-ld";
 
 export const metadata: Metadata = createPageMetadata(
   "Citología Veterinaria | Servicio Citológico y Citopatológico Veterinario",
@@ -75,7 +76,7 @@ export default function CitologiaVeterinariaPage() {
     <PublicLayout>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
       />
 
       <section

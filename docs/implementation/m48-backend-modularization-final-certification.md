@@ -282,15 +282,21 @@ PR-SEC-10 (topes independientes de IP: `applyLoginIdentifierCeiling` en `server/
 
 PR-SEC-11 (expiración del token credencial de particulares: `isParticularTokenExpired` en `server/lib/session-expiry.ts`, variable `PARTICULAR_TOKEN_TTL_DAYS` en `server/lib/env.ts` y su aplicación en las rutas `auth` (login unificado), `particular-auth`, `particular-audit` y `particular-study-tracking`) lleva `server/routes` de 22.059 a 22.150 y `server/lib` de 5.930 a 5.959; `server/features` no cambia. Total 246/50.248 → 246/50.368.
 
+PR-SEC-02 / SEC-05 (sanitización de errores PostgreSQL en el handler global: clasificación única de SQLSTATE `23505`/`23503`/`22P02`/`42703` y mensaje público fijo en `server/fastify-app.ts`) lleva la raíz `server/*.ts` de 9/2.628 a 9/2.641. Total 246/50.368 → 246/50.381.
+
+PR-SEC-01 (SEC-04: `cache-control: no-store` en el hook de acceso público a informes, una línea en `server/routes/public-report-access.fastify.ts`) lleva `server/routes` de 38/22.150 a 38/22.151. Total 246/50.381 → 246/50.382.
+
+PR-SEC-03 / SEC-08 (privacidad de auditoría y logs de informes: `resolveSafeErrorName` en `server/features/reports/application/report-route-service.ts` y `resolveReportSafeErrorName` en `server/features/reports/composition/report-route-composition.ts`, que reutiliza `serializeError`) lleva `server/features/reports` de 27/3.180 a 27/3.187 y `server/features` de 19.202 a 19.209; `server/routes`, `server/lib` y la raíz no cambian. Total 246/50.382 → 246/50.389.
+
 | Área | Archivos TypeScript | LOC |
 | --- | ---: | ---: |
-| `server/features` | 161 | 19.202 |
-| `server/routes` | 38 | 22.150 |
+| `server/features` | 161 | 19.209 |
+| `server/routes` | 38 | 22.151 |
 | `server/lib` | 35 | 5.959 |
 | `server/middlewares` | 3 | 429 |
-| raíz/entrypoints `server/*.ts` | 9 | 2.628 |
+| raíz/entrypoints `server/*.ts` | 9 | 2.641 |
 | otros | 0 | 0 |
-| **Total `server`** | **246** | **50.368** |
+| **Total `server`** | **246** | **50.389** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por
@@ -317,7 +323,7 @@ porque ésa es su topología proporcional documentada.
 | Pricing | 4 | 489 | infrastructure, servicios directos | no requerido | ninguna | ninguna | M20 |
 | Public Professionals | 8 | 1.150 | domain, infrastructure | sí | Clinics (3) | ninguna | M24 |
 | Report Access | 12 | 724 | domain, application, infrastructure, composition | sí | ninguna | Reports (1) | M34/M35b |
-| Reports | 27 | 3.180 | domain, application, infrastructure, composition | sí | Particular/Report Access (4) | Particular/ST (3) | M41 |
+| Reports | 27 | 3.187 | domain, application, infrastructure, composition | sí | Particular/Report Access (4) | Particular/ST (3) | M41 |
 | Study Tracking | 21 | 2.908 | domain, application, infrastructure | sí | Particular/Reports (6) | ninguna | M35 |
 | Users/Roles | 9 | 674 | domain, application, infrastructure, composition feature-level | no requerido | ninguna | Clinics (2) | M43 |
 

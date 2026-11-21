@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { PreciosContent } from "@/components/public/PreciosContent";
 import { createPageMetadata, getPreciosPageJsonLd } from "@/lib/seo";
+import { serializeJsonLd } from "@/lib/json-ld";
 
 export const metadata: Metadata = createPageMetadata(
   "Precios de Estudios Patológicos Veterinarios",
@@ -16,7 +17,7 @@ export default function PreciosPage() {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
       />
       <PreciosContent />
     </>

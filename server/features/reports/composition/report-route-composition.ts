@@ -6,6 +6,7 @@ import type {
   StudyTrackingNotification,
 } from "../../../../drizzle/schema.ts";
 import type { AuditWriteInput } from "../../../lib/audit.ts";
+import { serializeError } from "../../../lib/logger.ts";
 import { ensureStudyTrackingCaseForToken } from "../../study-tracking/index.ts";
 import {
   normalizeSearchText,
@@ -382,6 +383,10 @@ async function resolveWorkflowDependencies(
   };
 }
 
+export function resolveReportSafeErrorName(error: unknown): string {
+  return error instanceof Error ? serializeError(error).name : "unknown_error";
+}
+
 function logReportDeliveredNotificationFailure(input: {
   reportId: number;
   clinicId: number;
@@ -435,6 +440,7 @@ export async function createAdminReportsRouteComposition(
     getAdminReportWorkflowItem: async () => null,
     updateAdminReportWorkflowStage: async () => null,
     updateAdminReportSpecialStain: async () => null,
+    resolveSafeErrorName: resolveReportSafeErrorName,
     logReportDeliveredNotificationFailure,
   });
 
@@ -488,6 +494,7 @@ export async function createAdminReportWorkflowRouteComposition(
       input: ReportRouteAuditInput,
     ) => Promise<void>,
     auditEvents: auditEventNames,
+    resolveSafeErrorName: resolveReportSafeErrorName,
     logReportDeliveredNotificationFailure: () => undefined,
   });
 

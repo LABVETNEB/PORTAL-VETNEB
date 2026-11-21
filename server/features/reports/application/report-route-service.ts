@@ -203,6 +203,7 @@ export type ReportRouteServiceDependencies<
     workflowStageChanged: string;
     specialStainChanged: string;
   };
+  resolveSafeErrorName: (error: unknown) => string;
   logReportDeliveredNotificationFailure: (input: {
     reportId: number;
     clinicId: number;
@@ -434,7 +435,7 @@ export function createReportRouteService<
           reportId: report.id,
           clinicId: report.clinicId,
           trackingCaseId: trackingCase.id,
-          errorName: error instanceof Error ? error.message : "unknown_error",
+          errorName: dependencies.resolveSafeErrorName(error),
         });
       }
     }
@@ -446,7 +447,6 @@ export function createReportRouteService<
       metadata: {
         fileName: input.file.fileName,
         mimeType: input.file.mimeType,
-        patientName: patientName ?? null,
         studyType: studyType ?? null,
         uploadDate: uploadDate ?? null,
         uploadedVia: "admin",
