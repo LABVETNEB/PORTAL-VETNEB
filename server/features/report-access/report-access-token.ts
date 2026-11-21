@@ -9,6 +9,7 @@ import {
   getReportAccessTokenState,
   isReportAccessTokenExpired,
   isReportAccessTokenRevoked,
+  resolveReportAccessTokenExpiry,
 } from "./domain/index.ts";
 
 export {
@@ -16,6 +17,7 @@ export {
   getReportAccessTokenState,
   isReportAccessTokenExpired,
   isReportAccessTokenRevoked,
+  resolveReportAccessTokenExpiry,
 };
 
 const rawTokenPattern = /^[a-f0-9]{64}$/i;
@@ -29,7 +31,7 @@ function emptyStringToUndefined(value: unknown) {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-const optionalFutureDateSchema = z
+const optionalExpiryDateSchema = z
   .preprocess(
     (value) => {
       if (value === null) {
@@ -39,10 +41,6 @@ const optionalFutureDateSchema = z
       return emptyStringToUndefined(value);
     },
     z.union([z.coerce.date(), z.null(), z.undefined()]),
-  )
-  .refine(
-    (value) => value == null || value.getTime() > Date.now(),
-    "expiresAt debe ser una fecha futura",
   )
   .optional();
 
@@ -58,7 +56,7 @@ const reportIdSchema = z.coerce
 
 export const clinicCreateReportAccessTokenSchema = z.object({
   reportId: reportIdSchema,
-  expiresAt: optionalFutureDateSchema.optional(),
+  expiresAt: optionalExpiryDateSchema.optional(),
 });
 
 export const adminCreateReportAccessTokenSchema =

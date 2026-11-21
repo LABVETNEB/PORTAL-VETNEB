@@ -148,7 +148,6 @@ test(
         payload: {
           clinicId: 3,
           reportId: 55,
-          expiresAt: "2099-01-01T00:00:00.000Z",
         },
       });
 
@@ -536,3 +535,84 @@ test(
     }
   },
 );
+
+const EXPIRY_NOW = Date.now();
+const EXPIRY_CREATED = 201;
+const EXPIRY_DAY = 24 * 60 * 60 * 1000;
+
+async function postWithExpiry(
+  payloadExpiresAt: unknown,
+  hasExpiresAt = true,
+) {
+  const createCalls: Array<Record<string, unknown>> = [];
+  const app = await createTestApp({
+    now: () => EXPIRY_NOW,
+    createReportAccessToken: async (input: Record<string, unknown>) => {
+      createCalls.push(input);
+      return createReportAccessTokenFixture();
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/admin/report-access-tokens",
+      headers: {
+        origin: "http://localhost:3000",
+        cookie: `${ENV.adminCookieName}=session-token`,
+        "content-type": "application/json",
+      },
+      payload: {
+        clinicId: 3,
+        reportId: 55,
+        ...(hasExpiresAt ? { expiresAt: payloadExpiresAt } : {}),
+      },
+    });
+
+    return { response, createCalls };
+  } finally {
+    await app.close();
+  }
+}
+
+test("SEC-10: sin expiresAt el token vence por defecto a los 7 días", async () => {
+  const { response, createCalls } = await postWithExpiry(undefined, false);
+
+  assert.equal(response.statusCode, EXPIRY_CREATED);
+  assert.ok(createCalls.length === 1);
+  assert.deepEqual(
+    createCalls[0].expiresAt,
+    new Date(EXPIRY_NOW + 7 * EXPIRY_DAY),
+  );
+});
+
+test("SEC-10: expiresAt dentro del rango y exactamente en el máximo se aceptan", async () => {
+  const inRange = new Date(EXPIRY_NOW + 10 * EXPIRY_DAY).toISOString();
+  const atLimit = new Date(EXPIRY_NOW + 30 * EXPIRY_DAY).toISOString();
+
+  for (const value of [inRange, atLimit]) {
+    const { response, createCalls } = await postWithExpiry(value);
+
+    assert.equal(response.statusCode, EXPIRY_CREATED, value);
+    assert.deepEqual(createCalls[0].expiresAt, new Date(value));
+  }
+});
+
+test("SEC-10: expiresAt nulo, vencido, inválido o posterior al máximo se rechaza sin persistir", async () => {
+  const cases: Array<[string, unknown]> = [
+    ["nulo", null],
+    ["pasado", new Date(EXPIRY_NOW - 1000).toISOString()],
+    ["ahora", new Date(EXPIRY_NOW).toISOString()],
+    ["inválido", "no-es-fecha"],
+    ["30 días + 1 ms", new Date(EXPIRY_NOW + 30 * EXPIRY_DAY + 1).toISOString()],
+    ["año 2099", "2099-01-01T00:00:00.000Z"],
+  ];
+
+  for (const [label, value] of cases) {
+    const { response, createCalls } = await postWithExpiry(value);
+
+    assert.equal(response.statusCode, 400, label);
+    assert.ok(createCalls.length === 0, label);
+    assert.equal(JSON.parse(response.body).success, false, label);
+  }
+});

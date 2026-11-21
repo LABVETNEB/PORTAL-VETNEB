@@ -27,6 +27,7 @@ import {
 import {
   buildPublicReportAccessPath,
   buildValidationError,
+  resolveReportAccessTokenExpiry,
   clinicCreateReportAccessTokenSchema,
   parseEntityId,
   parseOffset,
@@ -503,10 +504,22 @@ export const reportAccessTokensNativeRoutes: FastifyPluginAsync<
       });
     }
 
+    const expiry = resolveReportAccessTokenExpiry(
+      parsed.data.expiresAt,
+      now(),
+    );
+
+    if (!expiry.ok) {
+      return reply.code(400).send({
+        success: false,
+        error: expiry.error,
+      });
+    }
+
     const result = await reportAccess.createToken(
       {
         reportId: parsed.data.reportId,
-        expiresAt: parsed.data.expiresAt ?? null,
+        expiresAt: expiry.expiresAt,
       },
       { clinicId: auth.clinicId, clinicUserId: auth.id },
       createAuditRequestLike(request, auth),

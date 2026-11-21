@@ -290,15 +290,17 @@ PR-SEC-03 / SEC-08 (privacidad de auditoría y logs de informes: `resolveSafeErr
 
 PR-SEC-16 (minimización de la divulgación pública de `GET /`, `/health` y `/api/health`: allowlist en los handlers de `server/fastify-app.ts` y retiro de `environment` en `server/lib/http-runtime.ts`) lleva la raíz `server/*.ts` de 9/2.641 a 9/2.650 y `server/lib` de 5.959 a 5.957; `server/features` y `server/routes` no cambian. Total 246/50.389 → 246/50.396.
 
+PR-SEC-12 (SEC-10: política única `resolveReportAccessTokenExpiry` en `server/features/report-access/domain/report-access.ts`, su uso en las rutas de creación de tokens de clínica y admin, y la cota `SUPABASE_SIGNED_URL_EXPIRES_IN_SECONDS` en `server/lib/env.ts`) lleva `server/features` de 19.209 a 19.256 (Report Access 724 → 771), `server/routes` de 22.151 a 22.177 y `server/lib` de 5.957 a 5.970. Total 246/50.396 → 246/50.482.
+
 | Área | Archivos TypeScript | LOC |
 | --- | ---: | ---: |
-| `server/features` | 161 | 19.209 |
-| `server/routes` | 38 | 22.151 |
-| `server/lib` | 35 | 5.957 |
+| `server/features` | 161 | 19.256 |
+| `server/routes` | 38 | 22.177 |
+| `server/lib` | 35 | 5.970 |
 | `server/middlewares` | 3 | 429 |
 | raíz/entrypoints `server/*.ts` | 9 | 2.650 |
 | otros | 0 | 0 |
-| **Total `server`** | **246** | **50.396** |
+| **Total `server`** | **246** | **50.482** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por
@@ -324,7 +326,7 @@ porque ésa es su topología proporcional documentada.
 | Particular Access | 12 | 1.086 | domain, application, infrastructure | sí | Reports (1) | Reports/ST (7) | M33/M35b |
 | Pricing | 4 | 489 | infrastructure, servicios directos | no requerido | ninguna | ninguna | M20 |
 | Public Professionals | 8 | 1.150 | domain, infrastructure | sí | Clinics (3) | ninguna | M24 |
-| Report Access | 12 | 724 | domain, application, infrastructure, composition | sí | ninguna | Reports (1) | M34/M35b |
+| Report Access | 12 | 771 | domain, application, infrastructure, composition | sí | ninguna | Reports (1) | M34/M35b |
 | Reports | 27 | 3.187 | domain, application, infrastructure, composition | sí | Particular/Report Access (4) | Particular/ST (3) | M41 |
 | Study Tracking | 21 | 2.908 | domain, application, infrastructure | sí | Particular/Reports (6) | ninguna | M35 |
 | Users/Roles | 9 | 674 | domain, application, infrastructure, composition feature-level | no requerido | ninguna | Clinics (2) | M43 |

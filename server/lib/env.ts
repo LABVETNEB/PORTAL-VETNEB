@@ -20,6 +20,8 @@ import {
   SESSION_MAX_TTL_HOURS,
 } from "./session-expiry.ts";
 
+export const SIGNED_URL_MAX_EXPIRES_IN_SECONDS = 900;
+
 const emptyToUndefined = (value: unknown) => {
   if (typeof value !== "string") return value;
   const trimmed = value.trim();
@@ -184,11 +186,22 @@ const envSchema = z.object({
     z.string().min(1).optional(),
   ),
   MAX_UPLOAD_FILE_SIZE_MB: z.coerce.number().positive().optional(),
-  SUPABASE_SIGNED_URL_EXPIRES_IN_SECONDS: z.coerce
-    .number()
-    .int()
-    .positive()
-    .optional(),
+  SUPABASE_SIGNED_URL_EXPIRES_IN_SECONDS: z.preprocess(
+    emptyToUndefined,
+    z.coerce
+      .number()
+      .int({
+        message:
+          "SUPABASE_SIGNED_URL_EXPIRES_IN_SECONDS debe ser un entero de segundos",
+      })
+      .positive({
+        message: "SUPABASE_SIGNED_URL_EXPIRES_IN_SECONDS debe ser mayor que 0",
+      })
+      .max(SIGNED_URL_MAX_EXPIRES_IN_SECONDS, {
+        message: `SUPABASE_SIGNED_URL_EXPIRES_IN_SECONDS no puede superar ${SIGNED_URL_MAX_EXPIRES_IN_SECONDS} segundos`,
+      })
+      .optional(),
+  ),
   PARTICULAR_TOKEN_TTL_DAYS: z.preprocess(
     emptyToUndefined,
     z.coerce.number().int().min(1).max(365),
