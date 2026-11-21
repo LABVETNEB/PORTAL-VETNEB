@@ -6,6 +6,7 @@ import {
   type ReportRouteServiceDependencies,
   type ReportUploadRouteInput,
 } from "../../../../server/features/reports/application/index.ts";
+import { resolveReportSafeErrorName } from "../../../../server/features/reports/composition/report-route-composition.ts";
 
 type FixtureReport = {
   id: number;
@@ -119,6 +120,7 @@ function dependencies(
       workflowStageChanged: "report.workflow_stage.changed",
       specialStainChanged: "report.special_stain.changed",
     },
+    resolveSafeErrorName: () => "Error",
     logReportDeliveredNotificationFailure: () => undefined,
     ...overrides,
   };
@@ -289,7 +291,6 @@ test("upload sin token no crea tracking inexistente y preserva storage, autoría
     metadata: {
       fileName: "luna.pdf",
       mimeType: "application/pdf",
-      patientName: "Luna",
       studyType: "histopatologia",
       uploadDate: new Date("2026-07-27"),
       uploadedVia: "admin",
@@ -494,13 +495,14 @@ test("notification report_delivered fallida es best-effort y audit precede resul
         calls.push("notification");
         throw new Error("notification_failure");
       },
+      resolveSafeErrorName: () => "Error",
       logReportDeliveredNotificationFailure: (input) => {
         calls.push("log");
         assert.deepEqual(input, {
           reportId: 88,
           clinicId: 3,
           trackingCaseId: 11,
-          errorName: "notification_failure",
+          errorName: "Error",
         });
       },
       writeAuditLog: async () => {
@@ -514,6 +516,77 @@ test("notification report_delivered fallida es best-effort y audit precede resul
 
   assert.equal(result.type, "uploaded");
   assert.deepEqual(calls, ["notification", "log", "audit", "result"]);
+});
+
+test("el logger de notificación sólo recibe el nombre resuelto, nunca el mensaje ni un nombre arbitrario", async () => {
+  const thrown = Object.assign(new Error("PII: Luna, historia clínica 123"), {
+    name: "LunaPacienteError",
+  });
+  const logged: unknown[] = [];
+  const service = createReportRouteService(
+    dependencies({
+      getStudyTrackingCaseByReportId: async () => ({
+        ...tracking,
+        currentStage: "processing",
+      }),
+      updateStudyTrackingCase: async () => tracking,
+      createStudyTrackingNotification: async () => {
+        throw thrown;
+      },
+      resolveSafeErrorName: resolveReportSafeErrorName,
+      logReportDeliveredNotificationFailure: (input) => {
+        logged.push(input);
+      },
+    }),
+  );
+
+  const result = await service.uploadAdminReport(uploadInput());
+
+  assert.equal(result.type, "uploaded");
+  assert.deepEqual(logged, [
+    { reportId: 88, clinicId: 3, trackingCaseId: 11, errorName: "Error" },
+  ]);
+  assert.equal(JSON.stringify(logged).includes("Luna"), false);
+  assert.equal(JSON.stringify(logged).includes("PII"), false);
+});
+
+test("resolveReportSafeErrorName conserva sólo nombres de la allowlist del logger", () => {
+  assert.equal(resolveReportSafeErrorName(new Error("PII sensible")), "Error");
+  assert.equal(resolveReportSafeErrorName(new TypeError("PII")), "TypeError");
+  assert.equal(
+    resolveReportSafeErrorName(
+      Object.assign(new Error("x"), { name: "PacienteLunaError" }),
+    ),
+    "Error",
+  );
+  for (const value of ["texto", 42, null, undefined, { message: "PII" }]) {
+    assert.equal(resolveReportSafeErrorName(value), "unknown_error");
+  }
+});
+
+test("upload con notificación fallida y valor no Error mantiene unknown_error y no bloquea", async () => {
+  const logged: string[] = [];
+  const service = createReportRouteService(
+    dependencies({
+      getStudyTrackingCaseByReportId: async () => ({
+        ...tracking,
+        currentStage: "processing",
+      }),
+      updateStudyTrackingCase: async () => tracking,
+      createStudyTrackingNotification: async () => {
+        throw "PII de paciente";
+      },
+      resolveSafeErrorName: resolveReportSafeErrorName,
+      logReportDeliveredNotificationFailure: (input) => {
+        logged.push(input.errorName);
+      },
+    }),
+  );
+
+  const result = await service.uploadAdminReport(uploadInput());
+
+  assert.equal(result.type, "uploaded");
+  assert.deepEqual(logged, ["unknown_error"]);
 });
 
 test("upload propaga fallos de storage, persistencia y audit", async (context) => {

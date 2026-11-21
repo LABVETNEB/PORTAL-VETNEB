@@ -597,7 +597,6 @@ test("adminReportsNativeRoutes crea POST /upload con clinicId explicito y metada
             metadata: {
               fileName: "luna-report.pdf",
               mimeType: "application/pdf",
-              patientName: "Luna",
               studyType: "histopatologia",
               uploadDate: "2026-04-22T09:00:00.000Z",
               uploadedVia: "admin",

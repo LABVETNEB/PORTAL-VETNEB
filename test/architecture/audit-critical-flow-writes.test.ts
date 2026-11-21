@@ -293,11 +293,28 @@ test("admin report upload audita creación exitosa de informe por admin", () => 
     ],
     "admin report upload audit payload",
   );
-  assert.equal(
-    source.includes("storagePath,\n        patientName"),
-    false,
-    "admin report upload audit payload no debe exponer storagePath",
+  const uploadedEventStart = source.indexOf(
+    "event: dependencies.auditEvents.reportUploaded",
   );
+  assert.notEqual(uploadedEventStart, -1, "evento report.uploaded presente");
+  const uploadedEventEnd = source.indexOf("\n    });", uploadedEventStart);
+  assert.notEqual(uploadedEventEnd, -1, "cierre del audit report.uploaded");
+  const uploadedAuditBlock = source.slice(uploadedEventStart, uploadedEventEnd);
+  assert.match(uploadedAuditBlock, /metadata: \{/);
+  for (const forbidden of ["patientName", "storagePath", "error.message"]) {
+    assert.equal(
+      uploadedAuditBlock.includes(forbidden),
+      false,
+      `metadata de report.uploaded no debe contener ${forbidden}`,
+    );
+  }
+  for (const forbidden of ["error.message", "error.stack"]) {
+    assert.equal(
+      source.includes(forbidden),
+      false,
+      `report-route-service no debe leer ${forbidden}`,
+    );
+  }
 
   assertContainsInOrder(
     source,
