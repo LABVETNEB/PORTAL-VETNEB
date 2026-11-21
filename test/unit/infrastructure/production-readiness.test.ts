@@ -13,9 +13,10 @@ process.env.DATABASE_URL ??=
   "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
-const { getHealthCheckResponse } = await import(
+const { getHealthCheckResponse, buildServiceInfoPayload } = await import(
   "../../../server/lib/http-runtime.ts"
 );
+const { ENV } = await import("../../../server/lib/env.ts");
 
 const readinessScript = resolve(
   process.cwd(),
@@ -125,17 +126,10 @@ function healthyPayload() {
   return {
     success: true,
     status: "ok",
-    checks: {
-      database: "up",
-      storage: "up",
-    },
-    uptimeSeconds: 120,
-    responseTimeMs: 8,
-    timestamp: "2026-06-14T12:00:00.000Z",
   };
 }
 
-test("public health keeps a stable safe shape without raw dependency errors", async () => {
+test("internal health snapshot (admin only) keeps a stable safe shape without raw dependency errors", async () => {
   const databaseSecret =
     "postgresql://runtime-user:runtime-password@private-db/portal";
   const storageSecret = "service-role-runtime-secret";
@@ -197,6 +191,31 @@ test("readiness script calls only GET /health without credentials", async () => 
     assert.equal(requests[0]?.headers.authorization, undefined);
     assert.equal(requests[0]?.headers.cookie, undefined);
   });
+});
+
+test("readiness script rejects legacy infrastructure detail fields", async () => {
+  await withHealthServer(
+    {
+      ...healthyPayload(),
+      checks: { database: "up", storage: "up" },
+      uptimeSeconds: 120,
+      responseTimeMs: 8,
+      timestamp: "2026-06-14T12:00:00.000Z",
+    },
+    async ({ baseUrl }) => {
+      const result = await runReadinessScript([baseUrl]);
+
+      assert.equal(result.code, 1);
+      assert.match(result.stderr, /unexpected fields/);
+    },
+  );
+});
+
+test("service info payload does not disclose the runtime environment", () => {
+  const info = buildServiceInfoPayload();
+
+  assert.deepEqual(info, { success: true, service: "portal-vetneb-api" });
+  assert.equal(JSON.stringify(info).includes(String(ENV.nodeEnv)), false);
 });
 
 test("readiness script rejects unexpected health fields without echoing values", async () => {

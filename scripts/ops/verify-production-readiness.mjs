@@ -1,13 +1,7 @@
 const TIMEOUT_MS = 20_000;
-const ALLOWED_TOP_LEVEL_FIELDS = new Set([
-  "success",
-  "status",
-  "checks",
-  "uptimeSeconds",
-  "responseTimeMs",
-  "timestamp",
-]);
-const ALLOWED_CHECK_FIELDS = new Set(["database", "storage"]);
+// SEC-16: la sonda publica solo expone disponibilidad global; el detalle por
+// dependencia vive en /api/admin/system/health.
+const ALLOWED_TOP_LEVEL_FIELDS = new Set(["success", "status"]);
 
 class ReadinessConfigurationError extends Error {}
 
@@ -80,12 +74,6 @@ function assertExactFields(record, allowedFields, context) {
   }
 }
 
-function assertFiniteNonNegativeNumber(value, fieldName) {
-  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
-    throw new Error(`${fieldName} must be a non-negative number.`);
-  }
-}
-
 function validateHealthPayload(payload) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     throw new Error("Health response must be a JSON object.");
@@ -95,33 +83,6 @@ function validateHealthPayload(payload) {
 
   if (payload.success !== true || payload.status !== "ok") {
     throw new Error("Health response is not ready.");
-  }
-
-  if (
-    !payload.checks ||
-    typeof payload.checks !== "object" ||
-    Array.isArray(payload.checks)
-  ) {
-    throw new Error("Health checks must be a JSON object.");
-  }
-
-  assertExactFields(payload.checks, ALLOWED_CHECK_FIELDS, "Health checks");
-
-  if (
-    payload.checks.database !== "up" ||
-    payload.checks.storage !== "up"
-  ) {
-    throw new Error("Database or storage is not ready.");
-  }
-
-  assertFiniteNonNegativeNumber(payload.uptimeSeconds, "uptimeSeconds");
-  assertFiniteNonNegativeNumber(payload.responseTimeMs, "responseTimeMs");
-
-  if (
-    typeof payload.timestamp !== "string" ||
-    !Number.isFinite(Date.parse(payload.timestamp))
-  ) {
-    throw new Error("timestamp must be a valid date string.");
   }
 }
 
@@ -168,7 +129,7 @@ async function run() {
 
   validateHealthPayload(payload);
   process.stdout.write(
-    "PASS readiness: /health returned 200 with database and storage up.\n",
+    "PASS readiness: /health returned 200 with status ok.\n",
   );
 }
 

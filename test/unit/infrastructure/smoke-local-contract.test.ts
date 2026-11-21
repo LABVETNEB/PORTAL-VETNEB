@@ -92,8 +92,7 @@ test("basic local smoke covers the clinic session and reports contract", () => {
   }
 
   for (const contractAssertion of [
-    'healthJson?.checks?.database === "up"',
-    'healthJson?.checks?.storage === "up"',
+    "healthJson?.success === true",
     "setCookie",
     "meJson?.clinicUser?.username === USERNAME",
     "Array.isArray(reportsJson?.reports)",

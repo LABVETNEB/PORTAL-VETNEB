@@ -1,7 +1,6 @@
 ﻿import { sql } from "drizzle-orm";
 
 import { db } from "../db.ts";
-import { ENV } from "./env.ts";
 import { checkStorageHealth } from "./supabase.ts";
 
 type DependencyStatus = "up" | "down";
@@ -34,7 +33,6 @@ export function buildServiceInfoPayload() {
   return {
     success: true,
     service: "portal-vetneb-api",
-    environment: ENV.nodeEnv,
   };
 }
 

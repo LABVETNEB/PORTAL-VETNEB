@@ -45,11 +45,15 @@
 ## Health checks
 
 - `GET /health` and `GET /api/health` share the existing runtime health handler.
-- Healthy status is HTTP `200` with `success`, `status`, `checks.database`,
-  `checks.storage`, `uptimeSeconds`, `responseTimeMs`, and `timestamp`.
-- Database and Storage checks are read-only.
-- Degraded status remains HTTP `503`, with dependency state reported only as
-  `up` or `down`.
+- SEC-16: the public payload is minimal. Healthy status is HTTP `200` with
+  `{ success: true, status: "ok" }`; degraded status is HTTP `503` with
+  `{ success: false, status: "degraded" }`. `GET /` returns only `success` and
+  `service` (no `environment`).
+- Per-dependency state (`checks.database`, `checks.storage`), `uptimeSeconds`,
+  `responseTimeMs`, and `timestamp` are available only through the protected
+  `GET /api/admin/system/health` surface.
+- Database and Storage checks are read-only and remain cached with
+  single-flight deduplication.
 - Raw dependency error messages, stack traces, paths, credentials, and
   connection details are not included.
 

@@ -527,11 +527,15 @@ export async function createFastifyApp(
     (() => ({
       success: true,
       service: "portal-vetneb-api",
-      environment: ENV.nodeEnv,
     }));
 
   app.get("/", async (_request: FastifyRequest, reply: FastifyReply) => {
-    const payload = JSON.stringify(getServiceInfoPayload());
+    // SEC-16: allowlist publica; nunca reenviar campos extra del factory.
+    const info = getServiceInfoPayload();
+    const payload = JSON.stringify({
+      success: info.success,
+      service: info.service,
+    });
 
     reply.code(200);
     reply.header("content-type", "application/json; charset=utf-8");
@@ -543,7 +547,12 @@ export async function createFastifyApp(
     reply: FastifyReply,
   ) => {
     const health = await getNativeHealthCheckResponse();
-    const payload = JSON.stringify(health.payload);
+    // SEC-16: la sonda publica solo expone disponibilidad global. El detalle
+    // (checks, uptime, latencia, timestamp) vive en /api/admin/system/health.
+    const payload = JSON.stringify({
+      success: health.payload.success,
+      status: health.payload.status,
+    });
 
     reply.code(health.statusCode);
     reply.header("content-type", "application/json; charset=utf-8");
