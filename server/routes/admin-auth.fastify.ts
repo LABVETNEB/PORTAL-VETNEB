@@ -980,6 +980,16 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
     await deps.deleteAdminSession(tokenHash);
     clearRequestAdminAuthContext(request);
 
+    await deps.writeAuditLog(
+      { ...createAuditRequestLike(request, admin), requestId: request.id },
+      {
+        event: AUDIT_EVENTS.ADMIN_LOGOUT,
+        targetAdminUserId: admin.id,
+        metadata: { username: admin.username },
+        actor: { type: "admin_user", adminUserId: admin.id },
+      },
+    );
+
     reply.header("set-cookie", buildClearAdminSessionCookie());
 
     return reply.code(200).send({

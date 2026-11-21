@@ -15,6 +15,7 @@ const {
   LOGIN_RATE_LIMIT_EXPOSED_HEADERS,
   LOGIN_RATE_LIMIT_ERROR_MESSAGE,
 } = await import("../../../../server/lib/login-rate-limit.ts");
+const { buildAuditLogInsert } = await import("../../../../server/lib/audit.ts");
 const {
   particularAuthNativeRoutes,
 } = await import("../../../../server/routes/particular-auth.fastify.ts");
@@ -798,6 +799,169 @@ test("particularAuthNativeRoutes persiste failed login sin secretos", async () =
     assert.equal(serializedAttempt.includes("tokenhash"), false);
     assert.equal(serializedAttempt.includes("cookie"), false);
     assert.equal(serializedAttempt.includes("password"), false);
+  } finally {
+    await app.close();
+  }
+});
+
+type AuditCall = { req: any; input: any };
+
+const AUDIT_RAW_TOKEN = "PARTICULAR-RAW-TOKEN-SECRET";
+const AUDIT_SESSION_TOKEN = "particular-session-secret";
+
+const auditTokenRecord = {
+  id: 7,
+  clinicId: 3,
+  reportId: 55,
+  tokenLast4: "ABCD",
+  isActive: true,
+  createdAt: new Date("2026-04-20T12:00:00.000Z"),
+  lastLoginAt: null,
+};
+
+async function createAuditApp(auditCalls: AuditCall[]) {
+  const app = Fastify();
+
+  await app.register(particularAuthNativeRoutes as any, {
+    prefix: "/api/particular/auth",
+    now: () => Date.UTC(2026, 3, 21),
+    createParticularSession: async () => {},
+    deleteParticularSession: async () => {},
+    getParticularSessionByToken: async () => ({
+      particularTokenId: 7,
+      expiresAt: new Date(Date.UTC(2026, 3, 22)),
+      lastAccess: new Date(Date.UTC(2026, 3, 21)),
+    }),
+    getParticularTokenById: async () => auditTokenRecord,
+    getParticularTokenByTokenHash: async () => auditTokenRecord,
+    updateParticularSessionLastAccess: async () => {},
+    updateParticularTokenLastLogin: async () => {},
+    getReportById: async () => ({
+      id: 55,
+      clinicId: 3,
+      storagePath: "reports/private/report-55.pdf",
+      fileName: "informe.pdf",
+    }),
+    createSignedReportUrl: async () => "https://signed.example/preview?token=SIGNED",
+    createSignedReportDownloadUrl: async () =>
+      "https://signed.example/download?token=SIGNED",
+    generateSessionToken: () => AUDIT_SESSION_TOKEN,
+    hashSessionToken: (token: string) => `hash:${token}`,
+    recordLoginFailedAttempt: async () => {},
+    writeAuditLog: async (req: unknown, input: unknown) => {
+      auditCalls.push({ req, input });
+    },
+  });
+
+  return app;
+}
+
+const auditCookie = `${ENV.particularCookieName}=${AUDIT_SESSION_TOKEN}`;
+const auditOrigin = "http://localhost:3000";
+
+test("login, logout y emisión de URLs de particular escriben auditoría con actor particular_token", async () => {
+  const auditCalls: AuditCall[] = [];
+  const app = await createAuditApp(auditCalls);
+
+  try {
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/particular/auth/login",
+      headers: { origin: auditOrigin },
+      payload: { token: AUDIT_RAW_TOKEN },
+    });
+    const preview = await app.inject({
+      method: "GET",
+      url: "/api/particular/auth/report/preview-url",
+      headers: { origin: auditOrigin, cookie: auditCookie },
+    });
+    const download = await app.inject({
+      method: "GET",
+      url: "/api/particular/auth/report/download-url",
+      headers: { origin: auditOrigin, cookie: auditCookie },
+    });
+    const logout = await app.inject({
+      method: "POST",
+      url: "/api/particular/auth/logout",
+      headers: { origin: auditOrigin, cookie: auditCookie },
+    });
+
+    assert.deepEqual(
+      [login, preview, download, logout].map((r) => r.statusCode),
+      [200, 200, 200, 200],
+    );
+    assert.deepEqual(
+      auditCalls.map((c) => c.input.event),
+      [
+        "auth.particular.login.succeeded",
+        "report.particular_url_issued",
+        "report.particular_url_issued",
+        "auth.particular.logout",
+      ],
+    );
+    assert.deepEqual(
+      auditCalls.map((c) => c.input.metadata.disposition),
+      [undefined, "preview", "download", undefined],
+    );
+
+    for (const { input } of auditCalls) {
+      assert.equal(input.actor.type, "particular_token");
+      assert.equal(input.clinicId, 3);
+      assert.equal(input.reportId, 55);
+      assert.equal(input.metadata.particularTokenId, 7);
+    }
+
+    const serialized = JSON.stringify(auditCalls);
+    assert.equal(serialized.includes(AUDIT_RAW_TOKEN), false);
+    assert.equal(serialized.includes(AUDIT_SESSION_TOKEN), false);
+    assert.equal(serialized.includes("signed.example"), false);
+    assert.equal(serialized.includes("report-55.pdf"), false);
+
+    const row = buildAuditLogInsert(auditCalls[0].req, auditCalls[0].input);
+    assert.equal(row.actorType, "particular_token");
+    assert.equal(row.actorAdminUserId, null);
+    assert.equal(row.actorClinicUserId, null);
+    assert.equal(row.requestId, auditCalls[0].req.requestId);
+    assert.ok(row.requestId);
+  } finally {
+    await app.close();
+  }
+});
+
+test("login fallido no escribe auditoría de éxito", async () => {
+  const auditCalls: AuditCall[] = [];
+  const app = Fastify();
+
+  await app.register(particularAuthNativeRoutes as any, {
+    prefix: "/api/particular/auth",
+    createParticularSession: async () => {},
+    deleteParticularSession: async () => {},
+    getParticularSessionByToken: async () => null,
+    getParticularTokenById: async () => null,
+    getParticularTokenByTokenHash: async () => null,
+    updateParticularSessionLastAccess: async () => {},
+    updateParticularTokenLastLogin: async () => {},
+    getReportById: async () => null,
+    createSignedReportUrl: async () => "x",
+    createSignedReportDownloadUrl: async () => "x",
+    generateSessionToken: () => AUDIT_SESSION_TOKEN,
+    hashSessionToken: (token: string) => `hash:${token}`,
+    recordLoginFailedAttempt: async () => {},
+    writeAuditLog: async (req: unknown, input: unknown) => {
+      auditCalls.push({ req, input });
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/particular/auth/login",
+      headers: { origin: auditOrigin },
+      payload: { token: AUDIT_RAW_TOKEN },
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.deepEqual(auditCalls, []);
   } finally {
     await app.close();
   }

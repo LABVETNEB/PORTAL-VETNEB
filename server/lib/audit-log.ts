@@ -3,6 +3,7 @@ export const AUDIT_ACTOR_TYPES = [
   "admin_user",
   "clinic_user",
   "public_report_access_token",
+  "particular_token",
 ] as const;
 
 export type AuditActorType = (typeof AUDIT_ACTOR_TYPES)[number];
@@ -10,6 +11,10 @@ export type AuditActorType = (typeof AUDIT_ACTOR_TYPES)[number];
 export const AUDIT_EVENTS = [
   "auth.admin.login.succeeded",
   "auth.clinic.login.succeeded",
+  "auth.particular.login.succeeded",
+  "auth.admin.logout",
+  "auth.clinic.logout",
+  "auth.particular.logout",
   "auth.session.revoked",
   "clinic.created",
   "clinic.updated",
@@ -28,6 +33,7 @@ export const AUDIT_EVENTS = [
   "report_access_token.created",
   "report_access_token.revoked",
   "report.public_accessed",
+  "report.particular_url_issued",
   "logistics.route_plan.lifecycle_changed",
   "logistics.route_event.created",
 ] as const;

@@ -11,6 +11,8 @@ import {
   getAllowedOrigins,
   getRequestOrigin,
 } from "../lib/cors-headers.ts";
+import { AUDIT_EVENTS, buildParticularTokenActor } from "../lib/audit.ts";
+import type { AuditWriteInput } from "../lib/audit.ts";
 import { ENV } from "../lib/env.ts";
 import {
   buildLoginRateLimitResponse,
@@ -114,6 +116,7 @@ export type ParticularAuthNativeRoutesOptions = {
   recordLoginFailedAttempt?: (
     input: RecordLoginFailedAttemptInput,
   ) => Promise<unknown>;
+  writeAuditLog?: (req: unknown, input: AuditWriteInput) => Promise<void>;
   loginRateLimitWindowMs?: number;
   loginRateLimitMaxAttempts?: number;
   loginRateLimitStore?: RateLimitStore;
@@ -142,6 +145,7 @@ type NativeParticularAuthDeps = Required<
     | "generateSessionToken"
     | "hashSessionToken"
     | "recordLoginFailedAttempt"
+    | "writeAuditLog"
   >
 >;
 
@@ -158,6 +162,7 @@ async function loadDefaultDeps(): Promise<NativeParticularAuthDefaultDeps> {
       const dbParticular = await import("../features/particular-access/infrastructure/index.ts");
       const authSecurity = await import("../lib/auth-security.ts");
       const supabase = await import("../lib/supabase.ts");
+      const audit = await import("../lib/audit.ts");
       const reportCommands = await import(
         "../features/reports/composition/index.ts"
       );
@@ -181,6 +186,10 @@ async function loadDefaultDeps(): Promise<NativeParticularAuthDefaultDeps> {
         generateSessionToken: authSecurity.generateSessionToken,
         hashSessionToken: authSecurity.hashSessionToken,
         recordLoginFailedAttempt: db.recordLoginFailedAttempt,
+        writeAuditLog: audit.writeAuditLog as (
+          req: unknown,
+          input: AuditWriteInput,
+        ) => Promise<void>,
         loginRateLimitStore: createPersistentRateLimitStore(
           {
             get: db.getLoginRateLimitEntry,
@@ -510,7 +519,34 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
       options.recordLoginFailedAttempt ??
       defaultDeps?.recordLoginFailedAttempt ??
       (async () => undefined),
+    writeAuditLog:
+      options.writeAuditLog ??
+      defaultDeps?.writeAuditLog ??
+      (async () => undefined),
   };
+
+  const auditParticular = (
+    request: FastifyRequest,
+    event: AuditWriteInput["event"],
+    subject: { tokenId: number; clinicId: number; reportId: number | null },
+    metadata?: Record<string, unknown>,
+  ) =>
+    deps.writeAuditLog(
+      {
+        method: request.method,
+        originalUrl: request.url,
+        ip: request.ip,
+        headers: { "user-agent": getUserAgent(request) ?? undefined },
+        requestId: request.id,
+      },
+      {
+        event,
+        clinicId: subject.clinicId,
+        reportId: subject.reportId,
+        actor: buildParticularTokenActor(),
+        metadata: { particularTokenId: subject.tokenId, ...metadata },
+      },
+    );
 
   const now = options.now ?? (() => Date.now());
   const loginRateLimitWindowMs =
@@ -808,6 +844,17 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
     reply.header("set-cookie", buildParticularSessionCookie(sessionToken));
     await markSuccess();
 
+    await auditParticular(
+      request,
+      AUDIT_EVENTS.PARTICULAR_LOGIN_SUCCEEDED,
+      {
+        tokenId: particularToken.id,
+        clinicId: particularToken.clinicId,
+        reportId: particularToken.reportId ?? null,
+      },
+      { sessionExpiresAt: expiresAt },
+    );
+
     return reply.code(200).send({
       success: true,
       particular: await buildParticularResponse(deps, particularToken.id),
@@ -855,6 +902,12 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
     const tokenHash = deps.hashSessionToken(particular.sessionToken);
     await deps.deleteParticularSession(tokenHash);
 
+    await auditParticular(request, AUDIT_EVENTS.PARTICULAR_LOGOUT, {
+      tokenId: particular.tokenId,
+      clinicId: particular.clinicId,
+      reportId: particular.reportId,
+    });
+
     reply.header("set-cookie", buildClearParticularSessionCookie());
 
     return reply.code(200).send({
@@ -898,6 +951,17 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
 
     const previewUrl = await deps.createSignedReportUrl(report.storagePath);
 
+    await auditParticular(
+      request,
+      AUDIT_EVENTS.REPORT_PARTICULAR_URL_ISSUED,
+      {
+        tokenId: particular.tokenId,
+        clinicId: particular.clinicId,
+        reportId,
+      },
+      { disposition: "preview" },
+    );
+
     return reply.code(200).send({
       success: true,
       previewUrl,
@@ -940,6 +1004,17 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
     const downloadUrl = await deps.createSignedReportDownloadUrl(
       report.storagePath,
       report.fileName ?? undefined,
+    );
+
+    await auditParticular(
+      request,
+      AUDIT_EVENTS.REPORT_PARTICULAR_URL_ISSUED,
+      {
+        tokenId: particular.tokenId,
+        clinicId: particular.clinicId,
+        reportId,
+      },
+      { disposition: "download" },
     );
 
     return reply.code(200).send({
