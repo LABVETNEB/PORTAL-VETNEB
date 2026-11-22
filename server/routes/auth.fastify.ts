@@ -4,7 +4,7 @@ import type {
   FastifyRequest,
 } from "fastify";
 
-import { AUDIT_EVENTS } from "../lib/audit.ts";
+import { AUDIT_EVENTS, buildParticularTokenActor } from "../lib/audit.ts";
 import {
   enforceTrustedOrigin,
   getAllowedOriginForCors,
@@ -106,6 +106,7 @@ type AuthenticatedClinicUser = {
 type AuditWriteInput = {
   event: string;
   clinicId?: number | null;
+  reportId?: number | null;
   targetClinicUserId?: number | null;
   metadata?: Record<string, unknown>;
   actor?: {
@@ -703,6 +704,7 @@ async function authenticateClinicCandidate(
 }
 
 async function authenticateParticularCandidate(
+  request: FastifyRequest,
   deps: NativeAuthDeps,
   input: {
     identifier: string;
@@ -745,6 +747,20 @@ async function authenticateParticularCandidate(
   });
 
   await deps.updateParticularTokenLastLogin(particularToken.id);
+
+  await deps.writeAuditLog(
+    { ...createAuditRequestLike(request), requestId: request.id },
+    {
+      event: AUDIT_EVENTS.PARTICULAR_LOGIN_SUCCEEDED,
+      clinicId: particularToken.clinicId,
+      reportId: particularToken.reportId ?? null,
+      actor: buildParticularTokenActor(),
+      metadata: {
+        particularTokenId: particularToken.id,
+        sessionExpiresAt: expiresAt,
+      },
+    },
+  );
 
   return {
     role: "particular",
@@ -1120,7 +1136,7 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
             currentTime,
           }),
         () =>
-          authenticateParticularCandidate(deps, {
+          authenticateParticularCandidate(request, deps, {
             identifier: loginIdentifier,
             password,
             currentTime,
@@ -1422,6 +1438,17 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
 
     const tokenHash = deps.hashSessionToken(auth.sessionToken);
     await deps.deleteActiveSession(tokenHash);
+
+    await deps.writeAuditLog(
+      { ...createAuditRequestLike(request, auth), requestId: request.id },
+      {
+        event: AUDIT_EVENTS.CLINIC_LOGOUT,
+        clinicId: auth.clinicId,
+        targetClinicUserId: auth.id,
+        metadata: { username: auth.username, role: auth.role },
+        actor: { type: "clinic_user", clinicUserId: auth.id },
+      },
+    );
 
     reply.header("set-cookie", buildClearSessionCookie());
 

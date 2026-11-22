@@ -677,8 +677,12 @@ test(
       expiresAt: Date;
     }> = [];
     const lastLoginCalls: number[] = [];
+    const auditInputs: any[] = [];
 
     const app = await createTestApp({
+      writeAuditLog: async (_req: unknown, input: unknown) => {
+        auditInputs.push(input);
+      },
       now: () => Date.UTC(2026, 4, 9, 0, 0, 0),
       getAdminUserByUsername: async () => null,
       getClinicUserByUsername: async () => null,
@@ -744,6 +748,12 @@ test(
         "hash:particular-session-123",
       );
       assert.deepEqual(lastLoginCalls, [501]);
+      assert.deepEqual(auditInputs.map((input) => input.event), ["auth.particular.login.succeeded"]);
+      assert.equal(auditInputs[0].actor.type, "particular_token");
+      assert.equal(auditInputs[0].clinicId, 7);
+      assert.equal(auditInputs[0].reportId, 301);
+      assert.equal(auditInputs[0].metadata.particularTokenId, 501);
+      assert.equal(JSON.stringify(auditInputs).includes("PARTICULAR-TOKEN-1"), false);
     } finally {
       await app.close();
     }
@@ -1301,8 +1311,12 @@ test(
   "clinicAuthNativeRoutes logout elimina sesión y limpia cookie",
   async () => {
     const deletedHashes: string[] = [];
+    const auditInputs: any[] = [];
 
     const app = await createTestApp({
+      writeAuditLog: async (_req: unknown, input: unknown) => {
+        auditInputs.push(input);
+      },
       now: () => Date.UTC(2026, 3, 23, 0, 0, 0),
       hashSessionToken: (token: string) => `hash:${token}`,
       getActiveSessionByToken: async () => ({
@@ -1339,6 +1353,11 @@ test(
       });
 
       assert.deepEqual(deletedHashes, ["hash:session-token"]);
+      assert.deepEqual(auditInputs.map((input) => input.event), ["auth.clinic.logout"]);
+      assert.equal(auditInputs[0].actor.type, "clinic_user");
+      assert.equal(auditInputs[0].actor.clinicUserId, 11);
+      assert.equal(auditInputs[0].clinicId, 7);
+      assert.equal(JSON.stringify(auditInputs).includes("session-token"), false);
 
       const setCookie = getSetCookieHeader(response);
       assert.ok(setCookie.includes(`${ENV.cookieName}=`));

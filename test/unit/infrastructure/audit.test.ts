@@ -12,6 +12,10 @@ test("AUDIT_EVENTS conserva los eventos públicos esperados", () => {
   assert.deepEqual(AUDIT_EVENTS, {
     ADMIN_LOGIN_SUCCEEDED: "auth.admin.login.succeeded",
     CLINIC_LOGIN_SUCCEEDED: "auth.clinic.login.succeeded",
+    PARTICULAR_LOGIN_SUCCEEDED: "auth.particular.login.succeeded",
+    ADMIN_LOGOUT: "auth.admin.logout",
+    CLINIC_LOGOUT: "auth.clinic.logout",
+    PARTICULAR_LOGOUT: "auth.particular.logout",
     CLINIC_CREATED: "clinic.created",
     CLINIC_UPDATED: "clinic.updated",
     CLINIC_DELETED: "clinic.deleted",
@@ -29,6 +33,7 @@ test("AUDIT_EVENTS conserva los eventos públicos esperados", () => {
     REPORT_ACCESS_TOKEN_CREATED: "report_access_token.created",
     REPORT_ACCESS_TOKEN_REVOKED: "report_access_token.revoked",
     REPORT_PUBLIC_ACCESSED: "report.public_accessed",
+    REPORT_PARTICULAR_URL_ISSUED: "report.particular_url_issued",
     LOGISTICS_ROUTE_PLAN_LIFECYCLE_CHANGED:
       "logistics.route_plan.lifecycle_changed",
     LOGISTICS_ROUTE_EVENT_CREATED: "logistics.route_event.created",

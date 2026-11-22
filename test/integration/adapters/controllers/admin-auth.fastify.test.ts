@@ -245,8 +245,12 @@ test(
   "adminAuthNativeRoutes logout elimina sesión y limpia cookie",
   async () => {
     const deletedHashes: string[] = [];
+    const auditInputs: any[] = [];
 
     const app = await createTestApp({
+      writeAuditLog: async (_req: unknown, input: unknown) => {
+        auditInputs.push(input);
+      },
       now: () => Date.UTC(2026, 3, 24, 0, 0, 0),
       hashSessionToken: (token: string) => `hash:${token}`,
       getAdminSessionByToken: async () => ({
@@ -281,6 +285,10 @@ test(
       });
 
       assert.deepEqual(deletedHashes, ["hash:admin-session-token"]);
+      assert.deepEqual(auditInputs.map((input) => input.event), ["auth.admin.logout"]);
+      assert.equal(auditInputs[0].actor.type, "admin_user");
+      assert.equal(auditInputs[0].actor.adminUserId, 3);
+      assert.equal(JSON.stringify(auditInputs).includes("admin-session-token"), false);
 
       const setCookie = getSetCookieHeader(response);
       assert.ok(setCookie.includes(`${ENV.adminCookieName}=`));

@@ -295,12 +295,12 @@ PR-SEC-12 (SEC-10: política única `resolveReportAccessTokenExpiry` en `server/
 | Área | Archivos TypeScript | LOC |
 | --- | ---: | ---: |
 | `server/features` | 161 | 19.256 |
-| `server/routes` | 38 | 22.177 |
-| `server/lib` | 35 | 5.970 |
+| `server/routes` | 38 | 22.289 |
+| `server/lib` | 35 | 5.990 |
 | `server/middlewares` | 3 | 429 |
 | raíz/entrypoints `server/*.ts` | 9 | 2.650 |
 | otros | 0 | 0 |
-| **Total `server`** | **246** | **50.482** |
+| **Total `server`** | **246** | **50.614** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por
