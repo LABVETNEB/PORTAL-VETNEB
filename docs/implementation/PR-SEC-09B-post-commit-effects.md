@@ -65,6 +65,24 @@ Extensión futura: si se agrega un efecto externo (email, webhook), ahí sí cor
 - Capas: la apertura de la transacción sigue en infrastructure; el `INSERT` de auditoría se invoca desde la
   composition porque el guard de adaptadores prohíbe auditoría en infrastructure.
 
+## Hallazgo de review (P2): bloqueo por segunda conexión
+
+La revisión automática detectó que `createAuditLogWithinTransaction` resolvía las columnas de `audit_log` con
+`getAuditLogColumns()`, que consulta por el `pgClient` global. `pgClient` y `db` son el mismo cliente
+`postgres(..., { max: ENV.databaseMaxConnections })`, cuyo mínimo es 1. Con `DATABASE_MAX_CONNECTIONS=1` y la caché
+de columnas fría (por ejemplo, la primera subida tras reiniciar el servidor), la transacción de subida retiene la
+única conexión y esa consulta espera otra: la subida se bloquea reteniendo sus escrituras y sus locks. Con un pool
+mayor, varias subidas concurrentes con la caché fría podrían agotarlo del mismo modo.
+
+Corrección: con una transacción en curso, las columnas se consultan por **esa** transacción
+(`getAuditLogColumns(tx)`); el resultado se cachea igual. Regresión:
+`test/unit/infrastructure/audit-log-transaction-columns.test.ts` usa un pool global de una conexión apuntado a un
+puerto inalcanzable y una transacción simulada: si el código volviera a pedir una conexión al pool, fallaría de
+inmediato. Sin la corrección, ambos casos fallan.
+
+El spec PostgreSQL real no cubre este caso porque comparte proceso y caché entre sus pruebas; por eso la
+regresión es un test unitario con la caché fría.
+
 ## Cambios de comportamiento (deliberados)
 
 1. **La auditoría de la subida ya no se pierde en silencio**: si falla, la subida falla y se compensa. Acopla la
@@ -95,7 +113,7 @@ los logs, `requestId` validado como UUID v4, y el fallback `42703` de SEC-09.
 
 ## Pruebas
 
-Se ejecutaron y pasaron (exit 0): `pnpm typecheck`, `pnpm typecheck:test`, `pnpm build` y 361 tests de los
+Se ejecutaron y pasaron (exit 0): `pnpm typecheck`, `pnpm typecheck:test`, `pnpm build` y 375 tests de los
 archivos afectados (servicio, adaptador, simulación, contrato del repositorio, ruta admin, guards de
 arquitectura y seguridad, y censo 01B), además del spec PostgreSQL real (14/14).
 
@@ -174,8 +192,8 @@ que cuestan dos `INSERT`. Una caída de `audit_log` ahora bloquea la subida en l
 | `pnpm typecheck` | PASSED | exit 0 |
 | `pnpm typecheck:test` | PASSED | exit 0 |
 | `pnpm build` | PASSED | exit 0 |
-| Tests y guards afectados | PASSED | 361 tests de los archivos afectados (servicio, adaptador, simulación, contrato del repositorio, ruta admin, guards de arquitectura y seguridad) |
-| Censo 01B | PASSED | 10/10, con la fila de assertions 2xx re-anclada (395 → 396, el tope de su banda) |
+| Tests y guards afectados | PASSED | 375 tests de los archivos afectados (servicio, adaptador, simulación, contrato del repositorio, ruta admin, guards de arquitectura y seguridad) |
+| Censo 01B | PASSED | 10/10, con dos filas re-ancladas por sus topes de banda: assertions 2xx (395 → 396) y specs que mutan `process.env` (19 → 20) |
 | Spec PostgreSQL real (`report-upload-persistence-postgres.test.ts`) | PASSED | 14/14, tres corridas con exit 0, contra `portal_vetneb_ci` local; instantánea de la base idéntica antes y después |
 | `pnpm test` completo | FAILED por causas ambientales | 6.062 tests, 6.040 aprobados, 21 fallos, 1 omitido; ver abajo |
 | `pnpm security:public-surface` | NOT_RUN | no se toca superficie pública ni frontend |

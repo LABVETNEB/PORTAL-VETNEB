@@ -294,7 +294,7 @@ PR-SEC-12 (SEC-10: política única `resolveReportAccessTokenExpiry` en `server/
 
 PR-SEC-16 (SEC-09: subida de informes con persistencia transaccional y compensación de Storage; `report-upload-persistence-composition.ts` en Reports, el repositorio transaccional de token `particular-access-transactional-repository.ts`, el dueño de la transacción `runReportUploadTransaction` en `server/features/reports/infrastructure/report-command-repository.ts` y la reescritura de `uploadAdminReport` en `report-route-service.ts`) lleva `server/features/reports` de 27/3.187 a 28/3.642 (incluye el savepoint y el reconocimiento de `error.cause` del fallback `42703` en `report-command-repository.ts`), `server/features/particular-access` de 12/1.086 a 13/1.119, `server/features/study-tracking` de 21/2.908 a 21/2.979 y `server/features` de 19.256 a 19.815 (161 → 163 archivos); `server/routes` de 22.289 a 22.293 (propagación del request ID en `admin-reports.fastify.ts`); `server/lib` y la raíz no cambian. Total 246/50.614 → 248/51.177.
 
-SEC-09B (efectos de la subida de informes dentro de la transacción: notificación en savepoint y auditoría transaccional, resolución de commits ambiguos; `createAuditLogWithinTransaction` en `server/db-audit.ts`, `findReportByStoragePath` en `report-command-repository.ts`, `loadReportUploadTransactionalParts` en `report-upload-persistence-composition.ts` y la notificación en savepoint de Study Tracking) lleva `server/features/reports` de 28/3.642 a 28/3.773, `server/features/study-tracking` de 21/2.979 a 21/3.001, `server/features` de 19.815 a 19.968 y la raíz `server/*.ts` de 9/2.650 a 9/2.691; `server/routes` y `server/lib` no cambian. Total 248/51.177 → 248/51.371.
+SEC-09B (efectos de la subida de informes dentro de la transacción: notificación en savepoint y auditoría transaccional, resolución de commits ambiguos; `createAuditLogWithinTransaction` en `server/db-audit.ts`, `findReportByStoragePath` en `report-command-repository.ts`, `loadReportUploadTransactionalParts` en `report-upload-persistence-composition.ts` y la notificación en savepoint de Study Tracking) lleva `server/features/reports` de 28/3.642 a 28/3.773, `server/features/study-tracking` de 21/2.979 a 21/3.001, `server/features` de 19.815 a 19.968 y la raíz `server/*.ts` de 9/2.650 a 9/2.707 (`createAuditLogWithinTransaction` y su consulta de columnas por la propia transacción en `server/db-audit.ts`); `server/routes` y `server/lib` no cambian. Total 248/51.177 → 248/51.387.
 
 | Área | Archivos TypeScript | LOC |
 | --- | ---: | ---: |
@@ -302,9 +302,9 @@ SEC-09B (efectos de la subida de informes dentro de la transacción: notificaci�
 | `server/routes` | 38 | 22.293 |
 | `server/lib` | 35 | 5.990 |
 | `server/middlewares` | 3 | 429 |
-| raíz/entrypoints `server/*.ts` | 9 | 2.691 |
+| raíz/entrypoints `server/*.ts` | 9 | 2.707 |
 | otros | 0 | 0 |
-| **Total `server`** | **248** | **51.371** |
+| **Total `server`** | **248** | **51.387** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por

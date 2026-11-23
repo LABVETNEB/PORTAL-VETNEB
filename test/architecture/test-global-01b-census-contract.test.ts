@@ -958,13 +958,13 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§13",
     metric: "specs que mutan process.env",
     historical: 11,
-    baseline: 15,
+    baseline: 20,
     compute: () =>
       classification.specs.filter((spec) => spec.mutatesProcessEnv).length,
     resolution: "RECLASSIFIED",
     guard: BAND,
     motive:
-      "Señal de determinismo, acotada a orden intra-archivo (§13.2). Re-anclaje 11 -> 15 (GLOBAL-SEARCH-3C): main@c8f530a9e96a5a251ea2bf1aa529d4d8fa7443b7 producía 13 dentro de la banda 11 +- 3 (tope 14); esta PR suma exactamente +2 con global-search-rate-limit.fastify.test.ts y global-search-rate-limit-postgres.fastify.test.ts, que fijan con `??=` el entorno sintético antes de importar `server/lib/env.ts`, igual que las suites de búsqueda vecinas, y deja el valor medido en 15. Sin ampliar GROWTH_TOLERANCE ni excluir specs.",
+      "Señal de determinismo, acotada a orden intra-archivo (§13.2). Re-anclaje 11 -> 15 (GLOBAL-SEARCH-3C): main@c8f530a9e96a5a251ea2bf1aa529d4d8fa7443b7 producía 13 dentro de la banda 11 +- 3 (tope 14); esta PR suma exactamente +2 con global-search-rate-limit.fastify.test.ts y global-search-rate-limit-postgres.fastify.test.ts, que fijan con `??=` el entorno sintético antes de importar `server/lib/env.ts`, igual que las suites de búsqueda vecinas, y deja el valor medido en 15. Sin ampliar GROWTH_TOLERANCE ni excluir specs. Re-anclaje 15 -> 20 (SEC-09B): main@528e8050e79c3a2a3ead7a4742a9b24c42b0214c producia 19, exactamente el tope de la banda 15 +- 4, y esta PR suma audit-log-transaction-columns.test.ts, que fija DATABASE_URL a un puerto inalcanzable con una sola conexion para demostrar que la auditoria transaccional no pide una segunda conexion al pool (el bloqueo que un review detecto con DATABASE_MAX_CONNECTIONS=1), y restaura el entorno al terminar; el valor medido queda en 20, sin ampliar GROWTH_TOLERANCE ni excluir specs.",
   },
   {
     row: "A0-13-ENV",

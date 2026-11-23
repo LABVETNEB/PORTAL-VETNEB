@@ -37,19 +37,35 @@ type ColumnSpec = {
 
 let auditLogColumnsCache: Set<string> | null = null;
 
-async function getAuditLogColumns(): Promise<Set<string>> {
+/**
+ * Con una transaccion en curso las columnas se consultan por ESA transaccion:
+ * pedir otra conexion al pool desde dentro de una transaccion puede bloquearse
+ * (DATABASE_MAX_CONNECTIONS=1 deja una sola conexion, ya retenida por ella).
+ */
+async function getAuditLogColumns(
+  tx?: AuditTransaction,
+): Promise<Set<string>> {
   if (auditLogColumnsCache !== null) {
     return auditLogColumnsCache;
   }
 
-  const rows = await pgClient`
-    select column_name
-    from information_schema.columns
-    where table_schema = 'public'
-      and table_name = 'audit_log'
-  `;
+  const rows = tx
+    ? await tx.execute(sql`
+        select column_name
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'audit_log'
+      `)
+    : await pgClient`
+        select column_name
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'audit_log'
+      `;
 
-  auditLogColumnsCache = new Set(rows.map((row) => String(row.column_name)));
+  auditLogColumnsCache = new Set(
+    Array.from(rows, (row) => String((row as { column_name: unknown }).column_name)),
+  );
 
   return auditLogColumnsCache;
 }
@@ -302,7 +318,7 @@ export async function createAuditLogWithinTransaction(
   tx: AuditTransaction,
   input: CreateAuditLogInput,
 ) {
-  const columnsPresent = await getAuditLogColumns();
+  const columnsPresent = await getAuditLogColumns(tx);
   const { query, values } = buildAuditLogInsertStatement(columnsPresent, input);
   const result = await tx.execute(bindAuditStatement(query, values));
 
