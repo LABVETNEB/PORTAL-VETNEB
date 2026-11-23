@@ -866,6 +866,109 @@ test("orquestación: commit ambiguo nunca elimina el objeto y sólo verifica y r
   }
 });
 
+test("orquestación: el request ID llega a cada resultado de compensación para correlacionar con la petición HTTP", async (context) => {
+  const requestId = "3f2b8c1e-4a5d-4e6f-8a7b-9c0d1e2f3a4b";
+  const persistFailure = async (): Promise<never> => {
+    throw new Error("persist_failure");
+  };
+  const scenarios: Array<{
+    label: string;
+    outcome: ReportStorageCompensationLog["outcome"];
+    overrides: Overrides;
+    hooks: Parameters<typeof compensationService>[2];
+  }> = [
+    {
+      label: "deleted",
+      outcome: "deleted",
+      overrides: { createOrEditReport: persistFailure },
+      hooks: {},
+    },
+    {
+      label: "delete_failed",
+      outcome: "delete_failed",
+      overrides: { createOrEditReport: persistFailure },
+      hooks: {
+        remove: async () => {
+          throw new Error("delete_failure");
+        },
+      },
+    },
+    {
+      label: "preserved_referenced",
+      outcome: "preserved_referenced",
+      overrides: { createOrEditReport: persistFailure },
+      hooks: { persisted: async () => true },
+    },
+    {
+      label: "preserved_verification_failed",
+      outcome: "preserved_verification_failed",
+      overrides: { createOrEditReport: persistFailure },
+      hooks: {
+        persisted: async () => {
+          throw new Error("verify_failure");
+        },
+      },
+    },
+    {
+      label: "preserved_commit_unknown",
+      outcome: "preserved_commit_unknown",
+      overrides: {
+        runReportPersistence: async () => {
+          throw new ReportPersistenceCommitUnknownError({
+            cause: new Error("commit_failure"),
+          });
+        },
+      },
+      hooks: {},
+    },
+    {
+      label: "preserved_unsafe_path",
+      outcome: "preserved_unsafe_path",
+      overrides: { createOrEditReport: persistFailure },
+      hooks: { storagePath: "reports/3/fuera-del-patron.pdf" },
+    },
+  ];
+
+  for (const scenario of scenarios) {
+    await context.test(scenario.label, async () => {
+      const probe = newCompensationProbe();
+      const service = compensationService(
+        probe,
+        scenario.overrides,
+        scenario.hooks,
+      );
+
+      await assert.rejects(
+        service.uploadAdminReport(uploadInput({ requestId })),
+      );
+
+      assert.deepEqual(
+        probe.logs.map((entry) => ({
+          outcome: entry.outcome,
+          requestId: entry.requestId,
+        })),
+        [{ outcome: scenario.outcome, requestId }],
+      );
+    });
+  }
+});
+
+test("orquestación: sin request ID el evento de compensación no inventa uno", async () => {
+  const probe = newCompensationProbe();
+  const service = compensationService(probe, {
+    createOrEditReport: async () => {
+      throw new Error("persist_failure");
+    },
+  });
+
+  await assert.rejects(service.uploadAdminReport(uploadInput()));
+
+  assert.deepEqual(
+    probe.logs.map((entry) => Object.hasOwn(entry, "requestId")),
+    [false],
+  );
+});
+
 test("orquestación: paths que no son exactamente clinics/<clínica>/<objeto> nunca se verifican ni eliminan", async (context) => {
   const unsafePaths = [
     "reports/3/informe.pdf",

@@ -5,6 +5,7 @@ import type {
   Report,
   StudyTrackingCase,
 } from "../../../../drizzle/schema.ts";
+import { isSafeRequestId } from "../../../lib/http/api-request-id.ts";
 import { logError, logInfo, logWarn } from "../../../lib/logger.ts";
 import { ensureStudyTrackingCaseForToken } from "../../study-tracking/index.ts";
 import {
@@ -184,6 +185,10 @@ export function logReportStorageCompensation(
     clinicId: input.clinicId,
     objectRef,
     pathDigest: crypto.hash("sha256", input.storagePath, "hex"),
+    // El logger promueve requestId al nivel del evento; solo UUID v4 validos.
+    ...(isSafeRequestId(input.requestId)
+      ? { requestId: input.requestId }
+      : {}),
     persistError: input.persistErrorName,
     ...(input.errorName ? { cleanupError: input.errorName } : {}),
     ...(input.verification ? { verification: input.verification } : {}),

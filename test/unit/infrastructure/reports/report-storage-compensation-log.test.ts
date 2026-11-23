@@ -14,6 +14,7 @@ type Emitted = { stream: ConsoleStream; line: string };
 type EmittedRecord = {
   level: string;
   event: string;
+  requestId?: string;
   context: Record<string, unknown>;
 };
 
@@ -200,6 +201,59 @@ test("adaptador de compensación: el registro emitido no contiene path, nombre d
       assert.equal(emitted.includes(OBJECT_REF), true);
     });
   }
+});
+
+const VALID_REQUEST_ID = "3f2b8c1e-4a5d-4e6f-8a7b-9c0d1e2f3a4b";
+
+test("adaptador de compensación: un request ID válido se emite al nivel del evento en cada resultado", async (context) => {
+  for (const scenario of cases) {
+    await context.test(scenario.label, () => {
+      const writes = emit({ ...scenario.input, requestId: VALID_REQUEST_ID });
+      const record = JSON.parse(String(writes[0]?.line)) as EmittedRecord;
+
+      assert.equal(record.requestId, VALID_REQUEST_ID);
+      assert.equal(Object.hasOwn(record.context, "requestId"), false);
+      assert.deepEqual(record.context, scenario.context);
+    });
+  }
+});
+
+test("adaptador de compensación: un identificador que no es UUID v4 nunca se registra", async (context) => {
+  const invalid = [
+    "req-1",
+    "opaque.session.token_value-abcdef0123456789",
+    "3f2b8c1e-4a5d-1e6f-8a7b-9c0d1e2f3a4b",
+    "3f2b8c1e-4a5d-4e6f-0a7b-9c0d1e2f3a4b",
+    `${VALID_REQUEST_ID}-extra`,
+    "clinics/3/1790000000000-0123456789ab-Luna.pdf",
+    "",
+  ];
+
+  for (const value of invalid) {
+    await context.test(JSON.stringify(value), () => {
+      const writes = emit({
+        ...BASE,
+        outcome: "preserved_commit_unknown",
+        verification: "persisted",
+        requestId: value,
+      });
+      const emitted = String(writes[0]?.line);
+      const record = JSON.parse(emitted) as EmittedRecord;
+
+      assert.equal(Object.hasOwn(record, "requestId"), false);
+      assert.equal(Object.hasOwn(record.context, "requestId"), false);
+      if (value.length > 0) {
+        assert.equal(emitted.includes(value), false);
+      }
+    });
+  }
+});
+
+test("adaptador de compensación: sin request ID el evento no lo inventa", () => {
+  const writes = emit({ ...BASE, outcome: "deleted", verification: "not_persisted" });
+  const record = JSON.parse(String(writes[0]?.line)) as EmittedRecord;
+
+  assert.equal(Object.hasOwn(record, "requestId"), false);
 });
 
 test("adaptador de compensación: un path fuera del patrón no expone el nombre y conserva el digest", () => {

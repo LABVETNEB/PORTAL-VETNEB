@@ -463,6 +463,9 @@ export const adminReportsNativeRoutes: FastifyPluginAsync<
       });
     }
 
+    // Identificador de correlacion generado por la app (UUID v4 validado); se
+    // lee antes de los cut-offs para no leer `request` despues de validar.
+    const requestId = request.id;
     const body = getMultipartBody(request);
     const clinicId = parseReportId(body.clinicId);
     const rawParticularTokenId =
@@ -504,6 +507,7 @@ export const adminReportsNativeRoutes: FastifyPluginAsync<
       adminUserId: admin.id,
       auditContext: createAuditRequestLike(request, admin),
       now: new Date(now()),
+      requestId,
     });
 
     if (result.type === "clinic_not_found") {

@@ -74,6 +74,8 @@ export type ReportUploadRouteInput = {
   adminUserId: number;
   auditContext: unknown;
   now: Date;
+  /** Request ID de la peticion HTTP, solo para correlacionar los logs de compensacion. */
+  requestId?: string;
 };
 
 export type ReportUploadRouteResult<TReport extends ReportRouteRecord> =
@@ -181,6 +183,8 @@ export type ReportStorageCompensationLog = {
   persistErrorName: string;
   errorName?: string;
   verification?: "persisted" | "not_persisted" | "unverifiable";
+  /** Request ID de la peticion HTTP original; el adaptador lo valida antes de emitirlo. */
+  requestId?: string;
 };
 
 function isExactReportObjectPath(storagePath: string, clinicId: number) {
@@ -380,6 +384,7 @@ export function createReportRouteService<
     storagePath: string,
     clinicId: number,
     persistError: unknown,
+    requestId?: string,
   ): Promise<void> {
     const persistErrorName = dependencies.resolveSafeErrorName(persistError);
     const log = (
@@ -391,6 +396,7 @@ export function createReportRouteService<
         clinicId,
         storagePath,
         persistErrorName,
+        ...(requestId === undefined ? {} : { requestId }),
         ...extra,
       });
 
@@ -558,7 +564,12 @@ export function createReportRouteService<
         };
       });
     } catch (error) {
-      await compensateUnpersistedUpload(storagePath, input.clinicId, error);
+      await compensateUnpersistedUpload(
+        storagePath,
+        input.clinicId,
+        error,
+        input.requestId,
+      );
       throw error;
     }
 

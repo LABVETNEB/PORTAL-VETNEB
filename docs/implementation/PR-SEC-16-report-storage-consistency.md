@@ -83,6 +83,13 @@ resultado y un contexto cerrado: `outcome`, `clinicId`, `objectRef` (`<timestamp
 (SHA-256 del path completo), `persistError` y, si aplica, `cleanupError` y `verification`. Nunca incluye el path,
 el nombre de archivo ni mensajes de error, que pueden identificar a un paciente.
 
+Correlación con la petición HTTP (AGENTS.md §16): la ruta de subida (`admin-reports.fastify.ts`) pasa `request.id`
+al servicio (`ReportUploadRouteInput.requestId`), el servicio lo copia a cada evento de compensación
+(`ReportStorageCompensationLog.requestId`) y el adaptador lo emite sólo si `isSafeRequestId` lo acepta (UUID v4,
+la misma validación del repositorio). El logger lo promueve al campo `requestId` del evento, no al contexto. Un
+identificador inválido nunca se registra. Cubre los seis resultados, incluidos la compensación fallida
+(`delete_failed`) y el commit ambiguo (`preserved_commit_unknown`).
+
 ### Lo que no cambia
 
 Contrato HTTP, aislamiento por clínica, notificaciones best-effort, auditoría **después** de la persistencia,

@@ -14,6 +14,12 @@ const {
   adminReportsNativeRoutes,
 } = await import("../../../../server/routes/admin-reports.fastify.ts");
 const { inspectStoredReportMime } = await import("../../../../server/lib/supabase.ts");
+const { generateFastifyRequestId, isSafeRequestId } = await import(
+  "../../../../server/lib/http/api-request-id.ts"
+);
+const { ReportPersistenceCommitUnknownError } = await import(
+  "../../../../server/features/reports/application/index.ts"
+);
 
 test("documentos admin: MIME se detecta por bytes y no por extension o Content-Type", async () => {
   for (const [bytes, expected] of [
@@ -142,8 +148,11 @@ function createAuthStubs(overrides: Record<string, unknown> = {}) {
   };
 }
 
-async function createTestApp(overrides: Record<string, unknown> = {}) {
-  const app = Fastify();
+async function createTestApp(
+  overrides: Record<string, unknown> = {},
+  appOptions: Record<string, unknown> = {},
+) {
+  const app = Fastify(appOptions);
 
   await app.register(adminReportsNativeRoutes as any, {
     prefix: "/api/admin/reports",
@@ -625,6 +634,196 @@ test("adminReportsNativeRoutes crea POST /upload con clinicId explicito y metada
     assert.equal(body.report.downloadUrl, undefined);
     assert.equal(response.body.includes("previewUrl"), false);
     assert.equal(response.body.includes("downloadUrl"), false);
+  } finally {
+    await app.close();
+  }
+});
+
+const COMPENSATION_EVENT = "REPORT_UPLOAD_STORAGE_COMPENSATION";
+const COMPENSATION_PATH = "clinics/3/1790000000000-0123456789ab-luna-report.pdf";
+
+type CompensationRecord = {
+  level: string;
+  event: string;
+  requestId?: string;
+  context: Record<string, unknown>;
+};
+
+async function captureCompensationRecords(
+  run: () => Promise<unknown>,
+): Promise<{ records: CompensationRecord[]; lines: string[] }> {
+  const lines: string[] = [];
+  const original = {
+    log: console.log,
+    warn: console.warn,
+    error: console.error,
+  };
+
+  for (const stream of ["log", "warn", "error"] as const) {
+    console[stream] = (...args: unknown[]) => {
+      lines.push(String(args[0]));
+    };
+  }
+
+  try {
+    await run();
+  } finally {
+    console.log = original.log;
+    console.warn = original.warn;
+    console.error = original.error;
+  }
+
+  const records = lines.flatMap((line) => {
+    try {
+      const parsed = JSON.parse(line) as CompensationRecord;
+      return parsed.event === COMPENSATION_EVENT ? [parsed] : [];
+    } catch {
+      return [];
+    }
+  });
+
+  return { records, lines };
+}
+
+test("adminReportsNativeRoutes correlaciona los logs de compensación con el request ID de la petición HTTP", async (context) => {
+  const requestId = "3f2b8c1e-4a5d-4e6f-8a7b-9c0d1e2f3a4b";
+  const failure = async (): Promise<never> => {
+    throw new Error("persist_failure");
+  };
+  const scenarios: Array<{
+    label: string;
+    outcome: string;
+    level: string;
+    overrides: Record<string, unknown>;
+  }> = [
+    {
+      label: "persistencia fallida y objeto compensado",
+      outcome: "deleted",
+      level: "info",
+      overrides: { upsertReport: failure },
+    },
+    {
+      label: "compensación fallida",
+      outcome: "delete_failed",
+      level: "error",
+      overrides: {
+        upsertReport: failure,
+        deleteStorageObject: async () => {
+          throw new Error("delete_failure");
+        },
+      },
+    },
+    {
+      label: "commit ambiguo",
+      outcome: "preserved_commit_unknown",
+      level: "error",
+      overrides: {
+        runReportPersistence: async () => {
+          throw new ReportPersistenceCommitUnknownError({
+            cause: new Error("commit_failure"),
+          });
+        },
+      },
+    },
+  ];
+
+  for (const scenario of scenarios) {
+    await context.test(scenario.label, async () => {
+      const multipart = buildMultipartReportPayload();
+      const app = await createTestApp(
+        {
+          uploadReport: async () => COMPENSATION_PATH,
+          deleteStorageObject: async () => {},
+          isReportStoragePathPersisted: async () => false,
+          ...scenario.overrides,
+        },
+        { genReqId: generateFastifyRequestId },
+      );
+
+      try {
+        const captured = await captureCompensationRecords(async () => {
+          const response = await app.inject({
+            method: "POST",
+            url: "/api/admin/reports/upload",
+            headers: {
+              origin: "http://localhost:3000",
+              cookie: `${ENV.adminCookieName}=admin-session-token`,
+              "x-request-id": requestId,
+              "content-type": `multipart/form-data; boundary=${multipart.boundary}`,
+            },
+            payload: multipart.payload,
+          });
+
+          assert.equal(response.statusCode, 500);
+        });
+
+        assert.deepEqual(
+          captured.records.map((record) => ({
+            event: record.event,
+            level: record.level,
+            outcome: record.context.outcome,
+            requestId: record.requestId,
+          })),
+          [
+            {
+              event: COMPENSATION_EVENT,
+              level: scenario.level,
+              outcome: scenario.outcome,
+              requestId,
+            },
+          ],
+        );
+        for (const line of captured.lines) {
+          if (line.includes(COMPENSATION_EVENT)) {
+            assert.equal(line.includes(COMPENSATION_PATH), false);
+            assert.equal(line.includes("luna-report"), false);
+          }
+        }
+      } finally {
+        await app.close();
+      }
+    });
+  }
+});
+
+test("adminReportsNativeRoutes no registra un X-Request-ID inválido en los logs de compensación", async () => {
+  const hostile = "opaque.session.token_value-abcdef0123456789";
+  const multipart = buildMultipartReportPayload();
+  const app = await createTestApp(
+    {
+      uploadReport: async () => COMPENSATION_PATH,
+      deleteStorageObject: async () => {},
+      isReportStoragePathPersisted: async () => false,
+      upsertReport: async () => {
+        throw new Error("persist_failure");
+      },
+    },
+    { genReqId: generateFastifyRequestId },
+  );
+
+  try {
+    const captured = await captureCompensationRecords(async () => {
+      await app.inject({
+        method: "POST",
+        url: "/api/admin/reports/upload",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.adminCookieName}=admin-session-token`,
+          "x-request-id": hostile,
+          "content-type": `multipart/form-data; boundary=${multipart.boundary}`,
+        },
+        payload: multipart.payload,
+      });
+    });
+
+    assert.deepEqual(
+      captured.records.map((record) => isSafeRequestId(record.requestId)),
+      [true],
+    );
+    assert.notEqual(captured.records[0]?.requestId, hostile);
+    for (const line of captured.lines) {
+      assert.equal(line.includes(hostile), false);
+    }
   } finally {
     await app.close();
   }
