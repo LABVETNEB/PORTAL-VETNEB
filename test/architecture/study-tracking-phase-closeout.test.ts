@@ -225,6 +225,7 @@ test("composition sigue siendo el único seam route a infrastructure", () => {
       "loadParticularStudyTrackingPersistence",
       "loadAdminStudyTrackingPersistence",
       "loadParticularAccessStudyTrackingPersistence",
+      "loadReportUploadStudyTrackingPersistence",
     ],
   );
   assert.equal(/\b(?:select|insert|update|delete)\s*\(/.test(source), false);

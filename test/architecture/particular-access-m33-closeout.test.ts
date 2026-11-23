@@ -40,6 +40,7 @@ const expectedFeatureFiles = [
   `${infrastructureDir}/README.md`,
   infrastructureIndex,
   repositoryFile,
+  `${infrastructureDir}/particular-access-transactional-repository.ts`,
   compositionFile,
   publicCompositionFile,
 ].sort();

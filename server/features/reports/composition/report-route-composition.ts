@@ -7,7 +7,6 @@ import type {
 } from "../../../../drizzle/schema.ts";
 import type { AuditWriteInput } from "../../../lib/audit.ts";
 import { serializeError } from "../../../lib/logger.ts";
-import { ensureStudyTrackingCaseForToken } from "../../study-tracking/index.ts";
 import {
   normalizeSearchText,
   parseOptionalDate,
@@ -16,7 +15,12 @@ import {
 import {
   createReportRouteService,
   type ReportRouteAuditInput,
+  type ReportUploadPersistenceScope,
 } from "../application/index.ts";
+import {
+  createPassthroughReportPersistenceRunner,
+  logReportStorageCompensation,
+} from "./report-upload-persistence-composition.ts";
 import type { AdminReportWorkflowItem } from "../infrastructure/db-report-workflow.ts";
 
 type AdminUserRecord = {
@@ -104,6 +108,17 @@ export type AdminReportsRouteCompositionOptions = {
     storagePath: string,
     fileName?: string,
   ) => Promise<string>;
+  runReportPersistence?: <TResult>(
+    work: (
+      scope: ReportUploadPersistenceScope<
+        Report,
+        ParticularToken,
+        StudyTrackingCase
+      >,
+    ) => Promise<TResult>,
+  ) => Promise<TResult>;
+  deleteStorageObject?: (storagePath: string) => Promise<void>;
+  isReportStoragePathPersisted?: (storagePath: string) => Promise<boolean>;
   writeAuditLog?: (req: unknown, input: AuditWriteInput) => Promise<void>;
 };
 
@@ -208,6 +223,7 @@ async function loadDefaultAdminReportsDependencies() {
         particular,
         studyTracking,
         reportCommands,
+        uploadPersistence,
       ] = await Promise.all([
         import("../../../db.ts"),
         import("../../../lib/auth-security.ts"),
@@ -222,9 +238,16 @@ async function loadDefaultAdminReportsDependencies() {
             loadParticularAccessStudyTrackingPersistence(),
         ),
         import("./report-command-composition.ts"),
+        import("./report-upload-persistence-composition.ts").then(
+          ({ loadReportUploadPersistence }) => loadReportUploadPersistence(),
+        ),
       ]);
 
       return {
+        runReportPersistence: uploadPersistence.runReportPersistence,
+        isReportStoragePathPersisted:
+          uploadPersistence.isReportStoragePathPersisted,
+        deleteStorageObject: storage.deleteStorageObject,
         deleteAdminSession: db.deleteAdminSession,
         getAdminSessionByToken: db.getAdminSessionByToken,
         getAdminUserById: db.getAdminUserById,
@@ -309,7 +332,19 @@ async function resolveAdminReportsDependencies(
     ? undefined
     : await loadDefaultAdminReportsDependencies();
 
-  return {
+  const legacyPersistenceInjected =
+    !!options.upsertReport ||
+    !!options.updateParticularTokenReport ||
+    !!options.getParticularStudyTrackingCase ||
+    !!options.getStudyTrackingCaseByReportId ||
+    !!options.createStudyTrackingCase ||
+    !!options.updateStudyTrackingCase;
+
+  const unavailable = async (): Promise<never> => {
+    throw new Error("report storage dependency not configured");
+  };
+
+  const resolved = {
     deleteAdminSession:
       options.deleteAdminSession ?? defaults!.deleteAdminSession,
     getAdminSessionByToken:
@@ -348,7 +383,26 @@ async function resolveAdminReportsDependencies(
       options.createSignedReportDownloadUrl ??
       defaults!.createSignedReportDownloadUrl,
     writeAuditLog: options.writeAuditLog ?? defaults!.writeAuditLog,
+    deleteStorageObject:
+      options.deleteStorageObject ?? defaults?.deleteStorageObject ?? unavailable,
+    isReportStoragePathPersisted:
+      options.isReportStoragePathPersisted ??
+      defaults?.isReportStoragePathPersisted ??
+      unavailable,
   };
+
+  // Inyeccion explicita de escrituras (seam de tests) => sin transaccion real;
+  // si no, la unidad atomica real cargada por defecto.
+  const runReportPersistence =
+    options.runReportPersistence ??
+    (legacyPersistenceInjected || !defaults
+      ? createPassthroughReportPersistenceRunner({
+          ...resolved,
+          createOrEditReport: resolved.upsertReport,
+        })
+      : defaults.runReportPersistence);
+
+  return { ...resolved, runReportPersistence };
 }
 
 async function resolveWorkflowDependencies(
@@ -410,27 +464,10 @@ export async function createAdminReportsRouteComposition(
   const dependencies = await resolveAdminReportsDependencies(options);
   const service = createReportRouteService({
     ...dependencies,
-    createOrEditReport: dependencies.upsertReport,
     normalizeSearchText,
     parseReportStudyType,
     parseOptionalDate,
-    ensureStudyTrackingCaseForToken: (token, input) =>
-      ensureStudyTrackingCaseForToken(
-        {
-          getParticularStudyTrackingCase:
-            dependencies.getParticularStudyTrackingCase,
-          getStudyTrackingCaseByReportId:
-            dependencies.getStudyTrackingCaseByReportId,
-          createStudyTrackingCase: dependencies.createStudyTrackingCase,
-          updateStudyTrackingCase: dependencies.updateStudyTrackingCase,
-        },
-        {
-          token: token as ParticularToken,
-          createdByAdminId: input.adminUserId,
-          createdByClinicUserId: token.createdByClinicUserId ?? null,
-          now: input.now,
-        },
-      ),
+    logReportStorageCompensation,
     auditEvents: auditEventNames,
     writeAuditLog: dependencies.writeAuditLog as (
       context: unknown,
@@ -465,17 +502,13 @@ export async function createAdminReportWorkflowRouteComposition(
     getClinicById: async () => null,
     getReportById: async () => null,
     uploadReport: async () => "",
-    createOrEditReport: async () => {
-      throw new Error("report upload unavailable");
-    },
     getParticularTokenById: async () => null,
-    updateParticularTokenReport: async () => null,
-    getParticularStudyTrackingCase: async () => null,
-    getStudyTrackingCaseByReportId: async () => null,
-    updateStudyTrackingCase: async () => null,
-    ensureStudyTrackingCaseForToken: async () => {
+    runReportPersistence: async () => {
       throw new Error("report upload unavailable");
     },
+    deleteStorageObject: async () => undefined,
+    isReportStoragePathPersisted: async () => true,
+    logReportStorageCompensation: () => undefined,
     createStudyTrackingNotification: async () => undefined,
     createSignedReportUrl: async () => "",
     createSignedReportDownloadUrl: async () => "",

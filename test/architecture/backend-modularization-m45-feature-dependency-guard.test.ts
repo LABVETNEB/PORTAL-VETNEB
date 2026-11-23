@@ -62,8 +62,10 @@ const expectedCrossFeatureReferenceKeys = [
   "particular-access->study-tracking|static|type|server/features/particular-access/application/ports/particular-access-ports.ts|server/features/study-tracking/index.ts",
   "report-access->reports|static|runtime|server/features/report-access/report-access-token.ts|server/features/reports/index.ts",
   "reports->particular-access|dynamic|runtime|server/features/reports/composition/report-route-composition.ts|server/features/particular-access/index.ts",
+  "reports->particular-access|dynamic|runtime|server/features/reports/composition/report-upload-persistence-composition.ts|server/features/particular-access/index.ts",
   "reports->study-tracking|dynamic|runtime|server/features/reports/composition/report-route-composition.ts|server/features/study-tracking/index.ts",
-  "reports->study-tracking|static|runtime|server/features/reports/composition/report-route-composition.ts|server/features/study-tracking/index.ts",
+  "reports->study-tracking|dynamic|runtime|server/features/reports/composition/report-upload-persistence-composition.ts|server/features/study-tracking/index.ts",
+  "reports->study-tracking|static|runtime|server/features/reports/composition/report-upload-persistence-composition.ts|server/features/study-tracking/index.ts",
   "users-roles->clinics|dynamic|runtime|server/features/users-roles/admin-users-roles-route-composition.ts|server/features/clinics/index.ts",
   "users-roles->clinics|static|type|server/features/users-roles/admin-users-roles-route-composition.ts|server/features/clinics/index.ts",
 ].sort();
@@ -594,14 +596,16 @@ test("M45 auto-descubre el inventario canónico de features", () => {
   assert.deepEqual(census.features, expectedFeatures);
   // +1 (GLOBAL-SEARCH-3A): global-search/domain/global-search-cursor.ts.
   // +1 (GLOBAL-SEARCH-QUERY-ENGINE): global-search/domain/global-search-query.ts.
-  assert.equal(census.sourceFileCount, 161);
+  // +1 (SEC-09): reports/composition/report-upload-persistence-composition.ts.
+  // +1 (SEC-09): particular-access/infrastructure/particular-access-transactional-repository.ts.
+  assert.equal(census.sourceFileCount, 163);
 });
 
 test("M45 resuelve todos los imports relativos de features", () => {
   assert.deepEqual(census.unresolvedRelativeImports, []);
 });
 
-test("M45 congela las 16 referencias cross-feature exactas", () => {
+test("M45 congela las 18 referencias cross-feature exactas", () => {
   assert.deepEqual(
     census.crossFeatureReferences
       .map(referenceKey)

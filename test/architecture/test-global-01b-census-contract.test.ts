@@ -226,10 +226,12 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§8",
     metric: "assertions assert.*",
     historical: 20623,
+    baseline: 25952,
     compute: () => classification.totals.assertions,
-    resolution: "REPRODUCED",
+    resolution: "RECLASSIFIED",
     guard: BAND,
-    motive: "Assertions es magnitud no congelable (§31.2).",
+    motive:
+      "Assertions es magnitud no congelable (§31.2). Re-anclaje 20623 -> 25952: main@151bb648a0e191a4e720a91dd6ccc22f9a964d35 producia 25771, a 8 assertions del tope de la banda 20623 +- 5156 (25779). PR-SEC-16 suma 181 assertions: la realineacion de report-route-service.test.ts al contrato transaccional, el test del adaptador de compensacion, la simulacion con rollback del runner real, el caso del 42703 envuelto en report-command-repository-contract.test.ts y el spec contra PostgreSQL real (rollback, 23505, 23503, concurrencia). Crecimiento intencional: se re-ancla el baseline al valor medido despues de implementar, sin ampliar GROWTH_TOLERANCE, sin tolerancia propia y sin excluir ningun archivo del inventario.",
   },
   // ── §6.1 invariantes congelados ───────────────────────────────────────────
   {
@@ -686,12 +688,12 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§7.3",
     metric: "archivos RUNTIME_BEHAVIOURAL",
     historical: 151,
-    baseline: 150,
+    baseline: 191,
     compute: () => coupling.byClass.RUNTIME_BEHAVIOURAL.files,
     resolution: "RECLASSIFIED",
     guard: BAND,
     motive:
-      "Diferencia de 2 archivos: la definición versionada exige import de producción resoluble, no la mera presencia de `await import(`.",
+      "La definición versionada exige import de producción resoluble, no la mera presencia de `await import(`. Re-anclaje 150 -> 191: main@151bb648a0e191a4e720a91dd6ccc22f9a964d35 producia 188, exactamente el tope de la banda 150 +- 38 (188), y PR-SEC-16 suma tres specs que ejecutan produccion real: report-storage-compensation-log.test.ts (el adaptador sanitizado de compensacion), report-upload-rollback-simulation.test.ts (el runner transaccional y el servicio reales sobre un motor en memoria) y test/integration/app/report-upload-persistence-postgres.test.ts (el runner real contra PostgreSQL aislado), lo que lleva el valor a 191. Crecimiento intencional: se re-ancla el baseline al valor medido sin ampliar GROWTH_TOLERANCE y sin excluir ningun archivo del inventario.",
   },
   {
     row: "A0-07-ORACLE",
@@ -1082,14 +1084,14 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§20",
     metric: "specs con registry literal declarado en el propio test",
     historical: 75,
-    baseline: 106,
+    baseline: 135,
     compute: () =>
       filesMatching(corpus, specs, /const\s+[A-Z][A-Z0-9_]*\s*(?::[^=]+)?=\s*\[/)
         .length,
     resolution: "RECLASSIFIED",
     guard: BAND,
     motive:
-      "La forma versionada reconoce el registry tipado (`const X: T[] = [`) además del literal desnudo, de modo que detecta más archivos que el censo original. Ampliar la detección de un patrón que TEST-GLOBAL-11 debe auditar es conservador, no laxo.",
+      "La forma versionada reconoce el registry tipado (`const X: T[] = [`) además del literal desnudo, de modo que detecta más archivos que el censo original. Ampliar la detección de un patrón que TEST-GLOBAL-11 debe auditar es conservador, no laxo. Re-anclaje 106 -> 135: main@151bb648a0e191a4e720a91dd6ccc22f9a964d35 producia 133, exactamente el tope de la banda 106 +- 27 (133), y PR-SEC-16 suma dos specs con un registry literal propio: la realineacion de report-route-service.test.ts declara SCOPE_KEYS (las claves del scope transaccional que separa los overrides) y el spec contra PostgreSQL real declara ALLOWED_DATABASES (las unicas bases aisladas aceptadas), lo que lleva el valor a 135. Crecimiento intencional: se re-ancla el baseline al valor medido sin ampliar GROWTH_TOLERANCE y sin excluir ningun archivo del inventario.",
   },
   // ── §14–§16, §19, §22, §23 capas y ownership ──────────────────────────────
   {

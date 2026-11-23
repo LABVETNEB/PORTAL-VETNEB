@@ -35,6 +35,67 @@ function buildStudyTrackingNotificationScopeFilters(scope: NotificationScope) {
   return scopeFilters;
 }
 
+type StudyTrackingExecutor = Pick<typeof db, "select" | "insert" | "update">;
+
+/**
+ * Operaciones de tracking ligadas a una transaccion existente. Las lecturas
+ * toman FOR UPDATE para serializar subidas concurrentes sobre el mismo caso.
+ */
+export function createTransactionalStudyTrackingRepository(
+  executor: StudyTrackingExecutor,
+) {
+  return {
+    async getParticularStudyTrackingCase(particularTokenId: number) {
+      const result = await executor
+        .select()
+        .from(studyTrackingCases)
+        .where(eq(studyTrackingCases.particularTokenId, particularTokenId))
+        .limit(1)
+        .for("update");
+
+      return result[0];
+    },
+
+    async getStudyTrackingCaseByReportId(reportId: number) {
+      const result = await executor
+        .select()
+        .from(studyTrackingCases)
+        .where(eq(studyTrackingCases.reportId, reportId))
+        .limit(1)
+        .for("update");
+
+      return result[0];
+    },
+
+    async createStudyTrackingCase(
+      input: Omit<NewStudyTrackingCase, "id" | "createdAt" | "updatedAt">,
+    ) {
+      const now = new Date();
+      const result = await executor
+        .insert(studyTrackingCases)
+        .values({ ...input, createdAt: now, updatedAt: now })
+        .returning();
+
+      return result[0];
+    },
+
+    async updateStudyTrackingCase(
+      id: number,
+      input: Partial<
+        Omit<NewStudyTrackingCase, "id" | "createdAt" | "updatedAt">
+      >,
+    ) {
+      const result = await executor
+        .update(studyTrackingCases)
+        .set({ ...input, updatedAt: new Date() })
+        .where(eq(studyTrackingCases.id, id))
+        .returning();
+
+      return result[0];
+    },
+  };
+}
+
 export async function createStudyTrackingCase(
   input: Omit<NewStudyTrackingCase, "id" | "createdAt" | "updatedAt">,
 ) {

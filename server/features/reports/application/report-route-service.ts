@@ -74,6 +74,8 @@ export type ReportUploadRouteInput = {
   adminUserId: number;
   auditContext: unknown;
   now: Date;
+  /** Request ID de la peticion HTTP, solo para correlacionar los logs de compensacion. */
+  requestId?: string;
 };
 
 export type ReportUploadRouteResult<TReport extends ReportRouteRecord> =
@@ -107,20 +109,29 @@ export type WorkflowMutationRouteResult<
   | { type: "not_found" }
   | { type: "updated"; report: TWorkflow };
 
-export type ReportRouteServiceDependencies<
+export class ReportUploadPersistenceError extends Error {
+  readonly code: "token_link_failed" | "tracking_write_failed";
+
+  constructor(code: "token_link_failed" | "tracking_write_failed") {
+    super(`report upload persistence failed: ${code}`);
+    this.name = "ReportUploadPersistenceError";
+    this.code = code;
+  }
+}
+
+/** El COMMIT fallo despues de completar el trabajo: el resultado es ambiguo. */
+export class ReportPersistenceCommitUnknownError extends Error {
+  constructor(options?: { cause?: unknown }) {
+    super("report persistence commit outcome unknown", options);
+    this.name = "ReportPersistenceCommitUnknownError";
+  }
+}
+
+export type ReportUploadPersistenceScope<
   TReport extends ReportRouteRecord,
   TToken extends ParticularTokenRouteRecord,
   TTracking extends StudyTrackingRouteRecord,
-  TWorkflow extends WorkflowRouteRecord,
 > = {
-  getClinicById: (clinicId: number) => Promise<{ id: number } | null | undefined>;
-  getReportById: (reportId: number) => Promise<TReport | null | undefined>;
-  uploadReport: (input: {
-    file: Buffer;
-    fileName: string;
-    clinicId: number;
-    mimeType: string;
-  }) => Promise<string>;
   createOrEditReport: (input: {
     clinicId: number;
     patientName: string | null;
@@ -130,9 +141,6 @@ export type ReportRouteServiceDependencies<
     storagePath: string;
     createdByAdminUserId: number;
   }) => Promise<TReport>;
-  getParticularTokenById: (
-    tokenId: number,
-  ) => Promise<TToken | null | undefined>;
   updateParticularTokenReport: (
     tokenId: number,
     reportId: number | null,
@@ -158,6 +166,66 @@ export type ReportRouteServiceDependencies<
       now: Date;
     },
   ) => Promise<TTracking>;
+};
+
+export type ReportStorageCompensationOutcome =
+  | "deleted"
+  | "delete_failed"
+  | "preserved_referenced"
+  | "preserved_verification_failed"
+  | "preserved_commit_unknown"
+  | "preserved_unsafe_path";
+
+export type ReportStorageCompensationLog = {
+  outcome: ReportStorageCompensationOutcome;
+  clinicId: number;
+  storagePath: string;
+  persistErrorName: string;
+  errorName?: string;
+  verification?: "persisted" | "not_persisted" | "unverifiable";
+  /** Request ID de la peticion HTTP original; el adaptador lo valida antes de emitirlo. */
+  requestId?: string;
+};
+
+function isExactReportObjectPath(storagePath: string, clinicId: number) {
+  const segments = storagePath.split("/");
+  return (
+    Number.isSafeInteger(clinicId) &&
+    clinicId >= 1 &&
+    segments.length === 3 &&
+    segments[0] === "clinics" &&
+    segments[1] === String(clinicId) &&
+    segments[2].length > 0 &&
+    segments[2] !== "." &&
+    segments[2] !== ".."
+  );
+}
+
+export type ReportRouteServiceDependencies<
+  TReport extends ReportRouteRecord,
+  TToken extends ParticularTokenRouteRecord,
+  TTracking extends StudyTrackingRouteRecord,
+  TWorkflow extends WorkflowRouteRecord,
+> = {
+  getClinicById: (clinicId: number) => Promise<{ id: number } | null | undefined>;
+  getReportById: (reportId: number) => Promise<TReport | null | undefined>;
+  uploadReport: (input: {
+    file: Buffer;
+    fileName: string;
+    clinicId: number;
+    mimeType: string;
+  }) => Promise<string>;
+  getParticularTokenById: (
+    tokenId: number,
+  ) => Promise<TToken | null | undefined>;
+  runReportPersistence: <TResult>(
+    work: (
+      scope: ReportUploadPersistenceScope<TReport, TToken, TTracking>,
+    ) => Promise<TResult>,
+  ) => Promise<TResult>;
+  deleteStorageObject: (storagePath: string) => Promise<void>;
+  isReportStoragePathPersisted: (storagePath: string) => Promise<boolean>;
+  logReportStorageCompensation: (input: ReportStorageCompensationLog) => void;
   createStudyTrackingNotification: (input: {
     studyTrackingCaseId: number;
     clinicId: number;
@@ -308,6 +376,74 @@ export function createReportRouteService<
     return { type: "signed", downloadUrl, trustedOrigin };
   }
 
+  /**
+   * Compensa el objeto recien subido cuando la persistencia no se confirmo.
+   * Nunca lanza: el error funcional original es el que debe propagarse.
+   */
+  async function compensateUnpersistedUpload(
+    storagePath: string,
+    clinicId: number,
+    persistError: unknown,
+    requestId?: string,
+  ): Promise<void> {
+    const persistErrorName = dependencies.resolveSafeErrorName(persistError);
+    const log = (
+      outcome: ReportStorageCompensationOutcome,
+      extra: Partial<ReportStorageCompensationLog> = {},
+    ) =>
+      dependencies.logReportStorageCompensation({
+        outcome,
+        clinicId,
+        storagePath,
+        persistErrorName,
+        ...(requestId === undefined ? {} : { requestId }),
+        ...extra,
+      });
+
+    if (persistError instanceof ReportPersistenceCommitUnknownError) {
+      let verification: "persisted" | "not_persisted" | "unverifiable";
+      try {
+        verification = (await dependencies.isReportStoragePathPersisted(
+          storagePath,
+        ))
+          ? "persisted"
+          : "not_persisted";
+      } catch {
+        verification = "unverifiable";
+      }
+      log("preserved_commit_unknown", { verification });
+      return;
+    }
+
+    if (!isExactReportObjectPath(storagePath, clinicId)) {
+      log("preserved_unsafe_path");
+      return;
+    }
+
+    try {
+      if (await dependencies.isReportStoragePathPersisted(storagePath)) {
+        log("preserved_referenced", { verification: "persisted" });
+        return;
+      }
+    } catch (error) {
+      log("preserved_verification_failed", {
+        verification: "unverifiable",
+        errorName: dependencies.resolveSafeErrorName(error),
+      });
+      return;
+    }
+
+    try {
+      await dependencies.deleteStorageObject(storagePath);
+      log("deleted", { verification: "not_persisted" });
+    } catch (error) {
+      log("delete_failed", {
+        verification: "not_persisted",
+        errorName: dependencies.resolveSafeErrorName(error),
+      });
+    }
+  }
+
   async function uploadAdminReport(
     input: ReportUploadRouteInput,
   ): Promise<ReportUploadRouteResult<TReport>> {
@@ -340,76 +476,105 @@ export function createReportRouteService<
       return { type: "token_clinic_mismatch" };
     }
 
-    const storagePath = await dependencies.uploadReport({
-      file: input.file.buffer,
-      fileName: input.file.fileName,
-      clinicId: input.clinicId,
-      mimeType: input.file.mimeType,
-    });
     const patientName = dependencies.normalizeSearchText(input.patientName);
     const studyType = dependencies.parseReportStudyType(input.studyType);
     const uploadDate = dependencies.parseOptionalDate(input.uploadDate);
+    const file = input.file;
 
-    const report = await dependencies.createOrEditReport({
+    const storagePath = await dependencies.uploadReport({
+      file: file.buffer,
+      fileName: file.fileName,
       clinicId: input.clinicId,
-      patientName: patientName ?? null,
-      studyType: studyType ?? null,
-      uploadDate: uploadDate ?? null,
-      fileName: input.file.fileName,
-      storagePath,
-      createdByAdminUserId: input.adminUserId,
+      mimeType: file.mimeType,
     });
 
-    let trackingCase: TTracking | null = null;
-    let previousTrackingCase: TTracking | null = null;
-    let linkedTokenId: number | null = null;
+    let persisted: {
+      report: TReport;
+      trackingCase: TTracking | null;
+      previousTrackingCase: TTracking | null;
+      linkedTokenId: number | null;
+    };
 
-    if (selectedParticularToken) {
-      previousTrackingCase =
-        (await dependencies.getParticularStudyTrackingCase(
-          selectedParticularToken.id,
-        )) ??
-        (await dependencies.getStudyTrackingCaseByReportId(report.id)) ??
-        null;
+    try {
+      persisted = await dependencies.runReportPersistence(async (scope) => {
+        const createdReport = await scope.createOrEditReport({
+          clinicId: input.clinicId,
+          patientName: patientName ?? null,
+          studyType: studyType ?? null,
+          uploadDate: uploadDate ?? null,
+          fileName: file.fileName,
+          storagePath,
+          createdByAdminUserId: input.adminUserId,
+        });
 
-      const updatedToken = await dependencies.updateParticularTokenReport(
-        selectedParticularToken.id,
-        report.id,
-      );
-      const tokenForTracking = {
-        ...selectedParticularToken,
-        reportId: report.id,
-        updatedAt: input.now,
-      } as TToken;
-      const linkedToken = updatedToken ?? tokenForTracking;
+        if (selectedParticularToken) {
+          const previous =
+            (await scope.getParticularStudyTrackingCase(
+              selectedParticularToken.id,
+            )) ??
+            (await scope.getStudyTrackingCaseByReportId(createdReport.id)) ??
+            null;
 
-      linkedTokenId = linkedToken.id;
-      trackingCase = await dependencies.ensureStudyTrackingCaseForToken(
-        linkedToken,
-        {
-          adminUserId: input.adminUserId,
-          now: input.now,
-        },
-      );
-    } else {
-      previousTrackingCase =
-        (await dependencies.getStudyTrackingCaseByReportId(report.id)) ?? null;
-      trackingCase = previousTrackingCase;
+          const linkedToken = await scope.updateParticularTokenReport(
+            selectedParticularToken.id,
+            createdReport.id,
+          );
 
-      if (
-        trackingCase &&
-        trackingCase.currentStage !== "delivered"
-      ) {
-        trackingCase =
-          (await dependencies.updateStudyTrackingCase(trackingCase.id, {
-            reportId: report.id,
+          if (!linkedToken || linkedToken.clinicId !== input.clinicId) {
+            throw new ReportUploadPersistenceError("token_link_failed");
+          }
+
+          const ensured = await scope.ensureStudyTrackingCaseForToken(
+            linkedToken,
+            { adminUserId: input.adminUserId, now: input.now },
+          );
+
+          return {
+            report: createdReport,
+            trackingCase: ensured,
+            previousTrackingCase: previous,
+            linkedTokenId: linkedToken.id,
+          };
+        }
+
+        const previous =
+          (await scope.getStudyTrackingCaseByReportId(createdReport.id)) ??
+          null;
+        let current: TTracking | null = previous;
+
+        if (current && current.currentStage !== "delivered") {
+          const updated = await scope.updateStudyTrackingCase(current.id, {
+            reportId: createdReport.id,
             currentStage: "delivered",
-            deliveredAt: trackingCase.deliveredAt ?? input.now,
-          })) ?? trackingCase;
-      }
+            deliveredAt: current.deliveredAt ?? input.now,
+          });
 
-      linkedTokenId = trackingCase?.particularTokenId ?? null;
+          if (!updated) {
+            throw new ReportUploadPersistenceError("tracking_write_failed");
+          }
+
+          current = updated;
+        }
+
+        return {
+          report: createdReport,
+          trackingCase: current,
+          previousTrackingCase: previous,
+          linkedTokenId: current?.particularTokenId ?? null,
+        };
+      });
+    } catch (error) {
+      await compensateUnpersistedUpload(
+        storagePath,
+        input.clinicId,
+        error,
+        input.requestId,
+      );
+      throw error;
     }
+
+    const { report, trackingCase, previousTrackingCase, linkedTokenId } =
+      persisted;
 
     if (
       shouldCreateReportDeliveredNotification({
@@ -445,8 +610,8 @@ export function createReportRouteService<
       clinicId: report.clinicId,
       reportId: report.id,
       metadata: {
-        fileName: input.file.fileName,
-        mimeType: input.file.mimeType,
+        fileName: file.fileName,
+        mimeType: file.mimeType,
         studyType: studyType ?? null,
         uploadDate: uploadDate ?? null,
         uploadedVia: "admin",

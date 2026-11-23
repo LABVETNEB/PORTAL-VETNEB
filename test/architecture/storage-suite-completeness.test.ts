@@ -206,7 +206,8 @@ const STORAGE_SUITE: readonly StorageSuiteEntry[] = [
         path: "server/features/reports/application/report-route-service.ts",
         markers: [
           "const storagePath = await dependencies.uploadReport({",
-          "const report = await dependencies.createOrEditReport({",
+          "persisted = await dependencies.runReportPersistence(async (scope) => {",
+          "const createdReport = await scope.createOrEditReport({",
         ],
       },
       {

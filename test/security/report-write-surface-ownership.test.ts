@@ -227,7 +227,7 @@ test("admin reports upload exige admin auth antes de storage y persiste autoria 
   }
 
   assertBefore(service, "dependencies.getClinicById", "dependencies.uploadReport", "admin report upload");
-  assertBefore(service, "dependencies.uploadReport", "dependencies.createOrEditReport", "admin report upload");
+  assertBefore(service, "dependencies.uploadReport", "scope.createOrEditReport", "admin report upload");
   assert.match(service, /createdByAdminUserId: input\.adminUserId/);
 });
 

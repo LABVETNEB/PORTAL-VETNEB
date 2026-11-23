@@ -309,6 +309,7 @@ test("composition sigue siendo el único bridge Reports entre application e infr
     `${composition}/report-command-composition.ts`,
     `${composition}/report-query-composition.ts`,
     `${composition}/report-route-composition.ts`,
+    `${composition}/report-upload-persistence-composition.ts`,
     `${composition}/report-workflow-communication-composition.ts`,
   ]);
 });
@@ -350,7 +351,7 @@ test("M36 a M40 permanecen materializados sin reducir inventarios", () => {
     [domain, 4],
     [application, 10],
     [infrastructure, 6],
-    [composition, 5],
+    [composition, 6],
   ]);
 
   for (const [directory, count] of expectedCounts) {
