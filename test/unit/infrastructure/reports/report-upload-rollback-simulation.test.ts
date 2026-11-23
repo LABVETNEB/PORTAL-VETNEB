@@ -34,7 +34,6 @@ type World = {
   history: Array<{ reportId: number; toStatus: string }>;
   notifications: string[];
   audits: string[];
-  nextId: number;
 };
 
 type FaultPoint =
@@ -79,7 +78,31 @@ type Environment = {
   compensations: ReportStorageCompensationLog[];
   transactions: number;
   uploads: number;
+  reportInserts: number;
+  /** Secuencias globales: no se revierten con la transaccion, igual que en PostgreSQL. */
+  sequence: { report: number; tracking: number };
+  waiters: number;
+  /** Fallos y commits ambiguos dirigidos a una sola transaccion (id 1, 2, ...). */
+  faultOnlyTx: number | undefined;
+  commitFailureOnlyTx: number | undefined;
+  /** Se invoca con el lock del token ya adquirido; permite pausar al titular. */
+  afterLock: ((txId: number, tokenId: number) => Promise<void>) | undefined;
+  /** Se invoca cuando una transaccion tiene que esperar un lock ocupado. */
+  onWaiter: (() => void) | undefined;
 };
+
+type TokenLock = {
+  holder: number | undefined;
+  queue: Array<{ txId: number; resolve: () => void }>;
+};
+
+function deferred() {
+  let resolve: () => void = () => undefined;
+  const promise = new Promise<void>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
 
 const T0 = new Date("2026-11-01T10:00:00.000Z");
 const T1 = new Date("2026-11-02T10:00:00.000Z");
@@ -186,7 +209,6 @@ function createEnvironment(seed: Partial<World> = {}) {
     history: [],
     notifications: [],
     audits: [],
-    nextId: 100,
   };
   const env: Environment = {
     committed: { ...base, ...seed },
@@ -200,10 +222,103 @@ function createEnvironment(seed: Partial<World> = {}) {
     compensations: [],
     transactions: 0,
     uploads: 0,
+    reportInserts: 0,
+    sequence: { report: 100, tracking: 100 },
+    waiters: 0,
+    faultOnlyTx: undefined,
+    commitFailureOnlyTx: undefined,
+    afterLock: undefined,
+    onWaiter: undefined,
   };
 
-  function failIf(point: FaultPoint) {
-    if (env.fault === point) {
+  const txIds = new WeakMap<World, number>();
+  const txBase = new WeakMap<World, World>();
+
+  function mergeRowsById<TRow extends { id: number }>(
+    target: TRow[],
+    base: TRow[],
+    work: TRow[],
+  ) {
+    const baseById = new Map(base.map((row) => [row.id, row]));
+
+    for (const row of work) {
+      const before = baseById.get(row.id);
+      if (!before) {
+        target.push(row);
+        continue;
+      }
+
+      if (JSON.stringify(before) !== JSON.stringify(row)) {
+        const index = target.findIndex((candidate) => candidate.id === row.id);
+        if (index >= 0) target[index] = row;
+      }
+    }
+  }
+
+  function applyCommit(working: World) {
+    const base = txBase.get(working);
+    const merged = structuredClone(env.committed);
+
+    if (!base) {
+      env.committed = working;
+      return;
+    }
+
+    mergeRowsById(merged.reports, base.reports, working.reports);
+    mergeRowsById(merged.tokens, base.tokens, working.tokens);
+    mergeRowsById(merged.tracking, base.tracking, working.tracking);
+    merged.history.push(...working.history.slice(base.history.length));
+    merged.notifications.push(
+      ...working.notifications.slice(base.notifications.length),
+    );
+    merged.audits.push(...working.audits.slice(base.audits.length));
+    env.committed = merged;
+  }
+  const locks = new Map<number, TokenLock>();
+  const heldBy = new Map<number, number[]>();
+
+  async function acquireTokenLock(tokenId: number, txId: number) {
+    let lock = locks.get(tokenId);
+    if (!lock) {
+      lock = { holder: undefined, queue: [] };
+      locks.set(tokenId, lock);
+    }
+
+    if (lock.holder === undefined) {
+      lock.holder = txId;
+    }
+
+    if (lock.holder !== txId) {
+      const waiting = lock;
+      env.waiters += 1;
+      env.onWaiter?.();
+      // El titular se asigna al despertar (handoff FIFO): nadie salta la cola.
+      await new Promise<void>((resolve) => {
+        waiting.queue.push({ txId, resolve });
+      });
+      env.waiters -= 1;
+    }
+
+    heldBy.set(txId, [...(heldBy.get(txId) ?? []), tokenId]);
+  }
+
+  function releaseTokenLocks(txId: number) {
+    for (const tokenId of heldBy.get(txId) ?? []) {
+      const lock = locks.get(tokenId);
+      if (!lock) continue;
+
+      const next = lock.queue.shift();
+      lock.holder = next?.txId;
+      next?.resolve();
+    }
+    heldBy.delete(txId);
+  }
+
+  function failIf(point: FaultPoint, tx: World) {
+    const targeted =
+      env.faultOnlyTx === undefined || env.faultOnlyTx === txIds.get(tx);
+
+    if (env.fault === point && targeted) {
       env.thrown = new Error(`injected_${point}`);
       throw env.thrown;
     }
@@ -213,46 +328,70 @@ function createEnvironment(seed: Partial<World> = {}) {
     fn: (tx: World) => Promise<TResult>,
   ): Promise<TResult> {
     env.transactions += 1;
+    const txId = env.transactions;
     const working = structuredClone(env.committed);
-    const result = await fn(working);
+    txIds.set(working, txId);
+    txBase.set(working, structuredClone(env.committed));
 
-    if (env.commitFailure === "before_apply") {
-      throw new Error("commit_failure_not_applied");
+    try {
+      const result = await fn(working);
+      const commitFailure =
+        env.commitFailureOnlyTx === undefined || env.commitFailureOnlyTx === txId
+          ? env.commitFailure
+          : "none";
+
+      if (commitFailure === "before_apply") {
+        throw new Error("commit_failure_not_applied");
+      }
+
+      applyCommit(working);
+
+      if (commitFailure === "after_apply") {
+        throw new Error("commit_failure_applied");
+      }
+
+      return result;
+    } finally {
+      // El lock se libera al terminar la transaccion, confirmada o no.
+      releaseTokenLocks(txId);
     }
-
-    env.committed = working;
-
-    if (env.commitFailure === "after_apply") {
-      throw new Error("commit_failure_applied");
-    }
-
-    return result;
   }
 
   function partsFor(tx: World): ReportUploadScopeParts {
     return {
+      lockParticularToken: async (tokenId) => {
+        const txId = txIds.get(tx) ?? 0;
+        await acquireTokenLock(tokenId, txId);
+        // READ COMMITTED: tras esperar, se lee lo que confirmo el titular anterior.
+        Object.assign(tx, structuredClone(env.committed));
+        txBase.set(tx, structuredClone(env.committed));
+        await env.afterLock?.(txId, tokenId);
+        return tx.tokens.find((candidate) => candidate.id === tokenId);
+      },
       createOrEditReport: async (input) => {
-        failIf("report_insert");
+        env.reportInserts += 1;
+        failIf("report_insert", tx);
         const duplicate = tx.reports.some(
           (row) => row.storagePath === input.storagePath,
         );
         if (duplicate) throw uniqueViolation();
 
-        const row = reportRow(tx.nextId, input.clinicId, input.storagePath, {
+        const reportId = env.sequence.report;
+        env.sequence.report += 1;
+        const row = reportRow(reportId, input.clinicId, input.storagePath, {
           fileName: input.fileName,
           patientName: input.patientName,
           studyType: input.studyType,
           uploadDate: input.uploadDate,
           statusChangedByAdminUserId: input.createdByAdminUserId,
         });
-        tx.nextId += 1;
         tx.reports.push(row);
-        failIf("history_insert");
+        failIf("history_insert", tx);
         tx.history.push({ reportId: row.id, toStatus: "uploaded" });
         return row;
       },
       updateParticularTokenReport: async (id, reportId) => {
-        failIf("token_update");
+        failIf("token_update", tx);
         if (env.fault === "token_update_zero_rows") return undefined;
 
         const row = tx.tokens.find((candidate) => candidate.id === id);
@@ -267,7 +406,7 @@ function createEnvironment(seed: Partial<World> = {}) {
       getStudyTrackingCaseByReportId: async (reportId) =>
         tx.tracking.find((row) => row.reportId === reportId),
       createStudyTrackingCase: async (input) => {
-        failIf("tracking_create");
+        failIf("tracking_create", tx);
         const duplicateToken =
           input.particularTokenId !== null &&
           tx.tracking.some(
@@ -278,13 +417,14 @@ function createEnvironment(seed: Partial<World> = {}) {
           tx.tracking.some((row) => row.reportId === input.reportId);
         if (duplicateToken || duplicateReport) throw uniqueViolation();
 
+        const trackingId = env.sequence.tracking;
+        env.sequence.tracking += 1;
         const row: StudyTrackingCase = {
           ...input,
-          id: tx.nextId,
+          id: trackingId,
           createdAt: T1,
           updatedAt: T1,
         };
-        tx.nextId += 1;
         tx.tracking.push(row);
         return row;
       },
@@ -296,11 +436,11 @@ function createEnvironment(seed: Partial<World> = {}) {
         return { created: true };
       },
       writeReportUploadedAudit: async (_auditContext, input) => {
-        failIf("audit_write");
+        failIf("audit_write", tx);
         tx.audits.push(input.event);
       },
       updateStudyTrackingCase: async (id, input) => {
-        failIf("tracking_update");
+        failIf("tracking_update", tx);
         if (env.fault === "tracking_update_zero_rows") return undefined;
 
         const row = tx.tracking.find((candidate) => candidate.id === id);
@@ -765,4 +905,256 @@ test("simulación con rollback: dos subidas exitosas del mismo archivo crean dos
   const paths = env.committed.reports.map((row) => row.storagePath);
   assert.equal(new Set(paths).size, 2);
   assert.deepEqual([...env.storage], paths);
+});
+
+/** Espera a que la primera subida tome el lock; si termina sin tomarlo, falla. */
+async function untilLocked(
+  locked: { promise: Promise<void> },
+  first: Promise<unknown>,
+) {
+  await Promise.race([
+    locked.promise,
+    first.then(
+      () => {
+        throw new Error("la primera subida terminó sin tomar el lock del token");
+      },
+      () => {
+        throw new Error("la primera subida falló sin tomar el lock del token");
+      },
+    ),
+  ]);
+}
+
+/**
+ * Espera a que la segunda subida quede bloqueada en el lock. Si la subida termina
+ * sin haber esperado, el lock no se tomo: falla en lugar de colgarse.
+ */
+async function untilWaiting(
+  waiter: { promise: Promise<void> },
+  second: Promise<unknown>,
+) {
+  await Promise.race([
+    waiter.promise,
+    second.then(() => {
+      throw new Error("la segunda subida terminó sin esperar el lock del token");
+    }),
+  ]);
+}
+
+const SECOND_TOKEN = {
+  id: 8,
+  tokenHash: "synthetic-token-8",
+  tokenLast4: "0008",
+};
+
+function twoTokenSeed(): Partial<World> {
+  return { tokens: [tokenRow(), tokenRow(SECOND_TOKEN)] };
+}
+
+test("simulación de concurrencia: dos subidas al mismo token se serializan en el lock y equivalen a un orden secuencial", async () => {
+  const { env, service } = createEnvironment();
+  const firstLocked = deferred();
+  const gate = deferred();
+  const waiterSeen = deferred();
+  env.afterLock = async (txId) => {
+    if (txId === 1) {
+      firstLocked.resolve();
+      await gate.promise;
+    }
+  };
+  env.onWaiter = () => waiterSeen.resolve();
+
+  const first = upload(service, { particularTokenId: 7 });
+  await untilLocked(firstLocked, first);
+  const second = upload(service, { particularTokenId: 7 });
+  await untilWaiting(waiterSeen, second);
+
+  // Invariantes intermedias: la segunda espera el lock sin haber escrito nada.
+  assert.equal(env.waiters, 1);
+  assert.equal(env.reportInserts, 0);
+  assert.deepEqual(env.committed.reports.map((row) => row.id), []);
+
+  gate.resolve();
+  const [firstResult, secondResult] = await Promise.all([first, second]);
+
+  assert.equal(firstResult.type, "uploaded");
+  assert.equal(secondResult.type, "uploaded");
+  const ids = env.committed.reports.map((row) => row.id);
+  assert.deepEqual(ids, [100, 101]);
+  // Equivalente a ejecutar primero una y despues la otra: el token queda con la ultima.
+  assert.equal(env.committed.tokens[0]?.reportId, 101);
+  assert.deepEqual(
+    env.committed.tracking.map((row) => row.reportId),
+    [101],
+  );
+  // La segunda leyo el seguimiento ya entregado: una sola notificacion.
+  assert.deepEqual(env.committed.notifications, ["report_delivered"]);
+  assert.deepEqual(env.committed.audits, ["report.uploaded", "report.uploaded"]);
+  assert.deepEqual(env.compensations, []);
+  assert.deepEqual(
+    [...env.storage].sort(),
+    env.committed.reports.map((row) => row.storagePath).sort(),
+  );
+  assert.equal(env.waiters, 0);
+});
+
+test("simulación de concurrencia: subidas a tokens distintos no se bloquean entre sí", async () => {
+  const { env, service } = createEnvironment(twoTokenSeed());
+  const locked = deferred();
+  const gate = deferred();
+  env.afterLock = async (_txId, tokenId) => {
+    if (tokenId === 7) {
+      locked.resolve();
+      await gate.promise;
+    }
+  };
+  env.onWaiter = () => {
+    throw new Error("una subida a otro token no debe esperar");
+  };
+
+  const first = upload(service, { particularTokenId: 7 });
+  await untilLocked(locked, first);
+  const second = await upload(service, { particularTokenId: 8 });
+
+  assert.equal(second.type, "uploaded");
+  assert.equal(env.waiters, 0);
+  assert.deepEqual(env.committed.reports.map((row) => row.id), [100]);
+
+  gate.resolve();
+  assert.equal((await first).type, "uploaded");
+  assert.deepEqual(
+    env.committed.tokens.map((row) => [row.id, row.reportId !== null]),
+    [
+      [7, true],
+      [8, true],
+    ],
+  );
+  assert.deepEqual(
+    env.committed.tracking.map((row) => row.particularTokenId).sort(),
+    [7, 8],
+  );
+});
+
+test("simulación de concurrencia: si el titular del lock falla, revierte y la segunda subida continúa sobre el estado limpio", async () => {
+  const { env, service } = createEnvironment();
+  const firstLocked = deferred();
+  const gate = deferred();
+  const waiterSeen = deferred();
+  env.fault = "audit_write";
+  env.faultOnlyTx = 1;
+  env.afterLock = async (txId) => {
+    if (txId === 1) {
+      firstLocked.resolve();
+      await gate.promise;
+    }
+  };
+  env.onWaiter = () => waiterSeen.resolve();
+
+  const first = upload(service, { particularTokenId: 7 });
+  const firstOutcome = assert.rejects(
+    first,
+    (error) => error instanceof Error && error === env.thrown,
+  );
+  await untilLocked(firstLocked, first);
+  const second = upload(service, { particularTokenId: 7 });
+  await untilWaiting(waiterSeen, second);
+
+  gate.resolve();
+  await firstOutcome;
+  const secondResult = await second;
+
+  assert.equal(secondResult.type, "uploaded");
+  // Nada del titular fallido quedo: un informe, un vinculo y efectos de la segunda.
+  // El id 100 lo consumio el titular que revirtio: las secuencias no se revierten.
+  assert.deepEqual(env.committed.reports.map((row) => row.id), [101]);
+  assert.equal(env.committed.tokens[0]?.reportId, 101);
+  assert.deepEqual(
+    env.committed.tracking.map((row) => row.reportId),
+    [101],
+  );
+  assert.deepEqual(env.committed.notifications, ["report_delivered"]);
+  assert.deepEqual(env.committed.audits, ["report.uploaded"]);
+  // El objeto del titular fallido se compensa y el de la segunda se conserva.
+  assert.deepEqual(
+    env.compensations.map((entry) => entry.outcome),
+    ["deleted"],
+  );
+  assert.deepEqual(
+    [...env.storage],
+    env.committed.reports.map((row) => row.storagePath),
+  );
+});
+
+test("simulación de concurrencia: un commit ambiguo aplicado del titular se resuelve y la segunda subida no duplica efectos", async () => {
+  const { env, service } = createEnvironment();
+  const firstLocked = deferred();
+  const gate = deferred();
+  const waiterSeen = deferred();
+  env.commitFailure = "after_apply";
+  env.commitFailureOnlyTx = 1;
+  env.afterLock = async (txId) => {
+    if (txId === 1) {
+      firstLocked.resolve();
+      await gate.promise;
+    }
+  };
+  env.onWaiter = () => waiterSeen.resolve();
+
+  const first = upload(service, { particularTokenId: 7 });
+  await untilLocked(firstLocked, first);
+  const second = upload(service, { particularTokenId: 7 });
+  await untilWaiting(waiterSeen, second);
+
+  gate.resolve();
+  const [firstResult, secondResult] = await Promise.all([first, second]);
+
+  assert.equal(firstResult.type, "uploaded");
+  assert.equal(secondResult.type, "uploaded");
+  assert.deepEqual(env.committed.reports.map((row) => row.id), [100, 101]);
+  assert.equal(env.committed.tokens[0]?.reportId, 101);
+  assert.deepEqual(env.committed.notifications, ["report_delivered"]);
+  assert.deepEqual(env.committed.audits, ["report.uploaded", "report.uploaded"]);
+  assert.deepEqual(
+    env.compensations.map((entry) => entry.outcome),
+    ["commit_confirmed"],
+  );
+});
+
+test("simulación de concurrencia: cuatro subidas simultáneas a dos tokens terminan sin esperas residuales y con una asociación coherente por token", async () => {
+  const { env, service } = createEnvironment(twoTokenSeed());
+
+  const results = await Promise.all([
+    upload(service, { particularTokenId: 7 }),
+    upload(service, { particularTokenId: 8 }),
+    upload(service, { particularTokenId: 7 }),
+    upload(service, { particularTokenId: 8 }),
+  ]);
+
+  assert.deepEqual(
+    results.map((result) => result.type),
+    ["uploaded", "uploaded", "uploaded", "uploaded"],
+  );
+  assert.equal(env.waiters, 0);
+  assert.deepEqual(env.committed.audits, [
+    "report.uploaded",
+    "report.uploaded",
+    "report.uploaded",
+    "report.uploaded",
+  ]);
+  assert.deepEqual(env.committed.notifications, [
+    "report_delivered",
+    "report_delivered",
+  ]);
+  for (const token of env.committed.tokens) {
+    const linked = env.committed.reports.some((row) => row.id === token.reportId);
+    assert.equal(linked, true);
+    const cases = env.committed.tracking.filter(
+      (row) => row.particularTokenId === token.id,
+    );
+    assert.deepEqual(
+      cases.map((row) => row.reportId),
+      [token.reportId],
+    );
+  }
+  assert.deepEqual(env.compensations, []);
 });

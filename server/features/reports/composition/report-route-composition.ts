@@ -409,6 +409,8 @@ async function resolveAdminReportsDependencies(
       ? createPassthroughReportPersistenceRunner({
           ...resolved,
           createOrEditReport: resolved.upsertReport,
+          // Sin transaccion real no hay lock: el seam de tests devuelve el token vigente.
+          lockParticularToken: (tokenId) => resolved.getParticularTokenById(tokenId),
           createReportDeliveredNotification: createBestEffortNotificationWriter(
             resolved.createStudyTrackingNotification,
           ),
