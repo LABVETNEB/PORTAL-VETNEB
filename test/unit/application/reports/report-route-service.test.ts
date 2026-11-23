@@ -3,7 +3,11 @@ import test from "node:test";
 
 import {
   createReportRouteService,
+  ReportPersistenceCommitUnknownError,
+  ReportUploadPersistenceError,
   type ReportRouteServiceDependencies,
+  type ReportStorageCompensationLog,
+  type ReportUploadPersistenceScope,
   type ReportUploadRouteInput,
 } from "../../../../server/features/reports/application/index.ts";
 import { resolveReportSafeErrorName } from "../../../../server/features/reports/composition/report-route-composition.ts";
@@ -75,20 +79,70 @@ const workflow: FixtureWorkflow = {
   specialStainAt: null,
 };
 
-function dependencies(
-  overrides: Partial<Dependencies> = {},
-): Dependencies {
+type Scope = ReportUploadPersistenceScope<
+  FixtureReport,
+  FixtureToken,
+  FixtureTracking
+>;
+type Overrides = Partial<Dependencies> & Partial<Scope>;
+
+const SCOPE_KEYS: readonly string[] = [
+  "createOrEditReport",
+  "updateParticularTokenReport",
+  "getParticularStudyTrackingCase",
+  "getStudyTrackingCaseByReportId",
+  "updateStudyTrackingCase",
+  "ensureStudyTrackingCaseForToken",
+];
+
+function defaultScope(): Scope {
   return {
-    getClinicById: async (clinicId) => ({ id: clinicId }),
-    getReportById: async () => report,
-    uploadReport: async () => report.storagePath,
     createOrEditReport: async () => report,
-    getParticularTokenById: async () => token,
     updateParticularTokenReport: async () => token,
     getParticularStudyTrackingCase: async () => null,
     getStudyTrackingCaseByReportId: async () => null,
     updateStudyTrackingCase: async () => tracking,
     ensureStudyTrackingCaseForToken: async () => tracking,
+  };
+}
+
+function splitOverrides(allOverrides: Overrides) {
+  const scopeOverrides: Partial<Scope> = {};
+  const overrides: Partial<Dependencies> = {};
+
+  for (const [key, value] of Object.entries(allOverrides)) {
+    const isScopeKey = SCOPE_KEYS.includes(key);
+    if (isScopeKey) Object.assign(scopeOverrides, { [key]: value });
+    if (!isScopeKey) Object.assign(overrides, { [key]: value });
+  }
+
+  return { scopeOverrides, overrides };
+}
+
+/**
+ * Runner de ORQUESTACION: ejecuta el callback una sola vez sobre el scope.
+ * No es transaccional y no revierte nada: atomicidad y rollback no se prueban
+ * con este runner (simulacion con rollback y PostgreSQL real, en otros tests).
+ */
+function orchestrationRunner(scope: Scope): Dependencies["runReportPersistence"] {
+  return async (work) => work(scope);
+}
+
+function dependencies(
+  allOverrides: Overrides = {},
+): Dependencies {
+  const { scopeOverrides, overrides } = splitOverrides(allOverrides);
+  const scope: Scope = { ...defaultScope(), ...scopeOverrides };
+
+  return {
+    getClinicById: async (clinicId) => ({ id: clinicId }),
+    getReportById: async () => report,
+    uploadReport: async () => report.storagePath,
+    getParticularTokenById: async () => token,
+    runReportPersistence: orchestrationRunner(scope),
+    deleteStorageObject: async () => undefined,
+    isReportStoragePathPersisted: async () => false,
+    logReportStorageCompensation: () => undefined,
     createStudyTrackingNotification: async () => undefined,
     createSignedReportUrl: async (storagePath) => `preview:${storagePath}`,
     createSignedReportDownloadUrl: async (storagePath, fileName) =>
@@ -269,8 +323,8 @@ test("upload sin token no crea tracking inexistente y preserva storage, autoría
   assert.equal(result.type, "uploaded");
   assert.deepEqual(calls, [
     "clinic",
-    "storage",
     "normalize",
+    "storage",
     "create",
     "tracking",
     "audit",
@@ -412,8 +466,9 @@ test("upload distingue token inexistente y token de otra clínica antes de stora
   assert.equal(storageCalls, 0);
 });
 
-test("upload con token preserva fallback tracking, identidad y orden completo", async () => {
+test("upload con token usa el token confirmado por la persistencia, conserva identidad y orden", async () => {
   const calls: string[] = [];
+  const linked: FixtureToken = { ...token, reportId: 88, updatedAt: NOW };
   let tokenForTracking: FixtureToken | undefined;
   const service = createReportRouteService(
     dependencies({
@@ -441,9 +496,10 @@ test("upload con token preserva fallback tracking, identidad y orden completo", 
         calls.push("tracking-report");
         return null;
       },
-      updateParticularTokenReport: async () => {
+      updateParticularTokenReport: async (tokenId, reportId) => {
         calls.push("token-update");
-        return null;
+        assert.deepEqual({ tokenId, reportId }, { tokenId: 7, reportId: 88 });
+        return linked;
       },
       ensureStudyTrackingCaseForToken: async (linkedToken, input) => {
         calls.push("tracking-ensure");
@@ -460,8 +516,11 @@ test("upload con token preserva fallback tracking, identidad y orden completo", 
     }),
   );
 
-  await service.uploadAdminReport(uploadInput({ particularTokenId: 7 }));
+  const result = await service.uploadAdminReport(
+    uploadInput({ particularTokenId: 7 }),
+  );
 
+  assert.equal(result.type, "uploaded");
   assert.deepEqual(calls, [
     "clinic",
     "token-get",
@@ -474,12 +533,497 @@ test("upload con token preserva fallback tracking, identidad y orden completo", 
     "notification",
     "audit",
   ]);
-  assert.deepEqual(tokenForTracking, {
-    ...token,
-    reportId: 88,
-    updatedAt: NOW,
-  });
+  assert.equal(tokenForTracking, linked);
   assert.equal(tokenForTracking?.createdByClinicUserId, 19);
+});
+
+const SAFE_STORAGE_PATH = "clinics/3/1790000000000-0123456789ab-informe.pdf";
+
+type CompensationProbe = {
+  calls: string[];
+  deleted: string[];
+  verified: string[];
+  logs: ReportStorageCompensationLog[];
+};
+
+function newCompensationProbe(): CompensationProbe {
+  return { calls: [], deleted: [], verified: [], logs: [] };
+}
+
+function compensationService(
+  probe: CompensationProbe,
+  overrides: Overrides = {},
+  hooks: Partial<{
+    storagePath: string;
+    persisted: () => Promise<boolean>;
+    remove: () => Promise<void>;
+  }> = {},
+) {
+  const resolved = {
+    storagePath: SAFE_STORAGE_PATH,
+    persisted: async () => false,
+    remove: async () => undefined,
+    ...hooks,
+  };
+
+  return createReportRouteService(
+    dependencies({
+      uploadReport: async () => {
+        probe.calls.push("storage");
+        return resolved.storagePath;
+      },
+      deleteStorageObject: async (storagePath) => {
+        probe.calls.push("delete");
+        probe.deleted.push(storagePath);
+        await resolved.remove();
+      },
+      isReportStoragePathPersisted: async (storagePath) => {
+        probe.calls.push("verify");
+        probe.verified.push(storagePath);
+        return resolved.persisted();
+      },
+      logReportStorageCompensation: (input) => {
+        probe.calls.push("log");
+        probe.logs.push(input);
+      },
+      createStudyTrackingNotification: async () => {
+        probe.calls.push("notification");
+      },
+      writeAuditLog: async () => {
+        probe.calls.push("audit");
+      },
+      ...overrides,
+    }),
+  );
+}
+
+test("orquestación: asociación de token no confirmada falla cerrado, compensa y no simula éxito", async (context) => {
+  const outcomes: Array<{ label: string; linked: FixtureToken | null }> = [
+    { label: "update devuelve null", linked: null },
+    {
+      label: "update devuelve token de otra clínica",
+      linked: { ...token, clinicId: 99, reportId: 88 },
+    },
+  ];
+
+  for (const outcome of outcomes) {
+    await context.test(outcome.label, async () => {
+      const probe = newCompensationProbe();
+      const service = compensationService(probe, {
+        updateParticularTokenReport: async () => {
+          probe.calls.push("token-update");
+          return outcome.linked;
+        },
+        ensureStudyTrackingCaseForToken: async () => {
+          probe.calls.push("tracking-ensure");
+          return tracking;
+        },
+      });
+
+      await assert.rejects(
+        service.uploadAdminReport(uploadInput({ particularTokenId: 7 })),
+        (error) =>
+          error instanceof ReportUploadPersistenceError &&
+          error.code === "token_link_failed",
+      );
+      assert.deepEqual(probe.calls, [
+        "storage",
+        "token-update",
+        "verify",
+        "delete",
+        "log",
+      ]);
+      assert.deepEqual(probe.deleted, [SAFE_STORAGE_PATH]);
+    });
+  }
+});
+
+test("orquestación: update de tracking sin fila afectada falla cerrado y no notifica ni audita", async () => {
+  const probe = newCompensationProbe();
+  const pending = { ...tracking, currentStage: "processing", deliveredAt: null };
+  const service = compensationService(probe, {
+    getStudyTrackingCaseByReportId: async () => pending,
+    updateStudyTrackingCase: async () => {
+      probe.calls.push("tracking-update");
+      return null;
+    },
+  });
+
+  await assert.rejects(
+    service.uploadAdminReport(uploadInput()),
+    (error) =>
+      error instanceof ReportUploadPersistenceError &&
+      error.code === "tracking_write_failed",
+  );
+  assert.deepEqual(probe.calls, [
+    "storage",
+    "tracking-update",
+    "verify",
+    "delete",
+    "log",
+  ]);
+});
+
+test("orquestación: fallo al asegurar tracking del token propaga el error original y compensa", async () => {
+  const probe = newCompensationProbe();
+  const failure = new Error("tracking_create_failure");
+  const service = compensationService(probe, {
+    ensureStudyTrackingCaseForToken: async () => {
+      probe.calls.push("tracking-ensure");
+      throw failure;
+    },
+  });
+
+  await assert.rejects(
+    service.uploadAdminReport(uploadInput({ particularTokenId: 7 })),
+    (error) => error === failure,
+  );
+  assert.deepEqual(probe.calls, [
+    "storage",
+    "tracking-ensure",
+    "verify",
+    "delete",
+    "log",
+  ]);
+  assert.deepEqual(probe.deleted, [SAFE_STORAGE_PATH]);
+});
+
+test("orquestación: persistencia fallida sin referencia elimina sólo el objeto nuevo y propaga el error original", async () => {
+  const probe = newCompensationProbe();
+  const failure = new Error("persist_failure");
+  const service = compensationService(probe, {
+    createOrEditReport: async () => {
+      throw failure;
+    },
+  });
+
+  await assert.rejects(
+    service.uploadAdminReport(uploadInput()),
+    (error) => error === failure,
+  );
+  assert.deepEqual(probe.calls, ["storage", "verify", "delete", "log"]);
+  assert.deepEqual(probe.verified, [SAFE_STORAGE_PATH]);
+  assert.deepEqual(probe.deleted, [SAFE_STORAGE_PATH]);
+  assert.deepEqual(probe.logs, [
+    {
+      outcome: "deleted",
+      clinicId: 3,
+      storagePath: SAFE_STORAGE_PATH,
+      persistErrorName: "Error",
+      verification: "not_persisted",
+    },
+  ]);
+});
+
+test("orquestación: objeto con referencia persistida nunca se elimina", async () => {
+  const probe = newCompensationProbe();
+  const failure = new Error("persist_failure");
+  const service = compensationService(
+    probe,
+    {
+      createOrEditReport: async () => {
+        throw failure;
+      },
+    },
+    { persisted: async () => true },
+  );
+
+  await assert.rejects(
+    service.uploadAdminReport(uploadInput()),
+    (error) => error === failure,
+  );
+  assert.deepEqual(probe.calls, ["storage", "verify", "log"]);
+  assert.deepEqual(probe.deleted, []);
+  assert.deepEqual(probe.logs, [
+    {
+      outcome: "preserved_referenced",
+      clinicId: 3,
+      storagePath: SAFE_STORAGE_PATH,
+      persistErrorName: "Error",
+      verification: "persisted",
+    },
+  ]);
+});
+
+test("orquestación: verificación imposible preserva el objeto y propaga el error original", async () => {
+  const probe = newCompensationProbe();
+  const failure = new Error("persist_failure");
+  const service = compensationService(
+    probe,
+    {
+      createOrEditReport: async () => {
+        throw failure;
+      },
+    },
+    {
+      persisted: async () => {
+        throw new Error("verify_failure");
+      },
+    },
+  );
+
+  await assert.rejects(
+    service.uploadAdminReport(uploadInput()),
+    (error) => error === failure,
+  );
+  assert.deepEqual(probe.calls, ["storage", "verify", "log"]);
+  assert.deepEqual(probe.deleted, []);
+  assert.deepEqual(probe.logs, [
+    {
+      outcome: "preserved_verification_failed",
+      clinicId: 3,
+      storagePath: SAFE_STORAGE_PATH,
+      persistErrorName: "Error",
+      errorName: "Error",
+      verification: "unverifiable",
+    },
+  ]);
+});
+
+test("orquestación: fallo de compensación se registra y no reemplaza el error original", async () => {
+  const probe = newCompensationProbe();
+  const failure = new Error("persist_failure");
+  const service = compensationService(
+    probe,
+    {
+      createOrEditReport: async () => {
+        throw failure;
+      },
+    },
+    {
+      remove: async () => {
+        throw new Error("delete_failure");
+      },
+    },
+  );
+
+  await assert.rejects(
+    service.uploadAdminReport(uploadInput()),
+    (error) => error === failure,
+  );
+  assert.deepEqual(probe.calls, ["storage", "verify", "delete", "log"]);
+  assert.deepEqual(probe.logs, [
+    {
+      outcome: "delete_failed",
+      clinicId: 3,
+      storagePath: SAFE_STORAGE_PATH,
+      persistErrorName: "Error",
+      errorName: "Error",
+      verification: "not_persisted",
+    },
+  ]);
+});
+
+test("orquestación: commit ambiguo nunca elimina el objeto y sólo verifica y registra", async (context) => {
+  const cases: Array<{
+    label: string;
+    verify: () => Promise<boolean>;
+    expected: "persisted" | "not_persisted" | "unverifiable";
+  }> = [
+    { label: "objeto referenciado", verify: async () => true, expected: "persisted" },
+    { label: "objeto no referenciado", verify: async () => false, expected: "not_persisted" },
+    {
+      label: "verificación imposible",
+      verify: async () => {
+        throw new Error("verify_failure");
+      },
+      expected: "unverifiable",
+    },
+  ];
+
+  for (const scenario of cases) {
+    await context.test(scenario.label, async () => {
+      const probe = newCompensationProbe();
+      const ambiguous = new ReportPersistenceCommitUnknownError({
+        cause: new Error("commit_failure"),
+      });
+      const service = compensationService(
+        probe,
+        {
+          runReportPersistence: async () => {
+            throw ambiguous;
+          },
+        },
+        { persisted: scenario.verify },
+      );
+
+      await assert.rejects(
+        service.uploadAdminReport(uploadInput()),
+        (error) => error === ambiguous,
+      );
+      assert.deepEqual(probe.deleted, []);
+      assert.deepEqual(probe.calls, ["storage", "verify", "log"]);
+      assert.deepEqual(probe.logs, [
+        {
+          outcome: "preserved_commit_unknown",
+          clinicId: 3,
+          storagePath: SAFE_STORAGE_PATH,
+          persistErrorName: "Error",
+          verification: scenario.expected,
+        },
+      ]);
+    });
+  }
+});
+
+test("orquestación: paths que no son exactamente clinics/<clínica>/<objeto> nunca se verifican ni eliminan", async (context) => {
+  const unsafePaths = [
+    "reports/3/informe.pdf",
+    "clinics/4/1790000000000-0123456789ab-informe.pdf",
+    "clinics/3/nested/1790000000000-0123456789ab-informe.pdf",
+    "clinics/3/..",
+  ];
+
+  for (const unsafePath of unsafePaths) {
+    await context.test(unsafePath, async () => {
+      const probe = newCompensationProbe();
+      const failure = new Error("persist_failure");
+      const service = compensationService(
+        probe,
+        {
+          createOrEditReport: async () => {
+            throw failure;
+          },
+        },
+        { storagePath: unsafePath },
+      );
+
+      await assert.rejects(
+        service.uploadAdminReport(uploadInput()),
+        (error) => error === failure,
+      );
+      assert.deepEqual(probe.calls, ["storage", "log"]);
+      assert.deepEqual(probe.verified, []);
+      assert.deepEqual(probe.deleted, []);
+      assert.deepEqual(probe.logs, [
+        {
+          outcome: "preserved_unsafe_path",
+          clinicId: 3,
+          storagePath: unsafePath,
+          persistErrorName: "Error",
+        },
+      ]);
+    });
+  }
+});
+
+test("orquestación: persistencia confirmada no dispara compensación y audita después", async () => {
+  const probe = newCompensationProbe();
+  const service = compensationService(probe);
+
+  const result = await service.uploadAdminReport(uploadInput());
+
+  assert.equal(result.type, "uploaded");
+  assert.deepEqual(probe.calls, ["storage", "audit"]);
+  assert.deepEqual(probe.deleted, []);
+  assert.deepEqual(probe.verified, []);
+  assert.deepEqual(probe.logs, []);
+});
+
+test("orquestación: fallo de auditoría posterior a persistencia confirmada no elimina el objeto", async () => {
+  const probe = newCompensationProbe();
+  const failure = new Error("audit_failure");
+  const service = compensationService(probe, {
+    writeAuditLog: async () => {
+      probe.calls.push("audit");
+      throw failure;
+    },
+  });
+
+  await assert.rejects(
+    service.uploadAdminReport(uploadInput()),
+    (error) => error === failure,
+  );
+  assert.deepEqual(probe.calls, ["storage", "audit"]);
+  assert.deepEqual(probe.deleted, []);
+  assert.deepEqual(probe.verified, []);
+});
+
+test("orquestación: fallo de Storage no ejecuta persistencia, compensación ni auditoría", async () => {
+  const probe = newCompensationProbe();
+  const failure = new Error("storage_failure");
+  const service = compensationService(probe, {
+    uploadReport: async () => {
+      probe.calls.push("storage");
+      throw failure;
+    },
+    runReportPersistence: async () => {
+      probe.calls.push("persist");
+      throw new Error("no debe ejecutarse");
+    },
+  });
+
+  await assert.rejects(
+    service.uploadAdminReport(uploadInput()),
+    (error) => error === failure,
+  );
+  assert.deepEqual(probe.calls, ["storage"]);
+});
+
+test("orquestación: parseo inválido falla antes de subir a Storage", async () => {
+  const probe = newCompensationProbe();
+  const failure = new Error("parse_failure");
+  const service = compensationService(probe, {
+    parseOptionalDate: () => {
+      throw failure;
+    },
+  });
+
+  await assert.rejects(
+    service.uploadAdminReport(uploadInput()),
+    (error) => error === failure,
+  );
+  assert.deepEqual(probe.calls, []);
+});
+
+test("orquestación: no reintenta la subida ni la persistencia ante un fallo", async () => {
+  const probe = newCompensationProbe();
+  const failure = new Error("persist_failure");
+  let attempts = 0;
+  const service = compensationService(probe, {
+    runReportPersistence: async () => {
+      attempts += 1;
+      throw failure;
+    },
+  });
+
+  await assert.rejects(
+    service.uploadAdminReport(uploadInput()),
+    (error) => error === failure,
+  );
+  assert.equal(attempts, 1);
+  assert.deepEqual(probe.calls, ["storage", "verify", "delete", "log"]);
+});
+
+test("orquestación: el evento interno de compensación no lleva mensajes ni nombres de error arbitrarios", async () => {
+  const probe = newCompensationProbe();
+  const thrown = Object.assign(new Error("PII: Luna, historia clínica 123"), {
+    name: "LunaPacienteError",
+  });
+  const service = compensationService(probe, {
+    resolveSafeErrorName: resolveReportSafeErrorName,
+    createOrEditReport: async () => {
+      throw thrown;
+    },
+  });
+
+  await assert.rejects(
+    service.uploadAdminReport(uploadInput()),
+    (error) => error === thrown,
+  );
+  assert.deepEqual(probe.logs, [
+    {
+      outcome: "deleted",
+      clinicId: 3,
+      storagePath: SAFE_STORAGE_PATH,
+      persistErrorName: "Error",
+      verification: "not_persisted",
+    },
+  ]);
+  const serialized = JSON.stringify(probe.logs).toLowerCase();
+  for (const forbidden of ["luna", "pii", "historia", "paciente"]) {
+    assert.equal(serialized.includes(forbidden), false, forbidden);
+  }
 });
 
 test("notification report_delivered fallida es best-effort y audit precede resultado", async () => {

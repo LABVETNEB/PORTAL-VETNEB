@@ -8,3 +8,12 @@ export async function loadReportsParticularAccessPersistence() {
       repository.updateParticularTokenReport,
   };
 }
+
+export async function loadReportUploadParticularAccessPersistence() {
+  const repository = await import("./infrastructure/index.ts");
+
+  return {
+    createTransactionalParticularTokenRepository:
+      repository.createTransactionalParticularTokenRepository,
+  };
+}

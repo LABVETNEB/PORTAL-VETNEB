@@ -45,6 +45,7 @@ const expectedComposition = [
   `${composition}/report-command-composition.ts`,
   `${composition}/report-query-composition.ts`,
   `${composition}/report-route-composition.ts`,
+  `${composition}/report-upload-persistence-composition.ts`,
   `${composition}/report-workflow-communication-composition.ts`,
 ] as const;
 
@@ -281,7 +282,10 @@ test("infrastructure implementa ambos puertos y concentra DB schema y tablas", (
       "studyTrackingNotifications",
     ]) {
       if (
-        path === `${composition}/report-route-composition.ts` &&
+        [
+          `${composition}/report-route-composition.ts`,
+          `${composition}/report-upload-persistence-composition.ts`,
+        ].includes(path) &&
         marker === "drizzle/schema.ts"
       ) {
         continue;
@@ -308,6 +312,7 @@ test("composition es el unico bridge M37 entre application e infrastructure", ()
     `${composition}/report-command-composition.ts`,
     `${composition}/report-query-composition.ts`,
     `${composition}/report-route-composition.ts`,
+    `${composition}/report-upload-persistence-composition.ts`,
     `${composition}/report-workflow-communication-composition.ts`,
   ]);
 });
@@ -460,12 +465,22 @@ test("best effort catch y logging seguro permanecen en los owners autorizados", 
     .filter((path) => /\bcatch\b/.test(read(path)));
   assert.deepEqual(catches, [
     `${application}/report-route-service.ts`,
+    `${composition}/report-upload-persistence-composition.ts`,
     `${infrastructure}/db-report-workflow.ts`,
     `${infrastructure}/report-command-repository.ts`,
   ]);
+  // SEC-09: 1 catch best-effort de notificacion + 3 de la compensacion de
+  // Storage (verificacion, borrado y captura del fallo de persistencia).
   assert.equal(
     read(`${application}/report-route-service.ts`).match(/\bcatch\s*\(/g)
       ?.length,
+    4,
+  );
+  // SEC-09: un unico catch en el runner, que reclasifica el commit ambiguo.
+  assert.equal(
+    read(`${composition}/report-upload-persistence-composition.ts`).match(
+      /\bcatch\s*\(/g,
+    )?.length,
     1,
   );
   assert.equal(
@@ -477,5 +492,9 @@ test("best effort catch y logging seguro permanecen en los owners autorizados", 
     `${infrastructure}/report-command-repository.ts`,
   );
   assert.equal(commandRepository.match(/\bcatch\s*\(/g)?.length, 1);
-  assert.ok(commandRepository.includes('error.code !== "42703"'));
+  assert.ok(
+    commandRepository.includes(
+      '(candidate as { code?: unknown }).code === "42703"',
+    ),
+  );
 });

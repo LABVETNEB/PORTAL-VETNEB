@@ -68,3 +68,12 @@ export async function loadParticularAccessStudyTrackingPersistence() {
       repository.createStudyTrackingNotification,
   };
 }
+
+export async function loadReportUploadStudyTrackingPersistence() {
+  const repository = await import("./infrastructure/index.ts");
+
+  return {
+    createTransactionalStudyTrackingRepository:
+      repository.createTransactionalStudyTrackingRepository,
+  };
+}

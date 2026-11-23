@@ -292,15 +292,17 @@ PR-SEC-16 (minimización de la divulgación pública de `GET /`, `/health` y `/a
 
 PR-SEC-12 (SEC-10: política única `resolveReportAccessTokenExpiry` en `server/features/report-access/domain/report-access.ts`, su uso en las rutas de creación de tokens de clínica y admin, y la cota `SUPABASE_SIGNED_URL_EXPIRES_IN_SECONDS` en `server/lib/env.ts`) lleva `server/features` de 19.209 a 19.256 (Report Access 724 → 771), `server/routes` de 22.151 a 22.177 y `server/lib` de 5.957 a 5.970. Total 246/50.396 → 246/50.482.
 
+PR-SEC-16 (SEC-09: subida de informes con persistencia transaccional y compensación de Storage; `report-upload-persistence-composition.ts` en Reports, el repositorio transaccional de token `particular-access-transactional-repository.ts`, el dueño de la transacción `runReportUploadTransaction` en `server/features/reports/infrastructure/report-command-repository.ts` y la reescritura de `uploadAdminReport` en `report-route-service.ts`) lleva `server/features/reports` de 27/3.187 a 28/3.626 (incluye el savepoint y el reconocimiento de `error.cause` del fallback `42703` en `report-command-repository.ts`), `server/features/particular-access` de 12/1.086 a 13/1.119, `server/features/study-tracking` de 21/2.908 a 21/2.979 y `server/features` de 19.256 a 19.799 (161 → 163 archivos); `server/routes`, `server/lib` y la raíz no cambian. Total 246/50.614 → 248/51.157.
+
 | Área | Archivos TypeScript | LOC |
 | --- | ---: | ---: |
-| `server/features` | 161 | 19.256 |
+| `server/features` | 163 | 19.799 |
 | `server/routes` | 38 | 22.289 |
 | `server/lib` | 35 | 5.990 |
 | `server/middlewares` | 3 | 429 |
 | raíz/entrypoints `server/*.ts` | 9 | 2.650 |
 | otros | 0 | 0 |
-| **Total `server`** | **246** | **50.614** |
+| **Total `server`** | **248** | **51.157** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por
@@ -323,12 +325,12 @@ porque ésa es su topología proporcional documentada.
 | Clinics | 10 | 2.764 | domain, infrastructure, servicios directos | sí | Users/Roles (2 refs) | Public Professionals (3) | M29 |
 | Global Search | 12 | 1.989 | domain, application, infrastructure | sí | ninguna | ninguna | GLOBAL-SEARCH-1 |
 | Logistics | 46 | 4.238 | domain, application, infrastructure | no requerido | ninguna | ninguna | M17 |
-| Particular Access | 12 | 1.086 | domain, application, infrastructure | sí | Reports (1) | Reports/ST (7) | M33/M35b |
+| Particular Access | 13 | 1.119 | domain, application, infrastructure | sí | Reports (1) | Reports/ST (7) | M33/M35b |
 | Pricing | 4 | 489 | infrastructure, servicios directos | no requerido | ninguna | ninguna | M20 |
 | Public Professionals | 8 | 1.150 | domain, infrastructure | sí | Clinics (3) | ninguna | M24 |
 | Report Access | 12 | 771 | domain, application, infrastructure, composition | sí | ninguna | Reports (1) | M34/M35b |
-| Reports | 27 | 3.187 | domain, application, infrastructure, composition | sí | Particular/Report Access (4) | Particular/ST (3) | M41 |
-| Study Tracking | 21 | 2.908 | domain, application, infrastructure | sí | Particular/Reports (6) | ninguna | M35 |
+| Reports | 28 | 3.626 | domain, application, infrastructure, composition | sí | Particular/Report Access (4) | Particular/ST (3) | M41 |
+| Study Tracking | 21 | 2.979 | domain, application, infrastructure | sí | Particular/Reports (6) | ninguna | M35 |
 | Users/Roles | 9 | 674 | domain, application, infrastructure, composition feature-level | no requerido | ninguna | Clinics (2) | M43 |
 
 Barrels públicos reales:

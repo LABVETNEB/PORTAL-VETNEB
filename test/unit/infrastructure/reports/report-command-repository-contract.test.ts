@@ -88,6 +88,9 @@ function fakeDatabase(overrides: Partial<FakeState> = {}) {
         throw state.executeError;
       }
     },
+    // Savepoint anidado: no abre una transaccion de base de datos nueva.
+    transaction: async <T>(operation: (savepoint: unknown) => Promise<T>) =>
+      operation(tx),
   };
   const database = {
     select,
@@ -368,6 +371,55 @@ test("fallback Drizzle corre sólo ante PostgreSQL 42703", async () => {
   assert.equal(nonFallback.state.insertValues.length, 0);
 });
 
+test("fallback Drizzle reconoce el 42703 envuelto en error.cause, la forma real de drizzle-orm", async () => {
+  const timestamp = new Date("2026-07-27T14:00:00.000Z");
+  const wrapped = fakeDatabase({
+    selectResults: [[{ id: 41, currentStatus: "ready" }]],
+    executeError: Object.assign(new Error("Failed query"), {
+      cause: { code: "42703" },
+    }),
+  });
+  const repository = createReportCommandRepository({
+    database: wrapped.database as never,
+    now: () => timestamp,
+  });
+
+  await repository.persistReportStatusTransition({
+    reportId: 41,
+    expectedFromStatus: "ready",
+    toStatus: "delivered",
+    note: null,
+    changedByClinicUserId: null,
+    changedByAdminUserId: 6,
+  });
+
+  assert.deepEqual(
+    wrapped.state.insertValues.map((values) => values.reportId),
+    [41],
+  );
+
+  const wrappedOther = Object.assign(new Error("Failed query"), {
+    cause: { code: "23505" },
+  });
+  const rejected = fakeDatabase({
+    selectResults: [[{ id: 41, currentStatus: "ready" }]],
+    executeError: wrappedOther,
+  });
+  const rejectedRepository = createReportCommandRepository({
+    database: rejected.database as never,
+  });
+
+  await assert.rejects(
+    rejectedRepository.persistReportStatusTransition({
+      reportId: 41,
+      expectedFromStatus: "ready",
+      toStatus: "delivered",
+    }),
+    (error) => error === wrappedOther,
+  );
+  assert.deepEqual(rejected.state.insertValues, []);
+});
+
 test("source contract fija SQL dual, autoría, límites y ausencia de side effects", () => {
   const source = readSourceFile("server/features/reports/infrastructure/report-command-repository.ts");
 
@@ -392,7 +444,8 @@ test("source contract fija SQL dual, autoría, límites y ausencia de side effec
     '"changed_by_admin_user_id"',
     '"note"',
     "input.createdAt.toISOString()",
-    'error.code !== "42703"',
+    '(candidate as { code?: unknown }).code === "42703"',
+    "!isUndefinedColumnError(error)",
     "input.changedByClinicUserId ?? input.changedByAdminUserId ?? null",
     'input.changedByClinicUserId != null\n      ? "clinic_user"',
     ': input.changedByAdminUserId != null\n        ? "admin_user"\n        : "system"',

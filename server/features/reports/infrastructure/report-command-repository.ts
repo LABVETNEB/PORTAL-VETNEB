@@ -7,7 +7,7 @@ import {
   type ReportStatus,
 } from "../../../../drizzle/schema.ts";
 type ReportCommandDatabase = typeof db;
-type ReportCommandTransaction = Parameters<
+export type ReportCommandTransaction = Parameters<
   Parameters<ReportCommandDatabase["transaction"]>[0]
 >[0];
 
@@ -21,7 +21,7 @@ type HistoryInput = {
   createdAt: Date;
 };
 
-type CreateOrEditReportPersistenceInput = {
+export type CreateOrEditReportPersistenceInput = {
   clinicId: number;
   uploadDate?: Date | null;
   studyType?: string | null;
@@ -41,6 +41,27 @@ type PersistReportStatusTransitionCommand = {
   changedByAdminUserId?: number | null;
 };
 
+/**
+ * Drizzle envuelve el error de PostgreSQL: el codigo SQLSTATE puede venir en
+ * `error.code` o en `error.cause.code`. Solo 42703 (columna inexistente)
+ * habilita el fallback.
+ */
+function isUndefinedColumnError(error: unknown): boolean {
+  const candidates = [
+    error,
+    typeof error === "object" && error !== null
+      ? (error as { cause?: unknown }).cause
+      : undefined,
+  ];
+
+  return candidates.some(
+    (candidate) =>
+      typeof candidate === "object" &&
+      candidate !== null &&
+      (candidate as { code?: unknown }).code === "42703",
+  );
+}
+
 async function insertCompatibleReportStatusHistory(
   tx: ReportCommandTransaction,
   input: HistoryInput,
@@ -55,7 +76,10 @@ async function insertCompatibleReportStatusHistory(
         : "system";
 
   try {
-    await tx.execute(sql`
+    // Savepoint: un 42703 revierte solo este INSERT y deja usable la
+    // transaccion externa para el fallback (sin savepoint seria 25P02).
+    await tx.transaction(async (savepoint) => {
+      await savepoint.execute(sql`
       INSERT INTO "report_status_history" (
         "report_id",
         "status",
@@ -85,26 +109,95 @@ async function insertCompatibleReportStatusHistory(
         ${input.note}
       )
     `);
+    });
+    return;
   } catch (error) {
-    if (
-      typeof error !== "object" ||
-      error === null ||
-      !("code" in error) ||
-      error.code !== "42703"
-    ) {
+    if (!isUndefinedColumnError(error)) {
       throw error;
     }
-
-    await tx.insert(reportStatusHistory).values({
-      reportId: input.reportId,
-      fromStatus: input.fromStatus,
-      toStatus: input.toStatus,
-      changedByClinicUserId: input.changedByClinicUserId,
-      changedByAdminUserId: input.changedByAdminUserId,
-      note: input.note,
-      createdAt: input.createdAt,
-    });
   }
+
+  await tx.insert(reportStatusHistory).values({
+    reportId: input.reportId,
+    fromStatus: input.fromStatus,
+    toStatus: input.toStatus,
+    changedByClinicUserId: input.changedByClinicUserId,
+    changedByAdminUserId: input.changedByAdminUserId,
+    note: input.note,
+    createdAt: input.createdAt,
+  });
+}
+
+/**
+ * Unico punto de apertura de la transaccion de subida: infrastructure es el
+ * owner de las transacciones; composition solo la recibe ya abierta.
+ */
+export function runReportUploadTransaction<TResult>(
+  work: (tx: ReportCommandTransaction) => Promise<TResult>,
+): Promise<TResult> {
+  return db.transaction(work);
+}
+
+export async function createOrEditReportWithinTransaction(
+  tx: ReportCommandTransaction,
+  input: CreateOrEditReportPersistenceInput,
+  operationTimestamp: Date,
+) {
+  const existing = await tx
+    .select()
+    .from(reports)
+    .where(eq(reports.storagePath, input.storagePath))
+    .limit(1);
+
+  if (existing[0]) {
+    const updated = await tx
+      .update(reports)
+      .set({
+        uploadDate: input.uploadDate ?? null,
+        studyType: input.studyType ?? null,
+        patientName: input.patientName ?? null,
+        fileName: input.fileName ?? null,
+        updatedAt: operationTimestamp,
+      })
+      .where(eq(reports.id, existing[0].id))
+      .returning();
+
+    return updated[0];
+  }
+
+  const inserted = await tx
+    .insert(reports)
+    .values({
+      clinicId: input.clinicId,
+      uploadDate: input.uploadDate ?? null,
+      studyType: input.studyType ?? null,
+      patientName: input.patientName ?? null,
+      fileName: input.fileName ?? null,
+      storagePath: input.storagePath,
+      previewUrl: null,
+      downloadUrl: null,
+      currentStatus: "uploaded",
+      statusChangedAt: operationTimestamp,
+      statusChangedByClinicUserId:
+        input.createdByClinicUserId ?? null,
+      statusChangedByAdminUserId: input.createdByAdminUserId ?? null,
+      createdAt: operationTimestamp,
+      updatedAt: operationTimestamp,
+    })
+    .returning();
+  const report = inserted[0];
+
+  await insertCompatibleReportStatusHistory(tx, {
+    reportId: report.id,
+    fromStatus: null,
+    toStatus: "uploaded",
+    changedByClinicUserId: input.createdByClinicUserId ?? null,
+    changedByAdminUserId: input.createdByAdminUserId ?? null,
+    note: "Informe cargado inicialmente",
+    createdAt: operationTimestamp,
+  });
+
+  return report;
 }
 
 export function createReportCommandRepository(dependencies?: {
@@ -128,63 +221,19 @@ export function createReportCommandRepository(dependencies?: {
     async createOrEditReport(input: CreateOrEditReportPersistenceInput) {
       const operationTimestamp = now();
 
-      return database.transaction(async (tx) => {
-        const existing = await tx
-          .select()
-          .from(reports)
-          .where(eq(reports.storagePath, input.storagePath))
-          .limit(1);
+      return database.transaction((tx) =>
+        createOrEditReportWithinTransaction(tx, input, operationTimestamp),
+      );
+    },
 
-        if (existing[0]) {
-          const updated = await tx
-            .update(reports)
-            .set({
-              uploadDate: input.uploadDate ?? null,
-              studyType: input.studyType ?? null,
-              patientName: input.patientName ?? null,
-              fileName: input.fileName ?? null,
-              updatedAt: operationTimestamp,
-            })
-            .where(eq(reports.id, existing[0].id))
-            .returning();
+    async isStoragePathReferenced(storagePath: string) {
+      const result = await database
+        .select({ id: reports.id })
+        .from(reports)
+        .where(eq(reports.storagePath, storagePath))
+        .limit(1);
 
-          return updated[0];
-        }
-
-        const inserted = await tx
-          .insert(reports)
-          .values({
-            clinicId: input.clinicId,
-            uploadDate: input.uploadDate ?? null,
-            studyType: input.studyType ?? null,
-            patientName: input.patientName ?? null,
-            fileName: input.fileName ?? null,
-            storagePath: input.storagePath,
-            previewUrl: null,
-            downloadUrl: null,
-            currentStatus: "uploaded",
-            statusChangedAt: operationTimestamp,
-            statusChangedByClinicUserId:
-              input.createdByClinicUserId ?? null,
-            statusChangedByAdminUserId: input.createdByAdminUserId ?? null,
-            createdAt: operationTimestamp,
-            updatedAt: operationTimestamp,
-          })
-          .returning();
-        const report = inserted[0];
-
-        await insertCompatibleReportStatusHistory(tx, {
-          reportId: report.id,
-          fromStatus: null,
-          toStatus: "uploaded",
-          changedByClinicUserId: input.createdByClinicUserId ?? null,
-          changedByAdminUserId: input.createdByAdminUserId ?? null,
-          note: "Informe cargado inicialmente",
-          createdAt: operationTimestamp,
-        });
-
-        return report;
-      });
+      return result.length > 0;
     },
 
     async persistReportStatusTransition(

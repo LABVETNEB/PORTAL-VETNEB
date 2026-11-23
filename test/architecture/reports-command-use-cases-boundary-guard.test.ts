@@ -41,6 +41,7 @@ const expectedComposition = [
   `${composition}/report-command-composition.ts`,
   `${composition}/report-query-composition.ts`,
   `${composition}/report-route-composition.ts`,
+  `${composition}/report-upload-persistence-composition.ts`,
   `${composition}/report-workflow-communication-composition.ts`,
 ].sort();
 
@@ -207,6 +208,7 @@ test("composition contiene los únicos bridges application a infrastructure", ()
     `${composition}/report-command-composition.ts`,
     `${composition}/report-query-composition.ts`,
     `${composition}/report-route-composition.ts`,
+    `${composition}/report-upload-persistence-composition.ts`,
     `${composition}/report-workflow-communication-composition.ts`,
   ]);
   assert.equal(read(`${composition}/report-command-composition.ts`).includes(".select("), false);
@@ -239,7 +241,7 @@ test("infrastructure es owner único de DB transacciones tablas y SQL M38", () =
     "fromStatus: input.expectedFromStatus",
     ".limit(1)",
     ".returning()",
-    'error.code !== "42703"',
+    '(candidate as { code?: unknown }).code === "42703"',
   ]) {
     assert.ok(repository.includes(marker), marker);
   }
@@ -357,5 +359,5 @@ test("M38 excluye HTTP auth audit storage email y catch general", () => {
 
   const repository = read(`${infrastructure}/report-command-repository.ts`);
   assert.equal(repository.match(/\bcatch\s*\(/g)?.length, 1);
-  assert.ok(repository.includes('error.code !== "42703"'));
+  assert.ok(repository.includes('(candidate as { code?: unknown }).code === "42703"'));
 });
