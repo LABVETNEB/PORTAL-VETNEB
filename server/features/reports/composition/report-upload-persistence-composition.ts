@@ -5,6 +5,7 @@ import type {
   Report,
   StudyTrackingCase,
 } from "../../../../drizzle/schema.ts";
+import { AUDIT_EVENTS, buildAuditLogInsert } from "../../../lib/audit.ts";
 import { isSafeRequestId } from "../../../lib/http/api-request-id.ts";
 import { logError, logInfo, logWarn } from "../../../lib/logger.ts";
 import { ensureStudyTrackingCaseForToken } from "../../study-tracking/index.ts";
@@ -36,7 +37,30 @@ export type ReportUploadScopeParts = {
     id: number,
     input: Partial<Omit<StudyTrackingCase, "id" | "createdAt" | "updatedAt">>,
   ) => Promise<StudyTrackingCase | null | undefined>;
+  createReportDeliveredNotification: UploadScope["createReportDeliveredNotification"];
+  writeReportUploadedAudit: UploadScope["writeReportUploadedAudit"];
 };
+
+type DeliveredNotificationInput = Parameters<
+  UploadScope["createReportDeliveredNotification"]
+>[0];
+
+/**
+ * Unico sitio best-effort de la notificacion: devuelve el fallo en vez de
+ * lanzarlo para que el servicio lo registre sin abortar la subida.
+ */
+export function createBestEffortNotificationWriter(
+  write: (input: DeliveredNotificationInput) => Promise<unknown>,
+): UploadScope["createReportDeliveredNotification"] {
+  return async (input) => {
+    try {
+      await write(input);
+      return { created: true };
+    } catch (error) {
+      return { created: false, error };
+    }
+  };
+}
 
 /**
  * Arma el scope de escrituras de una subida. Dentro de una transaccion, un
@@ -63,6 +87,8 @@ export function buildReportUploadScope(
     getParticularStudyTrackingCase: parts.getParticularStudyTrackingCase,
     getStudyTrackingCaseByReportId: parts.getStudyTrackingCaseByReportId,
     updateStudyTrackingCase: parts.updateStudyTrackingCase,
+    createReportDeliveredNotification: parts.createReportDeliveredNotification,
+    writeReportUploadedAudit: parts.writeReportUploadedAudit,
     ensureStudyTrackingCaseForToken: (token, input) =>
       ensureStudyTrackingCaseForToken(
         {
@@ -120,31 +146,36 @@ export function createTransactionalReportPersistenceRunner<TTx>(options: {
   };
 }
 
-export async function loadReportUploadPersistence() {
-  const [reportInfrastructure, trackingFeature, particularFeature] =
+/**
+ * Partes reales de la unidad de subida ligadas a una transaccion. Se exporta
+ * separado para que las pruebas inyecten fallos sobre las mismas partes que usa
+ * produccion, sin copiar su armado.
+ */
+export async function loadReportUploadTransactionalParts() {
+  const [reportInfrastructure, trackingFeature, particularFeature, dbAudit] =
     await Promise.all([
-    import("../infrastructure/index.ts"),
-    import("../../study-tracking/index.ts").then(
-      ({ loadReportUploadStudyTrackingPersistence }) =>
-        loadReportUploadStudyTrackingPersistence(),
-    ),
-    import("../../particular-access/index.ts").then(
-      ({ loadReportUploadParticularAccessPersistence }) =>
-        loadReportUploadParticularAccessPersistence(),
-    ),
-  ]);
+      import("../infrastructure/index.ts"),
+      import("../../study-tracking/index.ts").then(
+        ({ loadReportUploadStudyTrackingPersistence }) =>
+          loadReportUploadStudyTrackingPersistence(),
+      ),
+      import("../../particular-access/index.ts").then(
+        ({ loadReportUploadParticularAccessPersistence }) =>
+          loadReportUploadParticularAccessPersistence(),
+      ),
+      import("../../../db-audit.ts"),
+    ]);
 
-  const runReportPersistence =
-    createTransactionalReportPersistenceRunner<ReportCommandTransaction>({
-    transact: (fn) => reportInfrastructure.runReportUploadTransaction(fn),
-    bindScope: (tx) => {
+  return {
+    reportInfrastructure,
+    bindParts: (tx: ReportCommandTransaction): ReportUploadScopeParts => {
       const operationTimestamp = new Date();
       const tracking =
         trackingFeature.createTransactionalStudyTrackingRepository(tx);
       const tokens =
         particularFeature.createTransactionalParticularTokenRepository(tx);
 
-      return buildReportUploadScope({
+      return {
         createOrEditReport: (input) =>
           reportInfrastructure.createOrEditReportWithinTransaction(
             tx,
@@ -156,9 +187,42 @@ export async function loadReportUploadPersistence() {
         getStudyTrackingCaseByReportId: tracking.getStudyTrackingCaseByReportId,
         createStudyTrackingCase: tracking.createStudyTrackingCase,
         updateStudyTrackingCase: tracking.updateStudyTrackingCase,
-      });
+        createReportDeliveredNotification: createBestEffortNotificationWriter(
+          tracking.createStudyTrackingNotificationInSavepoint,
+        ),
+        writeReportUploadedAudit: async (auditContext, input) => {
+          if (input.event !== AUDIT_EVENTS.REPORT_UPLOADED) {
+            throw new Error("report upload audit event mismatch");
+          }
+
+          // Misma fila que la auditoria normal, pero en la transaccion de la subida.
+          await dbAudit.createAuditLogWithinTransaction(
+            tx,
+            buildAuditLogInsert(
+              auditContext as Parameters<typeof buildAuditLogInsert>[0],
+              {
+                event: AUDIT_EVENTS.REPORT_UPLOADED,
+                clinicId: input.clinicId,
+                reportId: input.reportId,
+                metadata: input.metadata,
+              },
+            ),
+          );
+        },
+      };
     },
-  });
+  };
+}
+
+export async function loadReportUploadPersistence() {
+  const { reportInfrastructure, bindParts } =
+    await loadReportUploadTransactionalParts();
+
+  const runReportPersistence =
+    createTransactionalReportPersistenceRunner<ReportCommandTransaction>({
+      transact: (fn) => reportInfrastructure.runReportUploadTransaction(fn),
+      bindScope: (tx) => buildReportUploadScope(bindParts(tx)),
+    });
 
   const reportRepository = reportInfrastructure.createReportCommandRepository();
 
@@ -166,6 +230,8 @@ export async function loadReportUploadPersistence() {
     runReportPersistence,
     isReportStoragePathPersisted: (storagePath: string) =>
       reportRepository.isStoragePathReferenced(storagePath),
+    findPersistedReportByStoragePath: (storagePath: string) =>
+      reportRepository.findReportByStoragePath(storagePath),
   };
 }
 
@@ -199,7 +265,10 @@ export function logReportStorageCompensation(
     return;
   }
 
-  if (input.outcome === "preserved_referenced") {
+  if (
+    input.outcome === "preserved_referenced" ||
+    input.outcome === "commit_confirmed"
+  ) {
     logWarn("REPORT_UPLOAD_STORAGE_COMPENSATION", context);
     return;
   }

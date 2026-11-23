@@ -283,10 +283,10 @@ test("admin report upload audita creación exitosa de informe por admin", () => 
       "writeAuditLog?:",
       "writeAuditLog: audit.writeAuditLog",
       "createdByAdminUserId: input.adminUserId",
-      "await dependencies.writeAuditLog(input.auditContext, {",
+      "await scope.writeReportUploadedAudit(input.auditContext, {",
       "event: dependencies.auditEvents.reportUploaded",
-      "clinicId: report.clinicId",
-      "reportId: report.id",
+      "clinicId: createdReport.clinicId",
+      "reportId: createdReport.id",
       "fileName: file.fileName",
       "mimeType: file.mimeType",
       "uploadedVia: \"admin\"",
@@ -297,7 +297,7 @@ test("admin report upload audita creación exitosa de informe por admin", () => 
     "event: dependencies.auditEvents.reportUploaded",
   );
   assert.notEqual(uploadedEventStart, -1, "evento report.uploaded presente");
-  const uploadedEventEnd = source.indexOf("\n    });", uploadedEventStart);
+  const uploadedEventEnd = source.indexOf("\n        });", uploadedEventStart);
   assert.notEqual(uploadedEventEnd, -1, "cierre del audit report.uploaded");
   const uploadedAuditBlock = source.slice(uploadedEventStart, uploadedEventEnd);
   assert.match(uploadedAuditBlock, /metadata: \{/);
@@ -322,8 +322,9 @@ test("admin report upload audita creación exitosa de informe por admin", () => 
       "const storagePath = await dependencies.uploadReport({",
       "persisted = await dependencies.runReportPersistence(async (scope) => {",
       "const createdReport = await scope.createOrEditReport({",
-      "await dependencies.writeAuditLog(input.auditContext, {",
-      'return { type: "uploaded", report };',
+      "await scope.createReportDeliveredNotification({",
+      "await scope.writeReportUploadedAudit(input.auditContext, {",
+      'return { type: "uploaded", report: persisted.report };',
     ],
     "admin report upload audit order",
   );

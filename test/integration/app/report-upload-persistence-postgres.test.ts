@@ -51,6 +51,7 @@ const {
   reports,
   reportStatusHistory,
   studyTrackingCases,
+  studyTrackingNotifications,
 } = await import("../../../drizzle/schema.ts");
 const {
   createReportRouteService,
@@ -61,20 +62,12 @@ const {
   buildReportUploadScope,
   createTransactionalReportPersistenceRunner,
   loadReportUploadPersistence,
+  loadReportUploadTransactionalParts,
 } = await import(
   "../../../server/features/reports/composition/report-upload-persistence-composition.ts"
 );
 const { resolveReportSafeErrorName } = await import(
   "../../../server/features/reports/composition/report-route-composition.ts"
-);
-const { createOrEditReportWithinTransaction } = await import(
-  "../../../server/features/reports/infrastructure/index.ts"
-);
-const { loadReportUploadStudyTrackingPersistence } = await import(
-  "../../../server/features/study-tracking/index.ts"
-);
-const { loadReportUploadParticularAccessPersistence } = await import(
-  "../../../server/features/particular-access/index.ts"
 );
 
 type WorkflowRecord = {
@@ -207,6 +200,36 @@ async function trackingOfToken(tokenId: number) {
     .where(eq(studyTrackingCases.particularTokenId, tokenId));
 }
 
+async function auditEventsOfReport(reportId: number) {
+  const rows = await db.execute(
+    sql`select event from audit_log where report_id = ${reportId} order by id`,
+  );
+  return rows.map((row) => String((row as { event: unknown }).event));
+}
+
+async function auditCountOfClinic(clinicId: number) {
+  const rows = await db.execute(
+    sql`select count(*)::int as n from audit_log where clinic_id = ${clinicId}`,
+  );
+  return Number((rows[0] as { n: unknown }).n);
+}
+
+async function notificationTypesOfReport(reportId: number) {
+  const rows = await db
+    .select({ type: studyTrackingNotifications.type })
+    .from(studyTrackingNotifications)
+    .where(eq(studyTrackingNotifications.reportId, reportId));
+  return rows.map((row) => row.type);
+}
+
+async function notificationCountOfClinic(clinicId: number) {
+  const rows = await db
+    .select({ id: studyTrackingNotifications.id })
+    .from(studyTrackingNotifications)
+    .where(eq(studyTrackingNotifications.clinicId, clinicId));
+  return rows.map((row) => row.id).length;
+}
+
 function pgCode(error: unknown): string | undefined {
   const direct = (error as { code?: unknown } | null)?.code;
   if (typeof direct === "string") return direct;
@@ -224,8 +247,6 @@ function createHarness(
 ) {
   const state = {
     storage: new Set<string>(),
-    notifications: [] as string[],
-    audits: [] as string[],
     compensations: [] as ReportStorageCompensationLog[],
     uploads: 0,
   };
@@ -260,11 +281,15 @@ function createHarness(
       state.storage.delete(storagePath);
     },
     isReportStoragePathPersisted,
+    findPersistedReportByStoragePath: (storagePath) =>
+      real.findPersistedReportByStoragePath(storagePath),
     logReportStorageCompensation: (input) => {
       state.compensations.push(input);
     },
-    createStudyTrackingNotification: async (input) => {
-      state.notifications.push(input.type);
+    // Los efectos de la subida viven dentro de la transaccion: estas
+    // dependencias no deben invocarse desde la subida.
+    createStudyTrackingNotification: async () => {
+      throw new Error("la notificacion de la subida debe ir dentro de la transaccion");
     },
     createSignedReportUrl: async (storagePath) => `preview:${storagePath}`,
     createSignedReportDownloadUrl: async (storagePath) => `download:${storagePath}`,
@@ -284,8 +309,8 @@ function createHarness(
     getAdminReportWorkflowItem: async () => null,
     updateAdminReportWorkflowStage: async () => null,
     updateAdminReportSpecialStain: async () => null,
-    writeAuditLog: async (_context, input) => {
-      state.audits.push(input.event);
+    writeAuditLog: async () => {
+      throw new Error("la auditoria de la subida debe ir dentro de la transaccion");
     },
     auditEvents: {
       reportUploaded: "report.uploaded",
@@ -305,6 +330,7 @@ function upload(
   adminUserId: number,
   clinicId: number,
   particularTokenId?: number,
+  auditContextOverrides: Record<string, unknown> = {},
 ) {
   return harness.service.uploadAdminReport({
     clinicId,
@@ -318,7 +344,14 @@ function upload(
     studyType: "histopatologia",
     uploadDate: "2026-11-02",
     adminUserId,
-    auditContext: {},
+    auditContext: {
+      method: "POST",
+      originalUrl: "/api/admin/reports/upload",
+      ip: "198.51.100.7",
+      headers: {},
+      adminAuth: { id: adminUserId, username: "sec09-synthetic" },
+      ...auditContextOverrides,
+    },
     now: NOW,
   });
 }
@@ -333,41 +366,56 @@ function realHarness(overrides: Partial<ServiceDependencies> = {}) {
   );
 }
 
-type Injection = "duplicate_tracking" | "fail_after_tracking";
+type Injection =
+  | "duplicate_tracking"
+  | "fail_after_tracking"
+  | "fail_audit"
+  | "bad_notification";
 
-async function injectedHarness(injection: Injection) {
-  const trackingFeature = await loadReportUploadStudyTrackingPersistence();
-  const particularFeature = await loadReportUploadParticularAccessPersistence();
+async function injectedHarness(
+  injection: Injection,
+  overrides: Partial<ServiceDependencies> = {},
+) {
+  const { bindParts } = await loadReportUploadTransactionalParts();
   const runner = createTransactionalReportPersistenceRunner<Tx>({
     transact: (fn) => db.transaction(fn),
     bindScope: (tx) => {
-      const tracking = trackingFeature.createTransactionalStudyTrackingRepository(tx);
-      const tokens = particularFeature.createTransactionalParticularTokenRepository(tx);
+      const parts = bindParts(tx);
       return buildReportUploadScope({
-        createOrEditReport: (input) =>
-          createOrEditReportWithinTransaction(tx, input, new Date()),
-        updateParticularTokenReport: tokens.updateParticularTokenReport,
-        getParticularStudyTrackingCase: tracking.getParticularStudyTrackingCase,
-        getStudyTrackingCaseByReportId: tracking.getStudyTrackingCaseByReportId,
+        ...parts,
         createStudyTrackingCase: async (input) => {
-          const created = await tracking.createStudyTrackingCase(input);
+          const created = await parts.createStudyTrackingCase(input);
           if (injection === "fail_after_tracking") {
             throw new Error("injected_after_tracking_create");
           }
-          void created;
-          return tracking.createStudyTrackingCase(input);
+          if (injection === "duplicate_tracking") {
+            return parts.createStudyTrackingCase(input);
+          }
+          return created;
         },
-        updateStudyTrackingCase: tracking.updateStudyTrackingCase,
+        createReportDeliveredNotification: (input) =>
+          parts.createReportDeliveredNotification(
+            injection === "bad_notification"
+              ? { ...input, type: "x".repeat(81) }
+              : input,
+          ),
+        writeReportUploadedAudit: async (auditContext, input) => {
+          if (injection === "fail_audit") {
+            throw new Error("injected_audit_failure");
+          }
+          return parts.writeReportUploadedAudit(auditContext, input);
+        },
       });
     },
   });
-  return createHarness(runner, real.isReportStoragePathPersisted);
+  return createHarness(runner, real.isReportStoragePathPersisted, overrides);
 }
 
 // El cleanup se registra antes de crear filas: si la preparacion falla a
 // mitad, igualmente se borran las filas sinteticas ya creadas.
 async function cleanupSyntheticRows() {
   for (const clinicId of createdClinicIds) {
+    await db.execute(sql`delete from audit_log where clinic_id = ${clinicId}`);
     await db.delete(clinics).where(eq(clinics.id, clinicId));
   }
   for (const adminId of createdAdminIds) {
@@ -411,7 +459,8 @@ test("PG real: subida sin token persiste informe e historial y no compensa", asy
   assert.deepEqual(await historyStatuses(result.report.id), ["uploaded"]);
   assert.equal(await real.isReportStoragePathPersisted(result.report.storagePath), true);
   assert.deepEqual([...harness.state.storage], [result.report.storagePath]);
-  assert.deepEqual(harness.state.audits, ["report.uploaded"]);
+  assert.deepEqual(await auditEventsOfReport(result.report.id), ["report.uploaded"]);
+  assert.deepEqual(await notificationTypesOfReport(result.report.id), []);
   assert.deepEqual(harness.state.compensations, []);
 });
 
@@ -435,12 +484,15 @@ test("PG real: subida con token vincula informe, token y tracking entregado de l
     [{ clinicId: clinicA.id, reportId: result.report.id, currentStage: "delivered" }],
   );
   assert.deepEqual(await historyStatuses(result.report.id), ["uploaded"]);
-  assert.deepEqual(harness.state.notifications, ["report_delivered"]);
+  assert.deepEqual(await notificationTypesOfReport(result.report.id), ["report_delivered"]);
+  assert.deepEqual(await auditEventsOfReport(result.report.id), ["report.uploaded"]);
 });
 
 test("PG real: token inexistente en el UPDATE revierte el informe ya insertado y compensa el objeto", async () => {
   const realToken = await createToken(clinicA.id);
   const before = await reportsOfClinic(clinicA.id);
+  const auditBefore = await auditCountOfClinic(clinicA.id);
+  const notificationsBefore = await notificationCountOfClinic(clinicA.id);
   const harness = realHarness({
     getParticularTokenById: async () => ({ ...realToken, id: MISSING_ID }),
   });
@@ -454,7 +506,8 @@ test("PG real: token inexistente en el UPDATE revierte el informe ya insertado y
 
   assert.deepEqual(await reportsOfClinic(clinicA.id), before);
   assert.deepEqual([...harness.state.storage], []);
-  assert.deepEqual(harness.state.audits, []);
+  assert.equal(await auditCountOfClinic(clinicA.id), auditBefore);
+  assert.equal(await notificationCountOfClinic(clinicA.id), notificationsBefore);
   assert.deepEqual(
     harness.state.compensations.map((entry) => entry.outcome),
     ["deleted"],
@@ -535,48 +588,198 @@ test("PG real: un token de otra clinica se rechaza antes de tocar Storage ni la 
   assert.equal((await tokenById(tokenOfB.id))?.reportId, null);
 });
 
-test("PG real: ack de commit perdido tras un COMMIT real preserva el objeto y la verificacion lo ve persistido", async () => {
-  const trackingFeature = await loadReportUploadStudyTrackingPersistence();
-  const particularFeature = await loadReportUploadParticularAccessPersistence();
+test("PG real: un fallo de auditoría dentro de la transacción revierte informe, token, seguimiento y notificación ya insertada", async () => {
+  const token = await createToken(clinicA.id);
+  const before = await reportsOfClinic(clinicA.id);
+  const auditBefore = await auditCountOfClinic(clinicA.id);
+  const notificationsBefore = await notificationCountOfClinic(clinicA.id);
+  const harness = await injectedHarness("fail_audit");
+
+  await assert.rejects(
+    upload(harness, admin.id, clinicA.id, token.id),
+    (error) => error instanceof Error && error.message === "injected_audit_failure",
+  );
+
+  assert.deepEqual(await reportsOfClinic(clinicA.id), before);
+  assert.equal((await tokenById(token.id))?.reportId, null);
+  assert.deepEqual(await trackingOfToken(token.id), []);
+  assert.equal(await auditCountOfClinic(clinicA.id), auditBefore);
+  assert.equal(await notificationCountOfClinic(clinicA.id), notificationsBefore);
+  assert.deepEqual([...harness.state.storage], []);
+  assert.deepEqual(
+    harness.state.compensations.map((entry) => entry.outcome),
+    ["deleted"],
+  );
+});
+
+test("PG real: una falla real de auditoría (22001) falla cerrado aunque el adaptador anterior absorbiera el error", async () => {
+  const token = await createToken(clinicA.id);
+  const before = await reportsOfClinic(clinicA.id);
+  const auditBefore = await auditCountOfClinic(clinicA.id);
+  const notificationsBefore = await notificationCountOfClinic(clinicA.id);
+  const harness = realHarness();
+  const tooLongIp = "9".repeat(65);
+  let caught: unknown;
+
+  await assert.rejects(
+    upload(harness, admin.id, clinicA.id, token.id, { ip: tooLongIp }),
+    (error) => {
+      caught = error;
+      return true;
+    },
+  );
+
+  assert.equal(pgCode(caught), "22001");
+  assert.deepEqual(await reportsOfClinic(clinicA.id), before);
+  assert.equal((await tokenById(token.id))?.reportId, null);
+  assert.deepEqual(await trackingOfToken(token.id), []);
+  assert.equal(await auditCountOfClinic(clinicA.id), auditBefore);
+  assert.equal(await notificationCountOfClinic(clinicA.id), notificationsBefore);
+  assert.deepEqual([...harness.state.storage], []);
+  assert.deepEqual(
+    harness.state.compensations.map((entry) => entry.outcome),
+    ["deleted"],
+  );
+
+  // Contraste: el adaptador anterior (writeAuditLog) absorbe ese mismo error.
+  const { writeAuditLog } = await import("../../../server/lib/audit.ts");
+  const originalError = console.error;
+  console.error = () => undefined;
+  try {
+    await assert.doesNotReject(
+      writeAuditLog(
+        {
+          method: "POST",
+          originalUrl: "/api/admin/reports/upload",
+          ip: tooLongIp,
+          headers: {},
+          adminAuth: { id: admin.id, username: "sec09-synthetic" },
+        } as never,
+        { event: "report.uploaded", clinicId: clinicA.id },
+      ),
+    );
+  } finally {
+    console.error = originalError;
+  }
+  assert.equal(await auditCountOfClinic(clinicA.id), auditBefore);
+});
+
+test("PG real: un commit realmente revertido no deja ningún efecto, conserva el objeto y un reintento crea una sola vez cada efecto", async () => {
+  const { bindParts } = await loadReportUploadTransactionalParts();
+  const token = await createToken(clinicA.id);
+  const before = await reportsOfClinic(clinicA.id);
+  const auditBefore = await auditCountOfClinic(clinicA.id);
+  const notificationsBefore = await notificationCountOfClinic(clinicA.id);
+  const runner = createTransactionalReportPersistenceRunner<Tx>({
+    // El trabajo termina y la transaccion se revierte de verdad: es el caso
+    // "commit no aplicado" con PostgreSQL real.
+    transact: (fn) =>
+      db.transaction(async (tx) => {
+        await fn(tx);
+        throw new Error("commit_not_applied");
+      }),
+    bindScope: (tx) => buildReportUploadScope(bindParts(tx)),
+  });
+  const reverted = createHarness(runner, real.isReportStoragePathPersisted);
+
+  await assert.rejects(
+    upload(reverted, admin.id, clinicA.id, token.id),
+    (error) => error instanceof ReportPersistenceCommitUnknownError,
+  );
+
+  assert.deepEqual(await reportsOfClinic(clinicA.id), before);
+  assert.equal((await tokenById(token.id))?.reportId, null);
+  assert.deepEqual(await trackingOfToken(token.id), []);
+  assert.equal(await auditCountOfClinic(clinicA.id), auditBefore);
+  assert.equal(await notificationCountOfClinic(clinicA.id), notificationsBefore);
+  const orphan = [...reverted.state.storage];
+  assert.equal(orphan.length === 1, true);
+  assert.deepEqual(
+    reverted.state.compensations.map((entry) => ({
+      outcome: entry.outcome,
+      verification: entry.verification,
+    })),
+    [{ outcome: "preserved_commit_unknown", verification: "not_persisted" }],
+  );
+
+  const retry = await upload(realHarness(), admin.id, clinicA.id, token.id);
+
+  assert.equal(retry.type, "uploaded");
+  if (retry.type !== "uploaded") return;
+  assert.deepEqual(await reportsByPath(String(orphan[0])), []);
+  assert.deepEqual(await auditEventsOfReport(retry.report.id), ["report.uploaded"]);
+  assert.deepEqual(await notificationTypesOfReport(retry.report.id), ["report_delivered"]);
+  assert.equal(await auditCountOfClinic(clinicA.id), auditBefore + 1);
+});
+
+test("PG real: si la notificación falla dentro del savepoint, la transacción sigue usable y el informe y la auditoría se confirman", async () => {
+  const token = await createToken(clinicA.id);
+  const notificationsBefore = await notificationCountOfClinic(clinicA.id);
+  const failures: string[] = [];
+  const harness = await injectedHarness("bad_notification", {
+    logReportDeliveredNotificationFailure: (input) => {
+      failures.push(input.errorName);
+    },
+  });
+
+  const result = await upload(harness, admin.id, clinicA.id, token.id);
+
+  assert.equal(result.type, "uploaded");
+  if (result.type !== "uploaded") return;
+  assert.equal((await tokenById(token.id))?.reportId, result.report.id);
+  assert.deepEqual(await auditEventsOfReport(result.report.id), ["report.uploaded"]);
+  assert.deepEqual(await notificationTypesOfReport(result.report.id), []);
+  assert.equal(await notificationCountOfClinic(clinicA.id), notificationsBefore);
+  assert.equal(failures.length === 1, true);
+  assert.deepEqual(harness.state.compensations, []);
+});
+
+test("PG real: ack de commit perdido tras un COMMIT real no pierde efectos y el servicio lo resuelve como éxito", async () => {
+  const { bindParts } = await loadReportUploadTransactionalParts();
   const token = await createToken(clinicA.id);
   const runner = createTransactionalReportPersistenceRunner<Tx>({
     transact: async (fn) => {
       await db.transaction(fn);
       throw new Error("commit_ack_lost");
     },
-    bindScope: (tx) => {
-      const tracking = trackingFeature.createTransactionalStudyTrackingRepository(tx);
-      const tokens = particularFeature.createTransactionalParticularTokenRepository(tx);
-      return buildReportUploadScope({
-        createOrEditReport: (input) =>
-          createOrEditReportWithinTransaction(tx, input, new Date()),
-        updateParticularTokenReport: tokens.updateParticularTokenReport,
-        getParticularStudyTrackingCase: tracking.getParticularStudyTrackingCase,
-        getStudyTrackingCaseByReportId: tracking.getStudyTrackingCaseByReportId,
-        createStudyTrackingCase: tracking.createStudyTrackingCase,
-        updateStudyTrackingCase: tracking.updateStudyTrackingCase,
-      });
-    },
+    bindScope: (tx) => buildReportUploadScope(bindParts(tx)),
   });
   const harness = createHarness(runner, real.isReportStoragePathPersisted);
 
-  await assert.rejects(
-    upload(harness, admin.id, clinicA.id, token.id),
-    (error) => error instanceof ReportPersistenceCommitUnknownError,
-  );
+  const result = await upload(harness, admin.id, clinicA.id, token.id);
 
+  assert.equal(result.type, "uploaded");
+  if (result.type !== "uploaded") return;
   const stored = [...harness.state.storage];
-  assert.equal(stored.length === 1, true);
-  assert.equal((await reportsByPath(String(stored[0]))).map((row) => row.id).length > 0, true);
+  assert.deepEqual(stored, [result.report.storagePath]);
+  assert.equal(result.report.clinicId, clinicA.id);
+  assert.equal((await tokenById(token.id))?.reportId, result.report.id);
+  assert.deepEqual(await notificationTypesOfReport(result.report.id), ["report_delivered"]);
+  assert.deepEqual(await auditEventsOfReport(result.report.id), ["report.uploaded"]);
   assert.deepEqual(
     harness.state.compensations.map((entry) => ({
       outcome: entry.outcome,
       verification: entry.verification,
     })),
-    [{ outcome: "preserved_commit_unknown", verification: "persisted" }],
+    [{ outcome: "commit_confirmed", verification: "persisted" }],
   );
-  assert.deepEqual(harness.state.notifications, []);
-  assert.deepEqual(harness.state.audits, []);
+});
+
+test("PG real: un reintento de una subida ya persistida crea otro informe y no duplica el efecto del primero", async () => {
+  const harness = realHarness();
+  const token = await createToken(clinicA.id);
+
+  const first = await upload(harness, admin.id, clinicA.id, token.id);
+  const second = await upload(harness, admin.id, clinicA.id, token.id);
+
+  assert.equal(first.type, "uploaded");
+  assert.equal(second.type, "uploaded");
+  if (first.type !== "uploaded" || second.type !== "uploaded") return;
+  assert.notEqual(first.report.id, second.report.id);
+  assert.deepEqual(await auditEventsOfReport(first.report.id), ["report.uploaded"]);
+  assert.deepEqual(await auditEventsOfReport(second.report.id), ["report.uploaded"]);
+  assert.deepEqual(await notificationTypesOfReport(first.report.id), ["report_delivered"]);
+  assert.deepEqual(await notificationTypesOfReport(second.report.id), []);
 });
 
 test("PG real: dos subidas simultaneas al mismo token conservan integridad y no afectan a otra clinica", async () => {
@@ -628,9 +831,21 @@ test("PG real: dos subidas simultaneas al mismo token conservan integridad y no 
     );
     const linkedB = await tokenById(tokenB.id);
     assert.equal(linkedB?.reportId, onlyB);
+    for (const reportId of reportIds) {
+      assert.deepEqual(await auditEventsOfReport(reportId), ["report.uploaded"]);
+    }
+    const deliveredForA = [
+      ...(await notificationTypesOfReport(firstA)),
+      ...(await notificationTypesOfReport(secondA)),
+    ];
     assert.equal(
-      harness.state.notifications.every((type) => type === "report_delivered"),
+      deliveredForA.length >= 1 && deliveredForA.length <= 2,
       true,
     );
+    assert.equal(
+      deliveredForA.every((type) => type === "report_delivered"),
+      true,
+    );
+    assert.deepEqual(await notificationTypesOfReport(onlyB), ["report_delivered"]);
   }
 });

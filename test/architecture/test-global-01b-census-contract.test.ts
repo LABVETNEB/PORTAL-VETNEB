@@ -1209,12 +1209,12 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§22",
     metric: "assertions de status 2xx (200 y 201)",
     historical: 312,
-    baseline: 316,
+    baseline: 396,
     compute: () => statusAssertions("200") + statusAssertions("201"),
     resolution: "RECLASSIFIED",
     guard: BAND,
     motive:
-      "La gramática versionada cuenta `status`/`statusCode` seguidos del código en la misma assertion; captura 4 casos de 200 que el censo original no recogía. El hallazgo de §22 —el error-path domina— se conserva y se verifica aparte.",
+      "La gramática versionada cuenta `status`/`statusCode` seguidos del código en la misma assertion; captura 4 casos de 200 que el censo original no recogía. El hallazgo de §22 —el error-path domina— se conserva y se verifica aparte. Re-anclaje 316 -> 396: main@528e8050e79c3a2a3ead7a4742a9b24c42b0214c producia 395, exactamente el tope de la banda 316 +- 79 (395), y SEC-09B suma una assertion de 201 en admin-reports.fastify.test.ts: un commit ambiguo que resulta haberse aplicado ahora responde 201 en lugar de un error, y el test lo fija, lo que lleva el valor a 396. Crecimiento intencional: se re-ancla el baseline al valor medido sin ampliar GROWTH_TOLERANCE y sin excluir ningun archivo del inventario.",
   },
   {
     row: "A0-23-OWNERSHIP",

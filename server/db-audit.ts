@@ -1,9 +1,10 @@
+import { sql, type SQL } from "drizzle-orm";
 import type { AuditActorType, AuditEvent } from "../drizzle/schema.ts";
 import type { AuditListFilters } from "./lib/audit-log.ts";
 import { serializeAuditLogListItem } from "./lib/audit-log.ts";
 import { pgClient } from "./db.ts";
 
-type CreateAuditLogInput = {
+export type CreateAuditLogInput = {
   event: AuditEvent;
   actorType: AuditActorType;
   actorAdminUserId?: number | null;
@@ -141,8 +142,10 @@ function buildOptionalSelect(
     : `${fallbackSql} as "${column}"`;
 }
 
-export async function createAuditLog(input: CreateAuditLogInput) {
-  const columnsPresent = await getAuditLogColumns();
+function buildAuditLogInsertStatement(
+  columnsPresent: Set<string>,
+  input: CreateAuditLogInput,
+): { query: string; values: InsertValue[] } {
   const metadataJson =
     input.metadata === undefined || input.metadata === null
       ? null
@@ -262,8 +265,46 @@ export async function createAuditLog(input: CreateAuditLogInput) {
     returning *
   `;
 
-  const values = specs.map((spec) => spec.value);
+  return { query, values: specs.map((spec) => spec.value) };
+}
+
+export async function createAuditLog(input: CreateAuditLogInput) {
+  const columnsPresent = await getAuditLogColumns();
+  const { query, values } = buildAuditLogInsertStatement(columnsPresent, input);
   const result = await pgClient.unsafe(query, values);
+
+  return result[0];
+}
+
+/** Ejecutor de una transaccion de Drizzle; evita acoplar este modulo a su tipo. */
+type AuditTransaction = {
+  execute: (query: SQL) => PromiseLike<ArrayLike<unknown>>;
+};
+
+function bindAuditStatement(query: string, values: InsertValue[]): SQL {
+  const chunks = query.split(/\$(\d+)/).map((part, index) => {
+    if (index % 2 === 0) {
+      return sql.raw(part);
+    }
+
+    return sql`${values[Number(part) - 1]}`;
+  });
+
+  return sql.join(chunks, sql.raw(""));
+}
+
+/**
+ * Misma fila que `createAuditLog`, pero dentro de una transaccion existente: si
+ * la transaccion se revierte, la auditoria tambien. Falla en vez de tragar el
+ * error, porque un fallo dentro de la transaccion la deja abortada.
+ */
+export async function createAuditLogWithinTransaction(
+  tx: AuditTransaction,
+  input: CreateAuditLogInput,
+) {
+  const columnsPresent = await getAuditLogColumns();
+  const { query, values } = buildAuditLogInsertStatement(columnsPresent, input);
+  const result = await tx.execute(bindAuditStatement(query, values));
 
   return result[0];
 }

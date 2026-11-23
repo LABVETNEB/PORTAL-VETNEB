@@ -257,9 +257,9 @@ test("report mutation audit happens after durable mutation and before success re
       "const storagePath = await dependencies.uploadReport({",
       "persisted = await dependencies.runReportPersistence(async (scope) => {",
       "const createdReport = await scope.createOrEditReport({",
-      "await dependencies.writeAuditLog(input.auditContext, {",
+      "await scope.writeReportUploadedAudit(input.auditContext, {",
       "event: dependencies.auditEvents.reportUploaded",
-      'return { type: "uploaded", report };',
+      'return { type: "uploaded", report: persisted.report };',
     ],
     "admin report upload audit phase",
   );

@@ -469,19 +469,20 @@ test("best effort catch y logging seguro permanecen en los owners autorizados", 
     `${infrastructure}/db-report-workflow.ts`,
     `${infrastructure}/report-command-repository.ts`,
   ]);
-  // SEC-09: 1 catch best-effort de notificacion + 3 de la compensacion de
-  // Storage (verificacion, borrado y captura del fallo de persistencia).
+  // 3 de la compensacion de Storage (verificacion, borrado y captura del fallo
+  // de persistencia); la notificacion best-effort vive ahora en la composition.
   assert.equal(
     read(`${application}/report-route-service.ts`).match(/\bcatch\s*\(/g)
       ?.length,
-    4,
+    3,
   );
-  // SEC-09: un unico catch en el runner, que reclasifica el commit ambiguo.
+  // El runner reclasifica el commit ambiguo y el escritor de la notificacion
+  // devuelve su fallo en lugar de lanzarlo: dos catch, uno por cada contrato.
   assert.equal(
     read(`${composition}/report-upload-persistence-composition.ts`).match(
       /\bcatch\s*\(/g,
     )?.length,
-    1,
+    2,
   );
   assert.equal(
     read(`${infrastructure}/db-report-workflow.ts`).match(/\bcatch\s*\(/g)

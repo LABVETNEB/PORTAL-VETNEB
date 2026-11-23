@@ -166,6 +166,32 @@ export type ReportUploadPersistenceScope<
       now: Date;
     },
   ) => Promise<TTracking>;
+  /**
+   * Efecto de negocio dentro de la MISMA transaccion que el informe: se confirma
+   * o se revierte con el, de modo que un commit ambiguo o una caida posterior no
+   * puede dejar un informe sin su notificacion. Es best-effort por savepoint: un
+   * fallo se devuelve (sin abortar la transaccion) para que el servicio lo registre.
+   */
+  createReportDeliveredNotification: (input: {
+    studyTrackingCaseId: number;
+    clinicId: number;
+    reportId: number | null;
+    particularTokenId: number | null;
+    type: string;
+    title: string;
+    message: string;
+    isRead: boolean;
+    readAt: Date | null;
+  }) => Promise<{ created: true } | { created: false; error: unknown }>;
+  /**
+   * Auditoria de la subida dentro de la misma transaccion. Falla cerrado: si no
+   * puede escribirse, se revierte todo y se compensa el objeto, en vez de perder
+   * el registro de auditoria de un informe que si quedaria persistido.
+   */
+  writeReportUploadedAudit: (
+    auditContext: unknown,
+    input: ReportRouteAuditInput,
+  ) => Promise<void>;
 };
 
 export type ReportStorageCompensationOutcome =
@@ -174,6 +200,7 @@ export type ReportStorageCompensationOutcome =
   | "preserved_referenced"
   | "preserved_verification_failed"
   | "preserved_commit_unknown"
+  | "commit_confirmed"
   | "preserved_unsafe_path";
 
 export type ReportStorageCompensationLog = {
@@ -225,6 +252,9 @@ export type ReportRouteServiceDependencies<
   ) => Promise<TResult>;
   deleteStorageObject: (storagePath: string) => Promise<void>;
   isReportStoragePathPersisted: (storagePath: string) => Promise<boolean>;
+  findPersistedReportByStoragePath: (
+    storagePath: string,
+  ) => Promise<TReport | null | undefined>;
   logReportStorageCompensation: (input: ReportStorageCompensationLog) => void;
   createStudyTrackingNotification: (input: {
     studyTrackingCaseId: number;
@@ -377,15 +407,17 @@ export function createReportRouteService<
   }
 
   /**
-   * Compensa el objeto recien subido cuando la persistencia no se confirmo.
-   * Nunca lanza: el error funcional original es el que debe propagarse.
+   * Resuelve el destino del objeto recien subido cuando la persistencia no se
+   * confirmo. Nunca lanza: el error funcional original es el que debe propagarse.
+   * Devuelve el informe solo si un commit ambiguo resulta haberse aplicado (sus
+   * efectos de negocio viajan en la misma transaccion, asi que ya existen).
    */
   async function compensateUnpersistedUpload(
     storagePath: string,
     clinicId: number,
     persistError: unknown,
     requestId?: string,
-  ): Promise<void> {
+  ): Promise<TReport | null> {
     const persistErrorName = dependencies.resolveSafeErrorName(persistError);
     const log = (
       outcome: ReportStorageCompensationOutcome,
@@ -401,36 +433,41 @@ export function createReportRouteService<
       });
 
     if (persistError instanceof ReportPersistenceCommitUnknownError) {
+      let persistedReport: TReport | null | undefined;
       let verification: "persisted" | "not_persisted" | "unverifiable";
       try {
-        verification = (await dependencies.isReportStoragePathPersisted(
-          storagePath,
-        ))
-          ? "persisted"
-          : "not_persisted";
+        persistedReport =
+          await dependencies.findPersistedReportByStoragePath(storagePath);
+        verification = persistedReport ? "persisted" : "not_persisted";
       } catch {
         verification = "unverifiable";
       }
+
+      if (persistedReport && persistedReport.clinicId === clinicId) {
+        log("commit_confirmed", { verification: "persisted" });
+        return persistedReport;
+      }
+
       log("preserved_commit_unknown", { verification });
-      return;
+      return null;
     }
 
     if (!isExactReportObjectPath(storagePath, clinicId)) {
       log("preserved_unsafe_path");
-      return;
+      return null;
     }
 
     try {
       if (await dependencies.isReportStoragePathPersisted(storagePath)) {
         log("preserved_referenced", { verification: "persisted" });
-        return;
+        return null;
       }
     } catch (error) {
       log("preserved_verification_failed", {
         verification: "unverifiable",
         errorName: dependencies.resolveSafeErrorName(error),
       });
-      return;
+      return null;
     }
 
     try {
@@ -442,6 +479,8 @@ export function createReportRouteService<
         errorName: dependencies.resolveSafeErrorName(error),
       });
     }
+
+    return null;
   }
 
   async function uploadAdminReport(
@@ -488,12 +527,7 @@ export function createReportRouteService<
       mimeType: file.mimeType,
     });
 
-    let persisted: {
-      report: TReport;
-      trackingCase: TTracking | null;
-      previousTrackingCase: TTracking | null;
-      linkedTokenId: number | null;
-    };
+    let persisted: { report: TReport };
 
     try {
       persisted = await dependencies.runReportPersistence(async (scope) => {
@@ -507,8 +541,12 @@ export function createReportRouteService<
           createdByAdminUserId: input.adminUserId,
         });
 
+        let trackingCase: TTracking | null = null;
+        let previousTrackingCase: TTracking | null = null;
+        let linkedTokenId: number | null = null;
+
         if (selectedParticularToken) {
-          const previous =
+          previousTrackingCase =
             (await scope.getParticularStudyTrackingCase(
               selectedParticularToken.id,
             )) ??
@@ -524,104 +562,102 @@ export function createReportRouteService<
             throw new ReportUploadPersistenceError("token_link_failed");
           }
 
-          const ensured = await scope.ensureStudyTrackingCaseForToken(
+          trackingCase = await scope.ensureStudyTrackingCaseForToken(
             linkedToken,
             { adminUserId: input.adminUserId, now: input.now },
           );
-
-          return {
-            report: createdReport,
-            trackingCase: ensured,
-            previousTrackingCase: previous,
-            linkedTokenId: linkedToken.id,
-          };
+          linkedTokenId = linkedToken.id;
         }
 
-        const previous =
-          (await scope.getStudyTrackingCaseByReportId(createdReport.id)) ??
-          null;
-        let current: TTracking | null = previous;
+        if (!selectedParticularToken) {
+          previousTrackingCase =
+            (await scope.getStudyTrackingCaseByReportId(createdReport.id)) ??
+            null;
+          trackingCase = previousTrackingCase;
 
-        if (current && current.currentStage !== "delivered") {
-          const updated = await scope.updateStudyTrackingCase(current.id, {
-            reportId: createdReport.id,
-            currentStage: "delivered",
-            deliveredAt: current.deliveredAt ?? input.now,
-          });
+          if (trackingCase && trackingCase.currentStage !== "delivered") {
+            const updated = await scope.updateStudyTrackingCase(
+              trackingCase.id,
+              {
+                reportId: createdReport.id,
+                currentStage: "delivered",
+                deliveredAt: trackingCase.deliveredAt ?? input.now,
+              },
+            );
 
-          if (!updated) {
-            throw new ReportUploadPersistenceError("tracking_write_failed");
+            if (!updated) {
+              throw new ReportUploadPersistenceError("tracking_write_failed");
+            }
+
+            trackingCase = updated;
           }
 
-          current = updated;
+          linkedTokenId = trackingCase?.particularTokenId ?? null;
         }
 
-        return {
-          report: createdReport,
-          trackingCase: current,
-          previousTrackingCase: previous,
-          linkedTokenId: current?.particularTokenId ?? null,
-        };
+        if (
+          shouldCreateReportDeliveredNotification({
+            previousTrackingCase,
+            trackingCase,
+          }) &&
+          trackingCase
+        ) {
+          const notification = await scope.createReportDeliveredNotification({
+            studyTrackingCaseId: trackingCase.id,
+            clinicId: createdReport.clinicId,
+            reportId: createdReport.id,
+            particularTokenId: trackingCase.particularTokenId,
+            type: "report_delivered",
+            title: "Informe disponible",
+            message: "El informe del estudio ya está disponible.",
+            isRead: false,
+            readAt: null,
+          });
+
+          if (!notification.created) {
+            dependencies.logReportDeliveredNotificationFailure({
+              reportId: createdReport.id,
+              clinicId: createdReport.clinicId,
+              trackingCaseId: trackingCase.id,
+              errorName: dependencies.resolveSafeErrorName(notification.error),
+            });
+          }
+        }
+
+        await scope.writeReportUploadedAudit(input.auditContext, {
+          event: dependencies.auditEvents.reportUploaded,
+          clinicId: createdReport.clinicId,
+          reportId: createdReport.id,
+          metadata: {
+            fileName: file.fileName,
+            mimeType: file.mimeType,
+            studyType: studyType ?? null,
+            uploadDate: uploadDate ?? null,
+            uploadedVia: "admin",
+            particularTokenId: linkedTokenId,
+            trackingCaseId: trackingCase?.id ?? null,
+            trackingStage: trackingCase?.currentStage ?? null,
+          },
+        });
+
+        return { report: createdReport };
       });
     } catch (error) {
-      await compensateUnpersistedUpload(
+      const confirmed = await compensateUnpersistedUpload(
         storagePath,
         input.clinicId,
         error,
         input.requestId,
       );
+
+      if (confirmed) {
+        return { type: "uploaded", report: confirmed };
+      }
+
       throw error;
     }
 
-    const { report, trackingCase, previousTrackingCase, linkedTokenId } =
-      persisted;
-
-    if (
-      shouldCreateReportDeliveredNotification({
-        previousTrackingCase,
-        trackingCase,
-      }) &&
-      trackingCase
-    ) {
-      try {
-        await dependencies.createStudyTrackingNotification({
-          studyTrackingCaseId: trackingCase.id,
-          clinicId: report.clinicId,
-          reportId: report.id,
-          particularTokenId: trackingCase.particularTokenId,
-          type: "report_delivered",
-          title: "Informe disponible",
-          message: "El informe del estudio ya está disponible.",
-          isRead: false,
-          readAt: null,
-        });
-      } catch (error) {
-        dependencies.logReportDeliveredNotificationFailure({
-          reportId: report.id,
-          clinicId: report.clinicId,
-          trackingCaseId: trackingCase.id,
-          errorName: dependencies.resolveSafeErrorName(error),
-        });
-      }
-    }
-
-    await dependencies.writeAuditLog(input.auditContext, {
-      event: dependencies.auditEvents.reportUploaded,
-      clinicId: report.clinicId,
-      reportId: report.id,
-      metadata: {
-        fileName: file.fileName,
-        mimeType: file.mimeType,
-        studyType: studyType ?? null,
-        uploadDate: uploadDate ?? null,
-        uploadedVia: "admin",
-        particularTokenId: linkedTokenId,
-        trackingCaseId: trackingCase?.id ?? null,
-        trackingStage: trackingCase?.currentStage ?? null,
-      },
-    });
-
-    return { type: "uploaded", report };
+    return { type: "uploaded", report: persisted.report };
   }
 
   function listAdminWorkflow(input: { limit: number; offset: number }) {

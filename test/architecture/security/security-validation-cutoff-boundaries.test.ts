@@ -1181,7 +1181,7 @@ test("admin report upload validates clinicId before storage upload upsert signed
       "const storagePath = await dependencies.uploadReport({",
       "persisted = await dependencies.runReportPersistence(async (scope) => {",
       "const createdReport = await scope.createOrEditReport({",
-      "await dependencies.writeAuditLog(input.auditContext, {",
+      "await scope.writeReportUploadedAudit(input.auditContext, {",
     ],
     "admin report upload application cut-off",
   );

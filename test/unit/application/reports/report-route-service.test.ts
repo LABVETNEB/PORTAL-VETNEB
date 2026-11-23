@@ -93,6 +93,8 @@ const SCOPE_KEYS: readonly string[] = [
   "getStudyTrackingCaseByReportId",
   "updateStudyTrackingCase",
   "ensureStudyTrackingCaseForToken",
+  "createReportDeliveredNotification",
+  "writeReportUploadedAudit",
 ];
 
 function defaultScope(): Scope {
@@ -103,6 +105,8 @@ function defaultScope(): Scope {
     getStudyTrackingCaseByReportId: async () => null,
     updateStudyTrackingCase: async () => tracking,
     ensureStudyTrackingCaseForToken: async () => tracking,
+    createReportDeliveredNotification: async () => ({ created: true }),
+    writeReportUploadedAudit: async () => undefined,
   };
 }
 
@@ -132,9 +136,26 @@ function dependencies(
   allOverrides: Overrides = {},
 ): Dependencies {
   const { scopeOverrides, overrides } = splitOverrides(allOverrides);
-  const scope: Scope = { ...defaultScope(), ...scopeOverrides };
+  // Los efectos del scope delegan en las mismas dependencias que usan los
+  // tests (notificacion best-effort y auditoria), salvo override explicito.
+  let resolved: Dependencies | undefined;
+  const scope: Scope = {
+    ...defaultScope(),
+    createReportDeliveredNotification: async (input) => {
+      try {
+        await resolved?.createStudyTrackingNotification(input);
+        return { created: true };
+      } catch (error) {
+        return { created: false, error };
+      }
+    },
+    writeReportUploadedAudit: async (auditContext, input) => {
+      await resolved?.writeAuditLog(auditContext, input);
+    },
+    ...scopeOverrides,
+  };
 
-  return {
+  resolved = {
     getClinicById: async (clinicId) => ({ id: clinicId }),
     getReportById: async () => report,
     uploadReport: async () => report.storagePath,
@@ -142,6 +163,7 @@ function dependencies(
     runReportPersistence: orchestrationRunner(scope),
     deleteStorageObject: async () => undefined,
     isReportStoragePathPersisted: async () => false,
+    findPersistedReportByStoragePath: async () => null,
     logReportStorageCompensation: () => undefined,
     createStudyTrackingNotification: async () => undefined,
     createSignedReportUrl: async (storagePath) => `preview:${storagePath}`,
@@ -178,6 +200,8 @@ function dependencies(
     logReportDeliveredNotificationFailure: () => undefined,
     ...overrides,
   };
+
+  return resolved;
 }
 
 function uploadInput(
@@ -556,12 +580,14 @@ function compensationService(
   hooks: Partial<{
     storagePath: string;
     persisted: () => Promise<boolean>;
+    found: () => Promise<FixtureReport | null>;
     remove: () => Promise<void>;
   }> = {},
 ) {
   const resolved = {
     storagePath: SAFE_STORAGE_PATH,
     persisted: async () => false,
+    found: async () => null,
     remove: async () => undefined,
     ...hooks,
   };
@@ -581,6 +607,10 @@ function compensationService(
         probe.calls.push("verify");
         probe.verified.push(storagePath);
         return resolved.persisted();
+      },
+      findPersistedReportByStoragePath: async () => {
+        probe.calls.push("find");
+        return resolved.found();
       },
       logReportStorageCompensation: (input) => {
         probe.calls.push("log");
@@ -814,20 +844,42 @@ test("orquestación: fallo de compensación se registra y no reemplaza el error 
   ]);
 });
 
-test("orquestación: commit ambiguo nunca elimina el objeto y sólo verifica y registra", async (context) => {
+test("orquestación: commit ambiguo nunca elimina el objeto; si el informe quedó persistido se resuelve como éxito", async (context) => {
+  const confirmedReport: FixtureReport = {
+    ...report,
+    storagePath: SAFE_STORAGE_PATH,
+  };
   const cases: Array<{
     label: string;
-    verify: () => Promise<boolean>;
+    found: () => Promise<FixtureReport | null>;
     expected: "persisted" | "not_persisted" | "unverifiable";
+    resolves: boolean;
   }> = [
-    { label: "objeto referenciado", verify: async () => true, expected: "persisted" },
-    { label: "objeto no referenciado", verify: async () => false, expected: "not_persisted" },
+    {
+      label: "informe confirmado de la misma clínica",
+      found: async () => confirmedReport,
+      expected: "persisted",
+      resolves: true,
+    },
+    {
+      label: "informe no encontrado",
+      found: async () => null,
+      expected: "not_persisted",
+      resolves: false,
+    },
+    {
+      label: "informe de otra clínica nunca se acepta como éxito",
+      found: async () => ({ ...confirmedReport, clinicId: 4 }),
+      expected: "persisted",
+      resolves: false,
+    },
     {
       label: "verificación imposible",
-      verify: async () => {
+      found: async () => {
         throw new Error("verify_failure");
       },
       expected: "unverifiable",
+      resolves: false,
     },
   ];
 
@@ -844,18 +896,29 @@ test("orquestación: commit ambiguo nunca elimina el objeto y sólo verifica y r
             throw ambiguous;
           },
         },
-        { persisted: scenario.verify },
+        { found: scenario.found },
       );
 
-      await assert.rejects(
-        service.uploadAdminReport(uploadInput()),
-        (error) => error === ambiguous,
-      );
+      if (scenario.resolves) {
+        assert.deepEqual(await service.uploadAdminReport(uploadInput()), {
+          type: "uploaded",
+          report: confirmedReport,
+        });
+      }
+      if (!scenario.resolves) {
+        await assert.rejects(
+          service.uploadAdminReport(uploadInput()),
+          (error) => error === ambiguous,
+        );
+      }
+
       assert.deepEqual(probe.deleted, []);
-      assert.deepEqual(probe.calls, ["storage", "verify", "log"]);
+      assert.deepEqual(probe.calls, ["storage", "find", "log"]);
       assert.deepEqual(probe.logs, [
         {
-          outcome: "preserved_commit_unknown",
+          outcome: scenario.resolves
+            ? "commit_confirmed"
+            : "preserved_commit_unknown",
           clinicId: 3,
           storagePath: SAFE_STORAGE_PATH,
           persistErrorName: "Error",
@@ -927,6 +990,18 @@ test("orquestación: el request ID llega a cada resultado de compensación para 
       overrides: { createOrEditReport: persistFailure },
       hooks: { storagePath: "reports/3/fuera-del-patron.pdf" },
     },
+    {
+      label: "commit_confirmed",
+      outcome: "commit_confirmed",
+      overrides: {
+        runReportPersistence: async () => {
+          throw new ReportPersistenceCommitUnknownError({
+            cause: new Error("commit_failure"),
+          });
+        },
+      },
+      hooks: { found: async () => ({ ...report, storagePath: SAFE_STORAGE_PATH }) },
+    },
   ];
 
   for (const scenario of scenarios) {
@@ -938,9 +1013,9 @@ test("orquestación: el request ID llega a cada resultado de compensación para 
         scenario.hooks,
       );
 
-      await assert.rejects(
+      await Promise.allSettled([
         service.uploadAdminReport(uploadInput({ requestId })),
-      );
+      ]);
 
       assert.deepEqual(
         probe.logs.map((entry) => ({
@@ -951,6 +1026,58 @@ test("orquestación: el request ID llega a cada resultado de compensación para 
       );
     });
   }
+});
+
+test("orquestación: notificación y auditoría ocurren dentro de la unidad transaccional, antes del commit", async () => {
+  const calls: string[] = [];
+  const base = dependencies({
+    createOrEditReport: async () => {
+      calls.push("report");
+      return report;
+    },
+    createStudyTrackingNotification: async () => {
+      calls.push("notification");
+    },
+    writeAuditLog: async () => {
+      calls.push("audit");
+    },
+  });
+  const service = createReportRouteService({
+    ...base,
+    runReportPersistence: async (work) => {
+      const result = await base.runReportPersistence(work);
+      calls.push("commit");
+      return result;
+    },
+  });
+
+  const result = await service.uploadAdminReport(
+    uploadInput({ particularTokenId: token.id }),
+  );
+
+  assert.equal(result.type, "uploaded");
+  assert.deepEqual(calls, ["report", "notification", "audit", "commit"]);
+});
+
+test("orquestación: un commit ambiguo confirmado no repite notificación ni auditoría", async () => {
+  const probe = newCompensationProbe();
+  const service = compensationService(
+    probe,
+    {
+      runReportPersistence: async () => {
+        throw new ReportPersistenceCommitUnknownError({
+          cause: new Error("commit_failure"),
+        });
+      },
+    },
+    { found: async () => ({ ...report, storagePath: SAFE_STORAGE_PATH }) },
+  );
+
+  const result = await service.uploadAdminReport(uploadInput());
+
+  assert.equal(result.type, "uploaded");
+  assert.equal(probe.calls.includes("notification"), false);
+  assert.equal(probe.calls.includes("audit"), false);
 });
 
 test("orquestación: sin request ID el evento de compensación no inventa uno", async () => {
@@ -1023,7 +1150,7 @@ test("orquestación: persistencia confirmada no dispara compensación y audita d
   assert.deepEqual(probe.logs, []);
 });
 
-test("orquestación: fallo de auditoría posterior a persistencia confirmada no elimina el objeto", async () => {
+test("orquestación: un fallo de auditoría dentro de la transacción falla cerrado, compensa y no devuelve éxito", async () => {
   const probe = newCompensationProbe();
   const failure = new Error("audit_failure");
   const service = compensationService(probe, {
@@ -1037,9 +1164,14 @@ test("orquestación: fallo de auditoría posterior a persistencia confirmada no 
     service.uploadAdminReport(uploadInput()),
     (error) => error === failure,
   );
-  assert.deepEqual(probe.calls, ["storage", "audit"]);
-  assert.deepEqual(probe.deleted, []);
-  assert.deepEqual(probe.verified, []);
+  // El runner de orquestacion no revierte (eso lo prueban la simulacion con
+  // rollback y PostgreSQL real): aqui se fija que el fallo dispara la compensacion.
+  assert.deepEqual(probe.calls, ["storage", "audit", "verify", "delete", "log"]);
+  assert.deepEqual(probe.deleted, [SAFE_STORAGE_PATH]);
+  assert.deepEqual(
+    probe.logs.map((entry) => entry.outcome),
+    ["deleted"],
+  );
 });
 
 test("orquestación: fallo de Storage no ejecuta persistencia, compensación ni auditoría", async () => {

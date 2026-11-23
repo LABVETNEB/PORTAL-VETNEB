@@ -35,7 +35,10 @@ function buildStudyTrackingNotificationScopeFilters(scope: NotificationScope) {
   return scopeFilters;
 }
 
-type StudyTrackingExecutor = Pick<typeof db, "select" | "insert" | "update">;
+type StudyTrackingExecutor = Pick<
+  typeof db,
+  "select" | "insert" | "update" | "transaction"
+>;
 
 /**
  * Operaciones de tracking ligadas a una transaccion existente. Las lecturas
@@ -92,6 +95,25 @@ export function createTransactionalStudyTrackingRepository(
         .returning();
 
       return result[0];
+    },
+
+    /**
+     * Notificacion dentro de la transaccion del llamador, en un savepoint: si el
+     * INSERT falla, solo se revierte la notificacion y la transaccion exterior
+     * sigue usable. Si la transaccion exterior se revierte, la notificacion
+     * tambien: nunca queda una notificacion de un informe que no existe.
+     */
+    async createStudyTrackingNotificationInSavepoint(
+      input: Omit<NewStudyTrackingNotification, "id" | "createdAt">,
+    ) {
+      return executor.transaction(async (savepoint) => {
+        const result = await savepoint
+          .insert(studyTrackingNotifications)
+          .values({ ...input, createdAt: new Date() })
+          .returning();
+
+        return result[0];
+      });
     },
   };
 }

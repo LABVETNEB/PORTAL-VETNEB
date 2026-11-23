@@ -226,6 +226,16 @@ export function createReportCommandRepository(dependencies?: {
       );
     },
 
+    async findReportByStoragePath(storagePath: string) {
+      const result = await database
+        .select()
+        .from(reports)
+        .where(eq(reports.storagePath, storagePath))
+        .limit(1);
+
+      return result[0];
+    },
+
     async isStoragePathReferenced(storagePath: string) {
       const result = await database
         .select({ id: reports.id })
