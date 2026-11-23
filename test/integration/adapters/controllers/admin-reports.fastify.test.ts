@@ -786,6 +786,72 @@ test("adminReportsNativeRoutes correlaciona los logs de compensación con el req
   }
 });
 
+test("adminReportsNativeRoutes responde 201 cuando un commit ambiguo resulta haberse aplicado y lo correlaciona con el request ID", async () => {
+  const requestId = "3f2b8c1e-4a5d-4e6f-8a7b-9c0d1e2f3a4b";
+  const multipart = buildMultipartReportPayload();
+  const auditCalls: unknown[] = [];
+  const app = await createTestApp(
+    {
+      uploadReport: async () => COMPENSATION_PATH,
+      deleteStorageObject: async () => {
+        throw new Error("un commit ambiguo nunca elimina el objeto");
+      },
+      isReportStoragePathPersisted: async () => false,
+      findPersistedReportByStoragePath: async (storagePath: string) =>
+        createReportFixture({ clinicId: 3, storagePath }),
+      runReportPersistence: async () => {
+        throw new ReportPersistenceCommitUnknownError({
+          cause: new Error("commit_failure"),
+        });
+      },
+      writeAuditLog: async (...args: unknown[]) => {
+        auditCalls.push(args);
+      },
+    },
+    { genReqId: generateFastifyRequestId },
+  );
+
+  try {
+    const captured = await captureCompensationRecords(async () => {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/admin/reports/upload",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.adminCookieName}=admin-session-token`,
+          "x-request-id": requestId,
+          "content-type": `multipart/form-data; boundary=${multipart.boundary}`,
+        },
+        payload: multipart.payload,
+      });
+
+      assert.equal(response.statusCode, 201);
+      assert.equal(JSON.parse(response.body).success, true);
+    });
+
+    assert.deepEqual(
+      captured.records.map((record) => ({
+        level: record.level,
+        outcome: record.context.outcome,
+        verification: record.context.verification,
+        requestId: record.requestId,
+      })),
+      [
+        {
+          level: "warn",
+          outcome: "commit_confirmed",
+          verification: "persisted",
+          requestId,
+        },
+      ],
+    );
+    // Los efectos viajaron dentro de la transaccion: no se repiten fuera de ella.
+    assert.deepEqual(auditCalls, []);
+  } finally {
+    await app.close();
+  }
+});
+
 test("adminReportsNativeRoutes no registra un X-Request-ID inválido en los logs de compensación", async () => {
   const hostile = "opaque.session.token_value-abcdef0123456789";
   const multipart = buildMultipartReportPayload();

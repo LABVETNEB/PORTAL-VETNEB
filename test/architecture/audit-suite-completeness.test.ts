@@ -43,6 +43,14 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
           "buildAuditLogInsert",
         ],
       },
+      {
+        path: "test/unit/infrastructure/audit-log-transaction-columns.test.ts",
+        markers: [
+          "createAuditLogWithinTransaction",
+          "information_schema.columns",
+          "unreachable",
+        ],
+      },
     ],
     runtimeAnchors: [
       {

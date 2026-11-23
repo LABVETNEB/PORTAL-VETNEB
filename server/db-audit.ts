@@ -1,9 +1,10 @@
+import { sql, type SQL } from "drizzle-orm";
 import type { AuditActorType, AuditEvent } from "../drizzle/schema.ts";
 import type { AuditListFilters } from "./lib/audit-log.ts";
 import { serializeAuditLogListItem } from "./lib/audit-log.ts";
 import { pgClient } from "./db.ts";
 
-type CreateAuditLogInput = {
+export type CreateAuditLogInput = {
   event: AuditEvent;
   actorType: AuditActorType;
   actorAdminUserId?: number | null;
@@ -36,19 +37,35 @@ type ColumnSpec = {
 
 let auditLogColumnsCache: Set<string> | null = null;
 
-async function getAuditLogColumns(): Promise<Set<string>> {
+/**
+ * Con una transaccion en curso las columnas se consultan por ESA transaccion:
+ * pedir otra conexion al pool desde dentro de una transaccion puede bloquearse
+ * (DATABASE_MAX_CONNECTIONS=1 deja una sola conexion, ya retenida por ella).
+ */
+async function getAuditLogColumns(
+  tx?: AuditTransaction,
+): Promise<Set<string>> {
   if (auditLogColumnsCache !== null) {
     return auditLogColumnsCache;
   }
 
-  const rows = await pgClient`
-    select column_name
-    from information_schema.columns
-    where table_schema = 'public'
-      and table_name = 'audit_log'
-  `;
+  const rows = tx
+    ? await tx.execute(sql`
+        select column_name
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'audit_log'
+      `)
+    : await pgClient`
+        select column_name
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'audit_log'
+      `;
 
-  auditLogColumnsCache = new Set(rows.map((row) => String(row.column_name)));
+  auditLogColumnsCache = new Set(
+    Array.from(rows, (row) => String((row as { column_name: unknown }).column_name)),
+  );
 
   return auditLogColumnsCache;
 }
@@ -141,8 +158,10 @@ function buildOptionalSelect(
     : `${fallbackSql} as "${column}"`;
 }
 
-export async function createAuditLog(input: CreateAuditLogInput) {
-  const columnsPresent = await getAuditLogColumns();
+function buildAuditLogInsertStatement(
+  columnsPresent: Set<string>,
+  input: CreateAuditLogInput,
+): { query: string; values: InsertValue[] } {
   const metadataJson =
     input.metadata === undefined || input.metadata === null
       ? null
@@ -262,8 +281,46 @@ export async function createAuditLog(input: CreateAuditLogInput) {
     returning *
   `;
 
-  const values = specs.map((spec) => spec.value);
+  return { query, values: specs.map((spec) => spec.value) };
+}
+
+export async function createAuditLog(input: CreateAuditLogInput) {
+  const columnsPresent = await getAuditLogColumns();
+  const { query, values } = buildAuditLogInsertStatement(columnsPresent, input);
   const result = await pgClient.unsafe(query, values);
+
+  return result[0];
+}
+
+/** Ejecutor de una transaccion de Drizzle; evita acoplar este modulo a su tipo. */
+type AuditTransaction = {
+  execute: (query: SQL) => PromiseLike<ArrayLike<unknown>>;
+};
+
+function bindAuditStatement(query: string, values: InsertValue[]): SQL {
+  const chunks = query.split(/\$(\d+)/).map((part, index) => {
+    if (index % 2 === 0) {
+      return sql.raw(part);
+    }
+
+    return sql`${values[Number(part) - 1]}`;
+  });
+
+  return sql.join(chunks, sql.raw(""));
+}
+
+/**
+ * Misma fila que `createAuditLog`, pero dentro de una transaccion existente: si
+ * la transaccion se revierte, la auditoria tambien. Falla en vez de tragar el
+ * error, porque un fallo dentro de la transaccion la deja abortada.
+ */
+export async function createAuditLogWithinTransaction(
+  tx: AuditTransaction,
+  input: CreateAuditLogInput,
+) {
+  const columnsPresent = await getAuditLogColumns(tx);
+  const { query, values } = buildAuditLogInsertStatement(columnsPresent, input);
+  const result = await tx.execute(bindAuditStatement(query, values));
 
   return result[0];
 }

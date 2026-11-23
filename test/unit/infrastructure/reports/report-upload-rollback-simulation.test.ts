@@ -32,6 +32,8 @@ type World = {
   tokens: ParticularToken[];
   tracking: StudyTrackingCase[];
   history: Array<{ reportId: number; toStatus: string }>;
+  notifications: string[];
+  audits: string[];
   nextId: number;
 };
 
@@ -43,7 +45,9 @@ type FaultPoint =
   | "token_update_zero_rows"
   | "tracking_create"
   | "tracking_update"
-  | "tracking_update_zero_rows";
+  | "tracking_update_zero_rows"
+  | "notification_write"
+  | "audit_write";
 
 type CommitFailure = "none" | "before_apply" | "after_apply";
 
@@ -72,8 +76,6 @@ type Environment = {
   failRemove: boolean;
   failVerify: boolean;
   beforeVerify: ((path: string) => void) | undefined;
-  notifications: string[];
-  audits: string[];
   compensations: ReportStorageCompensationLog[];
   transactions: number;
   uploads: number;
@@ -182,6 +184,8 @@ function createEnvironment(seed: Partial<World> = {}) {
     tokens: [tokenRow()],
     tracking: [],
     history: [],
+    notifications: [],
+    audits: [],
     nextId: 100,
   };
   const env: Environment = {
@@ -193,8 +197,6 @@ function createEnvironment(seed: Partial<World> = {}) {
     failRemove: false,
     failVerify: false,
     beforeVerify: undefined,
-    notifications: [],
-    audits: [],
     compensations: [],
     transactions: 0,
     uploads: 0,
@@ -286,6 +288,17 @@ function createEnvironment(seed: Partial<World> = {}) {
         tx.tracking.push(row);
         return row;
       },
+      createReportDeliveredNotification: async (input) => {
+        if (env.fault === "notification_write") {
+          return { created: false, error: new Error("notification_failure") };
+        }
+        tx.notifications.push(input.type);
+        return { created: true };
+      },
+      writeReportUploadedAudit: async (_auditContext, input) => {
+        failIf("audit_write");
+        tx.audits.push(input.event);
+      },
       updateStudyTrackingCase: async (id, input) => {
         failIf("tracking_update");
         if (env.fault === "tracking_update_zero_rows") return undefined;
@@ -333,8 +346,10 @@ function createEnvironment(seed: Partial<World> = {}) {
     logReportStorageCompensation: (input) => {
       env.compensations.push(input);
     },
-    createStudyTrackingNotification: async (input) => {
-      env.notifications.push(input.type);
+    findPersistedReportByStoragePath: async (storagePath) =>
+      env.committed.reports.find((row) => row.storagePath === storagePath),
+    createStudyTrackingNotification: async () => {
+      throw new Error("los efectos de la subida deben ocurrir dentro de la transaccion");
     },
     createSignedReportUrl: async (storagePath) => `preview:${storagePath}`,
     createSignedReportDownloadUrl: async (storagePath) => `download:${storagePath}`,
@@ -354,8 +369,8 @@ function createEnvironment(seed: Partial<World> = {}) {
     getAdminReportWorkflowItem: async () => null,
     updateAdminReportWorkflowStage: async () => null,
     updateAdminReportSpecialStain: async () => null,
-    writeAuditLog: async (_context, input) => {
-      env.audits.push(input.event);
+    writeAuditLog: async () => {
+      throw new Error("los efectos de la subida deben ocurrir dentro de la transaccion");
     },
     auditEvents: {
       reportUploaded: "report.uploaded",
@@ -417,8 +432,8 @@ test("simulación con rollback: subida sin token confirma informe, historial y o
     [...env.storage],
     env.committed.reports.map((row) => row.storagePath),
   );
-  assert.deepEqual(env.audits, ["report.uploaded"]);
-  assert.deepEqual(env.notifications, []);
+  assert.deepEqual(env.committed.audits, ["report.uploaded"]);
+  assert.deepEqual(env.committed.notifications, []);
   assert.deepEqual(env.compensations, []);
 });
 
@@ -448,8 +463,8 @@ test("simulación con rollback: subida con token vincula informe, token y tracki
       },
     ],
   );
-  assert.deepEqual(env.notifications, ["report_delivered"]);
-  assert.deepEqual(env.audits, ["report.uploaded"]);
+  assert.deepEqual(env.committed.notifications, ["report_delivered"]);
+  assert.deepEqual(env.committed.audits, ["report.uploaded"]);
 });
 
 test("simulación con rollback: un fallo en cualquier escritura revierte todas las demás y compensa el objeto", async (context) => {
@@ -501,8 +516,8 @@ test("simulación con rollback: un fallo en cualquier escritura revierte todas l
 
       assert.deepEqual(env.committed, before);
       assert.deepEqual([...env.storage], []);
-      assert.deepEqual(env.notifications, []);
-      assert.deepEqual(env.audits, []);
+      assert.deepEqual(env.committed.notifications, before.notifications);
+      assert.deepEqual(env.committed.audits, before.audits);
       assert.deepEqual(
         env.compensations.map((entry) => entry.outcome),
         ["deleted"],
@@ -511,50 +526,88 @@ test("simulación con rollback: un fallo en cualquier escritura revierte todas l
   }
 });
 
-test("simulación con rollback: commit ambiguo nunca elimina el objeto y conserva la evidencia de verificación", async (context) => {
-  const scenarios: Array<{
-    label: string;
-    mode: CommitFailure;
-    persisted: boolean;
-    verification: "persisted" | "not_persisted";
-  }> = [
-    { label: "el commit no se aplicó", mode: "before_apply", persisted: false, verification: "not_persisted" },
-    { label: "el commit sí se aplicó", mode: "after_apply", persisted: true, verification: "persisted" },
-  ];
+test("simulación con rollback: commit ambiguo no pierde efectos: o no existe nada, o existen informe, notificación y auditoría y se resuelve como éxito", async (context) => {
+  await context.test("el commit no se aplicó: nada queda y el objeto se conserva", async () => {
+    const { env, service, snapshot } = createEnvironment();
+    const before = snapshot();
+    env.commitFailure = "before_apply";
 
-  for (const scenario of scenarios) {
-    await context.test(scenario.label, async () => {
-      const { env, service } = createEnvironment();
-      env.commitFailure = scenario.mode;
+    await assert.rejects(
+      upload(service, { particularTokenId: 7 }),
+      (error) =>
+        error instanceof ReportPersistenceCommitUnknownError &&
+        error.cause instanceof Error,
+    );
 
-      await assert.rejects(
-        upload(service, { particularTokenId: 7 }),
-        (error) =>
-          error instanceof ReportPersistenceCommitUnknownError &&
-          error.cause instanceof Error,
-      );
+    assert.deepEqual(env.committed, before);
+    assert.equal(env.storage.size, 1);
+    assert.deepEqual(
+      env.compensations.map((entry) => ({
+        outcome: entry.outcome,
+        verification: entry.verification,
+      })),
+      [{ outcome: "preserved_commit_unknown", verification: "not_persisted" }],
+    );
+  });
 
-      const stored = [...env.storage];
-      const path = stored[0];
-      assert.notEqual(path, undefined);
-      const persistedPaths = env.committed.reports.map((row) => row.storagePath);
-      assert.equal(persistedPaths.includes(String(path)), scenario.persisted);
-      assert.deepEqual(
-        env.compensations.map((entry) => ({
-          outcome: entry.outcome,
-          verification: entry.verification,
-        })),
-        [
-          {
-            outcome: "preserved_commit_unknown",
-            verification: scenario.verification,
-          },
-        ],
-      );
-      assert.deepEqual(env.notifications, []);
-      assert.deepEqual(env.audits, []);
-    });
-  }
+  await context.test("el commit sí se aplicó: informe, notificación y auditoría existen una sola vez y el servicio devuelve éxito", async () => {
+    const { env, service } = createEnvironment();
+    env.commitFailure = "after_apply";
+
+    const result = await upload(service, { particularTokenId: 7 });
+
+    assert.equal(result.type, "uploaded");
+    assert.deepEqual(
+      env.committed.reports.map((row) => row.clinicId),
+      [3],
+    );
+    assert.deepEqual(env.committed.notifications, ["report_delivered"]);
+    assert.deepEqual(env.committed.audits, ["report.uploaded"]);
+    assert.deepEqual(
+      [...env.storage],
+      env.committed.reports.map((row) => row.storagePath),
+    );
+    assert.deepEqual(
+      env.compensations.map((entry) => ({
+        outcome: entry.outcome,
+        verification: entry.verification,
+      })),
+      [{ outcome: "commit_confirmed", verification: "persisted" }],
+    );
+  });
+});
+
+test("simulación con rollback: un fallo de auditoría o de la notificación se comporta según su contrato", async (context) => {
+  await context.test("fallo de auditoría: falla cerrado, revierte todo y compensa", async () => {
+    const { env, service, snapshot } = createEnvironment();
+    const before = snapshot();
+    env.fault = "audit_write";
+
+    await assert.rejects(
+      upload(service, { particularTokenId: 7 }),
+      (error) => error instanceof Error && error === env.thrown,
+    );
+
+    assert.deepEqual(env.committed, before);
+    assert.deepEqual([...env.storage], []);
+    assert.deepEqual(
+      env.compensations.map((entry) => entry.outcome),
+      ["deleted"],
+    );
+  });
+
+  await context.test("fallo de la notificación: best-effort, el informe y la auditoría se confirman", async () => {
+    const { env, service } = createEnvironment();
+    env.fault = "notification_write";
+
+    const result = await upload(service, { particularTokenId: 7 });
+
+    assert.equal(result.type, "uploaded");
+    assert.equal(env.committed.reports.length === 1, true);
+    assert.deepEqual(env.committed.notifications, []);
+    assert.deepEqual(env.committed.audits, ["report.uploaded"]);
+    assert.deepEqual(env.compensations, []);
+  });
 });
 
 test("simulación con rollback: sólo se elimina el objeto nuevo y nunca los preexistentes, referenciados o huérfanos", async () => {
@@ -666,7 +719,7 @@ test("simulación con rollback: una segunda subida al mismo token no duplica la 
   await upload(service, { particularTokenId: 7 });
   await upload(service, { particularTokenId: 7 });
 
-  assert.deepEqual(env.notifications, ["report_delivered"]);
+  assert.deepEqual(env.committed.notifications, ["report_delivered"]);
   assert.deepEqual(
     env.committed.reports.map((row) => row.clinicId),
     [3, 3],
@@ -677,7 +730,7 @@ test("simulación con rollback: una segunda subida al mismo token no duplica la 
     env.committed.tracking.map((row) => row.reportId),
     [secondReportId],
   );
-  assert.deepEqual(env.audits, ["report.uploaded", "report.uploaded"]);
+  assert.deepEqual(env.committed.audits, ["report.uploaded", "report.uploaded"]);
 });
 
 test("simulación con rollback: tras un fallo, el reintento crea un objeto nuevo y no deja residuos del intento fallido", async () => {

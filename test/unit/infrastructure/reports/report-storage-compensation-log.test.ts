@@ -90,6 +90,20 @@ const cases: Array<{
     },
   },
   {
+    label: "commit_confirmed se emite como warn",
+    input: { ...BASE, outcome: "commit_confirmed", verification: "persisted" },
+    stream: "warn",
+    level: "warn",
+    context: {
+      outcome: "commit_confirmed",
+      clinicId: 3,
+      objectRef: OBJECT_REF,
+      pathDigest: DIGEST,
+      persistError: "Error",
+      verification: "persisted",
+    },
+  },
+  {
     label: "delete_failed se emite como error",
     input: {
       ...BASE,

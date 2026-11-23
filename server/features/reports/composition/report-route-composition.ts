@@ -18,6 +18,7 @@ import {
   type ReportUploadPersistenceScope,
 } from "../application/index.ts";
 import {
+  createBestEffortNotificationWriter,
   createPassthroughReportPersistenceRunner,
   logReportStorageCompensation,
 } from "./report-upload-persistence-composition.ts";
@@ -119,6 +120,9 @@ export type AdminReportsRouteCompositionOptions = {
   ) => Promise<TResult>;
   deleteStorageObject?: (storagePath: string) => Promise<void>;
   isReportStoragePathPersisted?: (storagePath: string) => Promise<boolean>;
+  findPersistedReportByStoragePath?: (
+    storagePath: string,
+  ) => Promise<Report | null | undefined>;
   writeAuditLog?: (req: unknown, input: AuditWriteInput) => Promise<void>;
 };
 
@@ -247,6 +251,8 @@ async function loadDefaultAdminReportsDependencies() {
         runReportPersistence: uploadPersistence.runReportPersistence,
         isReportStoragePathPersisted:
           uploadPersistence.isReportStoragePathPersisted,
+        findPersistedReportByStoragePath:
+          uploadPersistence.findPersistedReportByStoragePath,
         deleteStorageObject: storage.deleteStorageObject,
         deleteAdminSession: db.deleteAdminSession,
         getAdminSessionByToken: db.getAdminSessionByToken,
@@ -389,6 +395,10 @@ async function resolveAdminReportsDependencies(
       options.isReportStoragePathPersisted ??
       defaults?.isReportStoragePathPersisted ??
       unavailable,
+    findPersistedReportByStoragePath:
+      options.findPersistedReportByStoragePath ??
+      defaults?.findPersistedReportByStoragePath ??
+      unavailable,
   };
 
   // Inyeccion explicita de escrituras (seam de tests) => sin transaccion real;
@@ -399,6 +409,11 @@ async function resolveAdminReportsDependencies(
       ? createPassthroughReportPersistenceRunner({
           ...resolved,
           createOrEditReport: resolved.upsertReport,
+          createReportDeliveredNotification: createBestEffortNotificationWriter(
+            resolved.createStudyTrackingNotification,
+          ),
+          writeReportUploadedAudit: (auditContext, input) =>
+            resolved.writeAuditLog(auditContext, input as unknown as AuditWriteInput),
         })
       : defaults.runReportPersistence);
 
@@ -508,6 +523,7 @@ export async function createAdminReportWorkflowRouteComposition(
     },
     deleteStorageObject: async () => undefined,
     isReportStoragePathPersisted: async () => true,
+    findPersistedReportByStoragePath: async () => null,
     logReportStorageCompensation: () => undefined,
     createStudyTrackingNotification: async () => undefined,
     createSignedReportUrl: async () => "",
