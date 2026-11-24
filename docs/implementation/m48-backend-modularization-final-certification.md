@@ -298,15 +298,17 @@ SEC-09B (efectos de la subida de informes dentro de la transacción: notificaci�
 
 SEC-09C (serialización de subidas concurrentes al mismo Particular Token: `lockParticularToken` como primera operación de la unidad en `report-route-service.ts`, su cableado en `report-upload-persistence-composition.ts` y `report-route-composition.ts`, y `lockParticularTokenForUpdate` con `lock_timeout` en `particular-access-transactional-repository.ts`) lleva `server/features/reports` de 28/3.773 a 28/3.796, `server/features/particular-access` de 13/1.119 a 13/1.149 y `server/features` de 19.968 a 20.021; `server/routes`, `server/lib` y la raíz no cambian. Total 248/51.387 → 248/51.440.
 
+SEC-09D (inventario de solo lectura de huérfanos de Storage: el módulo nuevo `server/storage-orphan-inventory.ts`, el adaptador de listado `listV2` en `server/lib/supabase.ts`, la consulta de referencias y `getStorageOrphanInventory` en `server/db-maintenance.ts` y la solicitud explícita `includeStorageOrphans` en `server/routes/admin-system-maintenance.fastify.ts`) lleva la raíz `server/*.ts` de 9/2.707 a 10/3.189, `server/lib` de 35/5.990 a 35/6.075 y `server/routes` de 38/22.293 a 38/22.333; `server/features` y `server/middlewares` no cambian. Total 248/51.440 → 249/52.047.
+
 | Área | Archivos TypeScript | LOC |
 | --- | ---: | ---: |
 | `server/features` | 163 | 20.021 |
-| `server/routes` | 38 | 22.293 |
-| `server/lib` | 35 | 5.990 |
+| `server/routes` | 38 | 22.333 |
+| `server/lib` | 35 | 6.075 |
 | `server/middlewares` | 3 | 429 |
-| raíz/entrypoints `server/*.ts` | 9 | 2.707 |
+| raíz/entrypoints `server/*.ts` | 10 | 3.189 |
 | otros | 0 | 0 |
-| **Total `server`** | **248** | **51.440** |
+| **Total `server`** | **249** | **52.047** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por

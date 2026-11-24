@@ -1,11 +1,18 @@
-import { lte, sql } from "drizzle-orm";
+import { inArray, lte, sql } from "drizzle-orm";
 
 import { db } from "./db.ts";
 import {
   activeSessions,
   adminSessions,
   particularSessions,
+  reports,
 } from "../drizzle/schema.ts";
+import {
+  buildFailedStorageOrphanInventory,
+  resolveInventoryErrorName,
+  runStorageOrphanInventory,
+  type StorageOrphanInventoryResult,
+} from "./storage-orphan-inventory.ts";
 
 export type MaintenancePurgeCandidateGroup = {
   category:
@@ -100,7 +107,7 @@ export async function getMaintenancePurgeDryRunSnapshot(
       supported: false,
       destructiveAction: null,
       reason:
-        "Dry-run de Storage pendiente: falta helper seguro para listar objetos remotos antes de comparar contra referencias DB.",
+        "Inventario de solo lectura disponible solo bajo solicitud explicita (includeStorageOrphans); aun sin validar contra Storage real, por lo que no se cuenta ni se habilita ninguna accion.",
     },
   ];
 
@@ -120,4 +127,44 @@ export async function getMaintenancePurgeDryRunSnapshot(
       unsupportedGroups: unsupportedGroups.length,
     },
   };
+}
+/**
+ * Referencias reales de objetos de informe: reports.storage_path (unico sitio
+ * de INSERT: report-command-repository). Sentencia corta por lote, sin
+ * transaccion y sin conexion retenida entre llamadas.
+ */
+async function lookupReferencedReportPaths(
+  paths: string[],
+): Promise<ReadonlySet<string>> {
+  if (paths.length === 0) {
+    return new Set();
+  }
+
+  const rows = await db
+    .select({ storagePath: reports.storagePath })
+    .from(reports)
+    .where(inArray(reports.storagePath, paths));
+
+  return new Set(rows.map((row) => row.storagePath));
+}
+
+/** Nunca lanza: un fallo se informa como inventario "failed". */
+export async function getStorageOrphanInventory(
+  now = new Date(),
+): Promise<StorageOrphanInventoryResult> {
+  try {
+    const { createStorageObjectListing } = await import("./lib/supabase.ts");
+
+    return await runStorageOrphanInventory({
+      listing: createStorageObjectListing(),
+      lookupReferencedPaths: lookupReferencedReportPaths,
+      now: () => Date.now(),
+    });
+  } catch (error) {
+    return buildFailedStorageOrphanInventory(
+      now,
+      "inventory_unavailable",
+      resolveInventoryErrorName(error),
+    );
+  }
 }
