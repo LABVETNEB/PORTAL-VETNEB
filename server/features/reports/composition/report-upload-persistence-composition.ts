@@ -24,6 +24,7 @@ type UploadScope = ReportUploadPersistenceScope<
 >;
 
 export type ReportUploadScopeParts = {
+  lockParticularToken: UploadScope["lockParticularToken"];
   createOrEditReport: (
     input: Parameters<UploadScope["createOrEditReport"]>[0],
   ) => Promise<Report>;
@@ -82,6 +83,7 @@ export function buildReportUploadScope(
     };
 
   return {
+    lockParticularToken: parts.lockParticularToken,
     createOrEditReport: parts.createOrEditReport,
     updateParticularTokenReport: parts.updateParticularTokenReport,
     getParticularStudyTrackingCase: parts.getParticularStudyTrackingCase,
@@ -176,6 +178,7 @@ export async function loadReportUploadTransactionalParts() {
         particularFeature.createTransactionalParticularTokenRepository(tx);
 
       return {
+        lockParticularToken: tokens.lockParticularTokenForUpdate,
         createOrEditReport: (input) =>
           reportInfrastructure.createOrEditReportWithinTransaction(
             tx,

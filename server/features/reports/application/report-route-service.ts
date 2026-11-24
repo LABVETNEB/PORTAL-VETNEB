@@ -132,6 +132,12 @@ export type ReportUploadPersistenceScope<
   TToken extends ParticularTokenRouteRecord,
   TTracking extends StudyTrackingRouteRecord,
 > = {
+  /**
+   * Bloquea la fila del token hasta el fin de la transaccion y devuelve su
+   * estado confirmado. Es la primera operacion de la unidad cuando la subida
+   * lleva token: serializa las subidas concurrentes del mismo token.
+   */
+  lockParticularToken: (tokenId: number) => Promise<TToken | null | undefined>;
   createOrEditReport: (input: {
     clinicId: number;
     patientName: string | null;
@@ -531,6 +537,18 @@ export function createReportRouteService<
 
     try {
       persisted = await dependencies.runReportPersistence(async (scope) => {
+        if (selectedParticularToken) {
+          // Primera operacion: serializa por token y valida bajo el lock (la
+          // lectura previa fue sin lock y pudo quedar vieja).
+          const lockedToken = await scope.lockParticularToken(
+            selectedParticularToken.id,
+          );
+
+          if (!lockedToken || lockedToken.clinicId !== input.clinicId) {
+            throw new ReportUploadPersistenceError("token_link_failed");
+          }
+        }
+
         const createdReport = await scope.createOrEditReport({
           clinicId: input.clinicId,
           patientName: patientName ?? null,

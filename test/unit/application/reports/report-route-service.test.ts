@@ -87,6 +87,7 @@ type Scope = ReportUploadPersistenceScope<
 type Overrides = Partial<Dependencies> & Partial<Scope>;
 
 const SCOPE_KEYS: readonly string[] = [
+  "lockParticularToken",
   "createOrEditReport",
   "updateParticularTokenReport",
   "getParticularStudyTrackingCase",
@@ -99,6 +100,7 @@ const SCOPE_KEYS: readonly string[] = [
 
 function defaultScope(): Scope {
   return {
+    lockParticularToken: async () => token,
     createOrEditReport: async () => report,
     updateParticularTokenReport: async () => token,
     getParticularStudyTrackingCase: async () => null,
@@ -1078,6 +1080,97 @@ test("orquestación: un commit ambiguo confirmado no repite notificación ni aud
   assert.equal(result.type, "uploaded");
   assert.equal(probe.calls.includes("notification"), false);
   assert.equal(probe.calls.includes("audit"), false);
+});
+
+test("orquestación: el lock del token es la primera operación de la unidad y usa el id del token elegido", async () => {
+  const calls: string[] = [];
+  const service = createReportRouteService(
+    dependencies({
+      lockParticularToken: async (tokenId) => {
+        calls.push("lock:" + String(tokenId));
+        return token;
+      },
+      createOrEditReport: async () => {
+        calls.push("report");
+        return report;
+      },
+      getParticularStudyTrackingCase: async () => {
+        calls.push("tracking");
+        return null;
+      },
+      updateParticularTokenReport: async () => {
+        calls.push("token-update");
+        return token;
+      },
+    }),
+  );
+
+  const result = await service.uploadAdminReport(
+    uploadInput({ particularTokenId: token.id }),
+  );
+
+  assert.equal(result.type, "uploaded");
+  assert.deepEqual(calls, [
+    "lock:" + String(token.id),
+    "report",
+    "tracking",
+    "token-update",
+  ]);
+});
+
+test("orquestación: una subida sin token no toma ningún lock", async () => {
+  const calls: string[] = [];
+  const service = createReportRouteService(
+    dependencies({
+      lockParticularToken: async () => {
+        calls.push("lock");
+        return token;
+      },
+    }),
+  );
+
+  const result = await service.uploadAdminReport(uploadInput());
+
+  assert.equal(result.type, "uploaded");
+  assert.deepEqual(calls, []);
+});
+
+test("orquestación: si bajo el lock el token ya no existe o es de otra clínica, falla cerrado antes de crear el informe y compensa", async (context) => {
+  const scenarios: Array<{
+    label: string;
+    locked: typeof token | null;
+  }> = [
+    { label: "el token desapareció", locked: null },
+    { label: "el token es de otra clínica", locked: { ...token, clinicId: 4 } },
+  ];
+
+  for (const scenario of scenarios) {
+    await context.test(scenario.label, async () => {
+      const probe = newCompensationProbe();
+      let reportsCreated = 0;
+      const service = compensationService(probe, {
+        lockParticularToken: async () => scenario.locked,
+        createOrEditReport: async () => {
+          reportsCreated += 1;
+          return report;
+        },
+      });
+
+      await assert.rejects(
+        service.uploadAdminReport(uploadInput({ particularTokenId: token.id })),
+        (error) =>
+          error instanceof ReportUploadPersistenceError &&
+          error.code === "token_link_failed",
+      );
+
+      assert.equal(reportsCreated, 0);
+      assert.deepEqual(probe.deleted, [SAFE_STORAGE_PATH]);
+      assert.deepEqual(
+        probe.logs.map((entry) => entry.outcome),
+        ["deleted"],
+      );
+    });
+  }
 });
 
 test("orquestación: sin request ID el evento de compensación no inventa uno", async () => {

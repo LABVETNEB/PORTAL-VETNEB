@@ -296,15 +296,17 @@ PR-SEC-16 (SEC-09: subida de informes con persistencia transaccional y compensac
 
 SEC-09B (efectos de la subida de informes dentro de la transacción: notificación en savepoint y auditoría transaccional, resolución de commits ambiguos; `createAuditLogWithinTransaction` en `server/db-audit.ts`, `findReportByStoragePath` en `report-command-repository.ts`, `loadReportUploadTransactionalParts` en `report-upload-persistence-composition.ts` y la notificación en savepoint de Study Tracking) lleva `server/features/reports` de 28/3.642 a 28/3.773, `server/features/study-tracking` de 21/2.979 a 21/3.001, `server/features` de 19.815 a 19.968 y la raíz `server/*.ts` de 9/2.650 a 9/2.707 (`createAuditLogWithinTransaction` y su consulta de columnas por la propia transacción en `server/db-audit.ts`); `server/routes` y `server/lib` no cambian. Total 248/51.177 → 248/51.387.
 
+SEC-09C (serialización de subidas concurrentes al mismo Particular Token: `lockParticularToken` como primera operación de la unidad en `report-route-service.ts`, su cableado en `report-upload-persistence-composition.ts` y `report-route-composition.ts`, y `lockParticularTokenForUpdate` con `lock_timeout` en `particular-access-transactional-repository.ts`) lleva `server/features/reports` de 28/3.773 a 28/3.796, `server/features/particular-access` de 13/1.119 a 13/1.149 y `server/features` de 19.968 a 20.021; `server/routes`, `server/lib` y la raíz no cambian. Total 248/51.387 → 248/51.440.
+
 | Área | Archivos TypeScript | LOC |
 | --- | ---: | ---: |
-| `server/features` | 163 | 19.968 |
+| `server/features` | 163 | 20.021 |
 | `server/routes` | 38 | 22.293 |
 | `server/lib` | 35 | 5.990 |
 | `server/middlewares` | 3 | 429 |
 | raíz/entrypoints `server/*.ts` | 9 | 2.707 |
 | otros | 0 | 0 |
-| **Total `server`** | **248** | **51.387** |
+| **Total `server`** | **248** | **51.440** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por
@@ -327,11 +329,11 @@ porque ésa es su topología proporcional documentada.
 | Clinics | 10 | 2.764 | domain, infrastructure, servicios directos | sí | Users/Roles (2 refs) | Public Professionals (3) | M29 |
 | Global Search | 12 | 1.989 | domain, application, infrastructure | sí | ninguna | ninguna | GLOBAL-SEARCH-1 |
 | Logistics | 46 | 4.238 | domain, application, infrastructure | no requerido | ninguna | ninguna | M17 |
-| Particular Access | 13 | 1.119 | domain, application, infrastructure | sí | Reports (1) | Reports/ST (7) | M33/M35b |
+| Particular Access | 13 | 1.149 | domain, application, infrastructure | sí | Reports (1) | Reports/ST (7) | M33/M35b |
 | Pricing | 4 | 489 | infrastructure, servicios directos | no requerido | ninguna | ninguna | M20 |
 | Public Professionals | 8 | 1.150 | domain, infrastructure | sí | Clinics (3) | ninguna | M24 |
 | Report Access | 12 | 771 | domain, application, infrastructure, composition | sí | ninguna | Reports (1) | M34/M35b |
-| Reports | 28 | 3.773 | domain, application, infrastructure, composition | sí | Particular/Report Access (4) | Particular/ST (3) | M41 |
+| Reports | 28 | 3.796 | domain, application, infrastructure, composition | sí | Particular/Report Access (4) | Particular/ST (3) | M41 |
 | Study Tracking | 21 | 3.001 | domain, application, infrastructure | sí | Particular/Reports (6) | ninguna | M35 |
 | Users/Roles | 9 | 674 | domain, application, infrastructure, composition feature-level | no requerido | ninguna | Clinics (2) | M43 |
 

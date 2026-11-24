@@ -230,6 +230,48 @@ async function notificationCountOfClinic(clinicId: number) {
   return rows.map((row) => row.id).length;
 }
 
+function deferred() {
+  let resolve: () => void = () => undefined;
+  const promise = new Promise<void>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
+/**
+ * Espera a que PostgreSQL REPORTE una sesion bloqueada por un lock de fila sobre
+ * particular_tokens. La prueba del bloqueo es esa observacion del servidor, no el
+ * paso del tiempo: el bucle solo reintenta la consulta hasta un tope.
+ */
+async function waitForTokenLockWaiter(running: Promise<unknown>) {
+  let settled = false;
+  void running.then(
+    () => {
+      settled = true;
+    },
+    () => {
+      settled = true;
+    },
+  );
+
+  for (let attempt = 0; attempt < 400; attempt += 1) {
+    const rows = await db.execute(
+      sql`select count(*)::int as n from pg_stat_activity where datname = current_database() and wait_event_type = 'Lock' and query ilike '%particular_tokens%'`,
+    );
+    if (Number((rows[0] as { n: unknown }).n) > 0) {
+      return;
+    }
+    assert.equal(
+      settled,
+      false,
+      "la segunda subida termino sin quedar bloqueada por el lock del token",
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+
+  assert.fail("PostgreSQL no reporto ninguna sesion esperando el lock del token");
+}
+
 function pgCode(error: unknown): string | undefined {
   const direct = (error as { code?: unknown } | null)?.code;
   if (typeof direct === "string") return direct;
@@ -370,11 +412,13 @@ type Injection =
   | "duplicate_tracking"
   | "fail_after_tracking"
   | "fail_audit"
-  | "bad_notification";
+  | "bad_notification"
+  | "none";
 
 async function injectedHarness(
   injection: Injection,
   overrides: Partial<ServiceDependencies> = {},
+  hooks: { afterLock?: () => Promise<void> } = {},
 ) {
   const { bindParts } = await loadReportUploadTransactionalParts();
   const runner = createTransactionalReportPersistenceRunner<Tx>({
@@ -383,6 +427,11 @@ async function injectedHarness(
       const parts = bindParts(tx);
       return buildReportUploadScope({
         ...parts,
+        lockParticularToken: async (tokenId) => {
+          const locked = await parts.lockParticularToken(tokenId);
+          await hooks.afterLock?.();
+          return locked;
+        },
         createStudyTrackingCase: async (input) => {
           const created = await parts.createStudyTrackingCase(input);
           if (injection === "fail_after_tracking") {
@@ -732,6 +781,222 @@ test("PG real: si la notificación falla dentro del savepoint, la transacción s
   assert.equal(await notificationCountOfClinic(clinicA.id), notificationsBefore);
   assert.equal(failures.length === 1, true);
   assert.deepEqual(harness.state.compensations, []);
+});
+
+test("PG real: dos subidas al mismo token se serializan en el lock de fila: la segunda espera de verdad y continua sobre el estado confirmado", async () => {
+  const token = await createToken(clinicA.id);
+  const firstLocked = deferred();
+  const gate = deferred();
+  const first = await injectedHarness(
+    "none",
+    {},
+    {
+      afterLock: async () => {
+        firstLocked.resolve();
+        await gate.promise;
+      },
+    },
+  );
+  const second = realHarness();
+
+  const firstUpload = upload(first, admin.id, clinicA.id, token.id);
+  await Promise.race([
+    firstLocked.promise,
+    firstUpload.then(() => {
+      throw new Error("la primera subida termino sin tomar el lock");
+    }),
+  ]);
+  const secondUpload = upload(second, admin.id, clinicA.id, token.id);
+  await waitForTokenLockWaiter(secondUpload);
+
+  // Invariantes intermedias: nada confirmado y la segunda no escribio.
+  assert.deepEqual(await trackingOfToken(token.id), []);
+  assert.equal((await tokenById(token.id))?.reportId, null);
+
+  gate.resolve();
+  const [firstResult, secondResult] = await Promise.all([firstUpload, secondUpload]);
+
+  assert.equal(firstResult.type, "uploaded");
+  assert.equal(secondResult.type, "uploaded");
+  if (firstResult.type !== "uploaded" || secondResult.type !== "uploaded") return;
+  // Equivale a ejecutar primero una y despues la otra: el token queda con la ultima.
+  assert.equal((await tokenById(token.id))?.reportId, secondResult.report.id);
+  const tracking = await trackingOfToken(token.id);
+  assert.deepEqual(
+    tracking.map((row) => row.reportId),
+    [secondResult.report.id],
+  );
+  // La segunda leyo el seguimiento ya entregado: sin notificacion duplicada.
+  assert.deepEqual(await notificationTypesOfReport(firstResult.report.id), ["report_delivered"]);
+  assert.deepEqual(await notificationTypesOfReport(secondResult.report.id), []);
+  assert.deepEqual(await auditEventsOfReport(firstResult.report.id), ["report.uploaded"]);
+  assert.deepEqual(await auditEventsOfReport(secondResult.report.id), ["report.uploaded"]);
+  assert.deepEqual(first.state.compensations, []);
+  assert.deepEqual(second.state.compensations, []);
+});
+
+test("PG real: subidas a tokens distintos no se bloquean entre sí", async () => {
+  const tokenA = await createToken(clinicA.id);
+  const tokenB = await createToken(clinicA.id);
+  const heldLocked = deferred();
+  const gate = deferred();
+  const held = await injectedHarness(
+    "none",
+    {},
+    {
+      afterLock: async () => {
+        heldLocked.resolve();
+        await gate.promise;
+      },
+    },
+  );
+
+  const heldUpload = upload(held, admin.id, clinicA.id, tokenA.id);
+  await Promise.race([
+    heldLocked.promise,
+    heldUpload.then(() => {
+      throw new Error("la subida retenida termino sin tomar el lock");
+    }),
+  ]);
+  // Con el lock del token A retenido, la subida al token B completa sin esperar.
+  const other = await upload(realHarness(), admin.id, clinicA.id, tokenB.id);
+
+  assert.equal(other.type, "uploaded");
+  const waiting = await db.execute(
+    sql`select count(*)::int as n from pg_stat_activity where datname = current_database() and wait_event_type = 'Lock' and query ilike '%particular_tokens%'`,
+  );
+  assert.equal(Number((waiting[0] as { n: unknown }).n), 0);
+
+  gate.resolve();
+  assert.equal((await heldUpload).type, "uploaded");
+  assert.notEqual((await tokenById(tokenA.id))?.reportId, null);
+  assert.notEqual((await tokenById(tokenB.id))?.reportId, null);
+});
+
+test("PG real: si el titular del lock falla reteniéndolo, revierte y la segunda subida continúa sobre el estado limpio", async () => {
+  const token = await createToken(clinicA.id);
+  const firstLocked = deferred();
+  const gate = deferred();
+  const first = await injectedHarness(
+    "fail_audit",
+    {},
+    {
+      afterLock: async () => {
+        firstLocked.resolve();
+        await gate.promise;
+      },
+    },
+  );
+  const second = realHarness();
+
+  const firstUpload = upload(first, admin.id, clinicA.id, token.id);
+  const firstOutcome = assert.rejects(
+    firstUpload,
+    (error) => error instanceof Error && error.message === "injected_audit_failure",
+  );
+  await Promise.race([
+    firstLocked.promise,
+    firstUpload.then(
+      () => {
+        throw new Error("la primera subida termino sin tomar el lock");
+      },
+      () => {
+        throw new Error("la primera subida fallo sin tomar el lock");
+      },
+    ),
+  ]);
+  const secondUpload = upload(second, admin.id, clinicA.id, token.id);
+  await waitForTokenLockWaiter(secondUpload);
+
+  gate.resolve();
+  await firstOutcome;
+  const result = await secondUpload;
+
+  assert.equal(result.type, "uploaded");
+  if (result.type !== "uploaded") return;
+  assert.equal((await tokenById(token.id))?.reportId, result.report.id);
+  assert.deepEqual(
+    (await trackingOfToken(token.id)).map((row) => row.reportId),
+    [result.report.id],
+  );
+  assert.deepEqual(await notificationTypesOfReport(result.report.id), ["report_delivered"]);
+  assert.deepEqual(
+    first.state.compensations.map((entry) => entry.outcome),
+    ["deleted"],
+  );
+  assert.deepEqual([...first.state.storage], []);
+  assert.deepEqual(second.state.compensations, []);
+});
+
+test("PG real: si el token cambió de clínica entre la lectura sin lock y el lock, falla cerrado antes de crear el informe y compensa", async () => {
+  const tokenOfB = await createToken(clinicB.id);
+  const before = await reportsOfClinic(clinicA.id);
+  const beforeB = await reportsOfClinic(clinicB.id);
+  const harness = realHarness({
+    // Lectura previa sin lock "vieja": afirma que el token es de la clinica A.
+    getParticularTokenById: async () => ({ ...tokenOfB, clinicId: clinicA.id }),
+  });
+
+  await assert.rejects(
+    upload(harness, admin.id, clinicA.id, tokenOfB.id),
+    (error) =>
+      error instanceof ReportUploadPersistenceError &&
+      error.code === "token_link_failed",
+  );
+
+  assert.deepEqual(await reportsOfClinic(clinicA.id), before);
+  assert.deepEqual(await reportsOfClinic(clinicB.id), beforeB);
+  assert.equal((await tokenById(tokenOfB.id))?.reportId, null);
+  assert.deepEqual([...harness.state.storage], []);
+  assert.deepEqual(
+    harness.state.compensations.map((entry) => entry.outcome),
+    ["deleted"],
+  );
+});
+
+test("PG real: el lock del token fija un lock_timeout acotado para la transacción", async () => {
+  const token = await createToken(clinicA.id);
+  const { bindParts } = await loadReportUploadTransactionalParts();
+  let observed = "";
+
+  await db.transaction(async (tx) => {
+    const locked = await bindParts(tx).lockParticularToken(token.id);
+    assert.equal(locked?.id, token.id);
+    const rows = await tx.execute(sql`show lock_timeout`);
+    observed = String((rows[0] as { lock_timeout: unknown }).lock_timeout);
+  });
+
+  assert.equal(observed, "10s");
+});
+
+test("PG real: cuatro subidas simultáneas a dos tokens terminan sin deadlock y con una asociación coherente por token", async () => {
+  const tokenA = await createToken(clinicA.id);
+  const tokenB = await createToken(clinicA.id);
+
+  const results = await Promise.all([
+    upload(realHarness(), admin.id, clinicA.id, tokenA.id),
+    upload(realHarness(), admin.id, clinicA.id, tokenB.id),
+    upload(realHarness(), admin.id, clinicA.id, tokenA.id),
+    upload(realHarness(), admin.id, clinicA.id, tokenB.id),
+  ]);
+
+  assert.deepEqual(
+    results.map((result) => result.type),
+    ["uploaded", "uploaded", "uploaded", "uploaded"],
+  );
+  for (const token of [tokenA, tokenB]) {
+    const linked = (await tokenById(token.id))?.reportId;
+    const tracking = await trackingOfToken(token.id);
+    assert.notEqual(linked, null);
+    assert.deepEqual(
+      tracking.map((row) => row.reportId),
+      [linked],
+    );
+  }
+  for (const result of results) {
+    if (result.type !== "uploaded") continue;
+    assert.deepEqual(await auditEventsOfReport(result.report.id), ["report.uploaded"]);
+  }
 });
 
 test("PG real: ack de commit perdido tras un COMMIT real no pierde efectos y el servicio lo resuelve como éxito", async () => {
