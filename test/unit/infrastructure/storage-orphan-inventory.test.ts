@@ -180,9 +180,9 @@ test("SEC-09D: los limites de paginas, objetos y duracion producen un resultado 
     ],
     {
       limits: { maxDurationMs: 10 },
-      now: () => {
+      monotonicNow: () => {
         tick += 1;
-        return NOW_MS + (tick > 3 ? 1000 : 0);
+        return tick > 3 ? 1000 : 0;
       },
     },
   );
@@ -217,7 +217,8 @@ test("SEC-09D: el presupuesto de duracion tambien rige la reverificacion de cand
   ]);
   const result = await runStorageOrphanInventory({
     listing,
-    now: () => clock,
+    now: () => NOW_MS,
+    monotonicNow: () => clock - NOW_MS,
     limits: { referenceBatchSize: 1, maxDurationMs: 30 },
     lookupReferencedPaths: async () => {
       lookups += 1;

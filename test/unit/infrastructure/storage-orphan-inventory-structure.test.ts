@@ -6,6 +6,7 @@ import { readSourceFile as source } from "../../helpers/tracked-source-files.ts"
 const inventory = source("server/storage-orphan-inventory.ts");
 const maintenance = source("server/db-maintenance.ts");
 const supabaseSource = source("server/lib/supabase.ts");
+const guardSource = source("server/lib/single-flight-guard.ts");
 const route = source("server/routes/admin-system-maintenance.fastify.ts");
 
 const adapter = supabaseSource.slice(
@@ -69,4 +70,12 @@ test("SEC-09D estructura: el inventario remoto solo corre con includeStorageOrph
       frontendPath,
     );
   }
+});
+
+test("SEC-09F estructura: la duracion usa performance.now y la antiguedad el reloj de pared; sin timers sobre la guarda", () => {
+  assert.match(inventory, /monotonicNow \?\? \(\(\) => performance\.now\(\)\)/);
+  assert.match(inventory, /const nowMs = wallClock\(\)/);
+  assert.match(inventory, /normalizeElapsedMs\(monotonic\(\) - monotonicStart\)/);
+  assert.equal(/Date\.now\(\)[^;]*monotonic|monotonic[^;]*Date\.now\(\)/.test(inventory), false);
+  assert.equal(/setTimeout|setInterval|AbortSignal\.timeout/.test(guardSource), false);
 });
