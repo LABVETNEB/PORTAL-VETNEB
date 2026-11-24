@@ -40,7 +40,8 @@ function inventoryWith(
   },
 ) {
   return runStorageOrphanInventory({
-    now: () => clock.t,
+    now: () => T0,
+    monotonicNow: () => clock.t - T0,
     limits: { maxDurationMs: 30 },
     listing: {
       listPage: async () => {
@@ -130,7 +131,8 @@ const case_deadline_3 = async () => {
 const case_deadline_4 = async () => {
   const clock = { t: T0 };
   const result = await runStorageOrphanInventory({
-    now: () => clock.t,
+    now: () => T0,
+    monotonicNow: () => clock.t - T0,
     limits: { maxDurationMs: 30, referenceBatchSize: 1 },
     listing: {
       listPage: async () => ({

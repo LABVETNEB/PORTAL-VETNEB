@@ -59,6 +59,8 @@ export type AdminSystemMaintenanceNativeRoutesOptions = {
   /** Guarda de inventarios de Storage; por defecto una por registro del plugin. */
   storageOrphanInventoryGuard?: SingleFlightGuard;
   now?: () => number;
+  /** Reloj monotonico (ms) para medir la duracion de fallos del inventario. */
+  monotonicNow?: () => number;
 };
 
 const STORAGE_ORPHAN_INVENTORY_RETRY_AFTER_SECONDS = "30";
@@ -143,6 +145,9 @@ async function resolveStorageOrphanInventory(
   options: AdminSystemMaintenanceNativeRoutesOptions,
   now: Date,
 ): Promise<StorageOrphanInventoryResult> {
+  const monotonic = options.monotonicNow ?? (() => performance.now());
+  const startedAt = monotonic();
+
   try {
     const run =
       options.getStorageOrphanInventory ??
@@ -154,6 +159,7 @@ async function resolveStorageOrphanInventory(
       now,
       "inventory_unavailable",
       resolveInventoryErrorName(error),
+      monotonic() - startedAt,
     );
   }
 }

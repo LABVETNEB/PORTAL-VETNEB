@@ -75,8 +75,17 @@ export type StorageOrphanInventoryResult = {
   /** true solo si status === "complete": unicamente entonces los conteos son totales. */
   complete: boolean;
   truncationReason?: StorageOrphanInventoryTruncationReason;
-  /** Duracion medida con el reloj inyectado, de inicio a construccion del resultado. */
+  /**
+   * Duracion en ms enteros medida con el reloj MONOTONICO (nunca negativa), de
+   * inicio a construccion del resultado. Solo es una medicion si
+   * `durationMeasured` es true.
+   */
   durationMs: number;
+  /**
+   * false en resultados sinteticos sin medicion real (durationMs=0 es entonces
+   * "sin dato", no "0 ms"); true en toda duracion efectivamente medida.
+   */
+  durationMeasured: boolean;
   /**
    * true si la duracion alcanzo maxDurationMs. Es independiente de `complete`:
    * el presupuesto es cooperativo (se comprueba entre operaciones) y no cancela
@@ -117,7 +126,10 @@ export type StorageOrphanInventoryResult = {
 export type StorageOrphanInventoryDependencies = {
   listing: StorageObjectListingPort;
   lookupReferencedPaths: StorageReferenceLookup;
+  /** Reloj de pared (ms Unix): generatedAt y antiguedad de objetos. Nunca duracion. */
   now?: () => number;
+  /** Reloj monotonico (ms): duracion y deadline. Nunca timestamps ni antiguedad. */
+  monotonicNow?: () => number;
   limits?: Partial<StorageOrphanInventoryLimits>;
   /** Solo se acepta un umbral mayor o igual al por defecto. */
   minAgeMs?: number;
@@ -198,6 +210,26 @@ function resolveCreatedAtMs(createdAt: unknown, nowMs: number) {
   return parsed;
 }
 
+class InvalidPortResponseError extends Error {
+  constructor() {
+    super("invalid_port_response");
+    this.name = "InvalidPortResponse";
+  }
+}
+
+/** Entrada de listado bien formada: objeto con key string. Todo lo demas es fallo. */
+function isListedObject(value: unknown): value is StorageListedObject {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as { key?: unknown }).key === "string"
+  );
+}
+
+function isReferenceSet(value: unknown): value is ReadonlySet<string> {
+  return value instanceof Set;
+}
+
 function digestOf(key: string) {
   return crypto.hash("sha256", key, "hex");
 }
@@ -212,15 +244,33 @@ function chunk<T>(items: T[], size: number) {
   return chunks;
 }
 
+/** Duracion en ms enteros, finita y no negativa; un valor invalido es "sin dato". */
+export function normalizeElapsedMs(elapsedMs: number) {
+  return Number.isFinite(elapsedMs) ? Math.max(0, Math.floor(elapsedMs)) : 0;
+}
+
+/**
+ * `elapsedMs` (monotonico, medido por quien captura el fallo desde ANTES de la
+ * operacion) fija durationMs y deadlineExceeded. Sin el, el resultado es
+ * sintetico: durationMs=0 y durationMeasured=false.
+ */
 export function buildFailedStorageOrphanInventory(
   generatedAt: Date,
   failureReason: StorageOrphanInventoryFailureReason,
   failureErrorName?: string,
+  elapsedMs?: number,
 ): StorageOrphanInventoryResult {
+  const base = buildBaseInventory(generatedAt);
+  const measured = typeof elapsedMs === "number" && Number.isFinite(elapsedMs);
+  const durationMs = measured ? normalizeElapsedMs(elapsedMs) : 0;
+
   return {
-    ...buildBaseInventory(generatedAt),
+    ...base,
     status: "failed",
     complete: false,
+    durationMs,
+    durationMeasured: measured,
+    deadlineExceeded: durationMs >= base.limits.maxDurationMs,
     failureReason,
     ...(failureErrorName ? { failureErrorName } : {}),
   };
@@ -233,8 +283,9 @@ function buildBaseInventory(generatedAt: Date): StorageOrphanInventoryResult {
     status: "complete",
     complete: true,
     durationMs: 0,
+    durationMeasured: false,
     deadlineExceeded: false,
-    scope: SCOPE,
+    scope: { prefix: SCOPE.prefix, excluded: [...SCOPE.excluded] },
     minAgeMs: STORAGE_ORPHAN_DEFAULT_MIN_AGE_MS,
     limits: { ...STORAGE_ORPHAN_DEFAULT_LIMITS },
     inspected: { pages: 0, uniqueObjects: 0, duplicateEntries: 0 },
@@ -261,8 +312,11 @@ function buildBaseInventory(generatedAt: Date): StorageOrphanInventoryResult {
 export async function runStorageOrphanInventory(
   dependencies: StorageOrphanInventoryDependencies,
 ): Promise<StorageOrphanInventoryResult> {
-  const clock = dependencies.now ?? (() => Date.now());
-  const startedAtMs = clock();
+  const wallClock = dependencies.now ?? (() => Date.now());
+  const monotonic = dependencies.monotonicNow ?? (() => performance.now());
+  const monotonicStart = monotonic();
+  const elapsedMs = () => normalizeElapsedMs(monotonic() - monotonicStart);
+  const startedAtMs = wallClock();
   const limits = resolveLimits(dependencies.limits);
   const minAgeMs = resolveStorageOrphanMinAgeMs(dependencies.minAgeMs);
 
@@ -271,7 +325,8 @@ export async function runStorageOrphanInventory(
   result.minAgeMs = minAgeMs;
 
   const stampDuration = () => {
-    result.durationMs = Math.max(0, clock() - startedAtMs);
+    result.durationMs = elapsedMs();
+    result.durationMeasured = true;
     result.deadlineExceeded = result.durationMs >= limits.maxDurationMs;
   };
 
@@ -291,6 +346,26 @@ export async function runStorageOrphanInventory(
     return result;
   };
 
+  let lookupError: unknown;
+
+  /** null = fallo cerrado: excepcion del puerto o respuesta que no es un set. */
+  const lookupBatch = async (batch: string[]) => {
+    try {
+      const found = await dependencies.lookupReferencedPaths(batch);
+
+      if (!isReferenceSet(found)) {
+        lookupError = new InvalidPortResponseError();
+        return null;
+      }
+
+      return found;
+    } catch (error) {
+      lookupError = error;
+      return null;
+    }
+  };
+  const failedLookup = () => fail("reference_check_failed", lookupError);
+
   const seenKeys = new Set<string>();
   const seenCursors = new Set<string>();
   const eligible: string[] = [];
@@ -303,7 +378,7 @@ export async function runStorageOrphanInventory(
       break;
     }
 
-    if (clock() - startedAtMs >= limits.maxDurationMs) {
+    if (elapsedMs() >= limits.maxDurationMs) {
       truncation = "deadline";
       break;
     }
@@ -324,6 +399,7 @@ export async function runStorageOrphanInventory(
       page !== null &&
       typeof page === "object" &&
       Array.isArray(page.objects) &&
+      page.objects.every(isListedObject) &&
       (page.nextCursor === null ||
         (typeof page.nextCursor === "string" && page.nextCursor.length > 0));
 
@@ -332,7 +408,7 @@ export async function runStorageOrphanInventory(
     }
 
     result.inspected.pages += 1;
-    const nowMs = clock();
+    const nowMs = wallClock();
 
     for (const object of page.objects) {
       if (seenKeys.has(object.key)) {
@@ -384,7 +460,7 @@ export async function runStorageOrphanInventory(
   const batches = chunk(eligible, limits.referenceBatchSize);
 
   for (const [batchIndex, batch] of batches.entries()) {
-    if (clock() - startedAtMs >= limits.maxDurationMs) {
+    if (elapsedMs() >= limits.maxDurationMs) {
       truncation = truncation ?? "deadline";
       result.observed.unverified += batches
         .slice(batchIndex)
@@ -392,12 +468,10 @@ export async function runStorageOrphanInventory(
       break;
     }
 
-    let referenced: ReadonlySet<string>;
+    const referenced = await lookupBatch(batch);
 
-    try {
-      referenced = await dependencies.lookupReferencedPaths(batch);
-    } catch (error) {
-      return fail("reference_check_failed", error);
+    if (referenced === null) {
+      return failedLookup();
     }
 
     for (const key of batch) {
@@ -415,7 +489,7 @@ export async function runStorageOrphanInventory(
   const confirmationBatches = chunk(candidates, limits.referenceBatchSize);
 
   for (const [batchIndex, batch] of confirmationBatches.entries()) {
-    if (clock() - startedAtMs >= limits.maxDurationMs) {
+    if (elapsedMs() >= limits.maxDurationMs) {
       truncation = truncation ?? "deadline";
       result.observed.unverified += confirmationBatches
         .slice(batchIndex)
@@ -423,12 +497,10 @@ export async function runStorageOrphanInventory(
       break;
     }
 
-    let referencedNow: ReadonlySet<string>;
+    const referencedNow = await lookupBatch(batch);
 
-    try {
-      referencedNow = await dependencies.lookupReferencedPaths(batch);
-    } catch (error) {
-      return fail("reference_check_failed", error);
+    if (referencedNow === null) {
+      return failedLookup();
     }
 
     for (const key of batch) {

@@ -41,8 +41,15 @@ Los resultados `failed` generados por el módulo también informan duración.
 
 ## Política de concurrencia
 
-- Guarda en memoria (`server/lib/single-flight-guard.ts`): como máximo **un inventario activo por registro
-  del plugin**, es decir, por proceso del backend.
+- Guarda en memoria (`server/lib/single-flight-guard.ts`): `createSingleFlightGuard()` se instancia **dentro
+  del registro del plugin** (`admin-system-maintenance.fastify.ts`). Alcance, sin equivalencias entre niveles:
+  1. **Instancia de la guarda**: una ejecución activa.
+  2. **Registro del plugin Fastify**: una guarda independiente por registro (dos registros ⇒ dos guardas).
+  3. **Proceso Node.js**: depende de cuántas aplicaciones o registros existan en el proceso. Producción crea
+     una instancia mediante `createFastifyApp()` (`server/index.ts`), por lo que en la práctica hay un
+     inventario por proceso, pero la guarda **no es una primitiva global del proceso**: un segundo
+     `createFastifyApp()` en el mismo proceso crearía otra guarda y admitiría otro inventario.
+  4. **Réplicas del despliegue**: sin exclusión distribuida; cada réplica admite el suyo.
 - Solo aplica con `includeStorageOrphans: true`, **después** de autenticar y validar origen, y **antes** de
   cualquier consulta (el rechazado no consulta el snapshot, Storage ni PostgreSQL).
 - Segunda solicitud simultánea: `429` inmediato, `Retry-After: 30`, `Cache-Control: no-store`, cuerpo
@@ -59,7 +66,8 @@ Los resultados `failed` generados por el módulo también informan duración.
   proceso del backend (reinicio manual, no automático). El resto del endpoint (sin inventario) no se ve
   afectado. Una desconexión del cliente tampoco cancela el trabajo: la guarda se libera al terminar.
 - Las solicitudes sin inventario no se ven afectadas.
-- **Frontera**: no protege entre réplicas ni entre procesos. No hay protección global del despliegue.
+- **Frontera**: no protege entre réplicas ni entre procesos distintos, ni entre registros del plugin dentro de
+  un mismo proceso. No hay protección global del despliegue.
 
 ## Timeout PostgreSQL
 
@@ -98,9 +106,9 @@ referencias a Storage ni `SET` de sesión.
 
 ## Impacto en disponibilidad y riesgos residuales
 
-- Un inventario por proceso ocupa a lo sumo una conexión por vez; el endpoint ya no permite agotar el pool
-  de 3 conexiones con inventarios simultáneos en una misma instancia.
-- Con varias réplicas cada una admite un inventario.
+- Un inventario por guarda ocupa a lo sumo una conexión por vez; el endpoint ya no permite agotar el pool
+  de 3 conexiones con inventarios simultáneos dentro de una misma guarda.
+- Con varias réplicas (o varios registros del plugin) cada uno admite un inventario.
 - La espera de conexión del pool y la duración HTTP siguen sin cota.
 - El `statement_timeout` de 10 s es un valor fijo, no configurable.
 - Una operación colgada sin cota (espera de conexión) mantiene el 429 de inventarios hasta que termine o se reinicie el proceso.
@@ -117,3 +125,6 @@ persistente que deshacer.
 Todas requieren autorización R3 con entorno nombrado: sentencia lenta real con `statement_timeout`, ausencia
 de timeout residual en la conexión del pool, comportamiento de `listV2` y `created_at` contra un bucket
 autorizado.
+
+> Nota SEC-09F: el reloj monotónico de duración y la corrección del alcance se detallan en
+> `PR-SEC-09F-storage-inventory-contract-hardening.md`.

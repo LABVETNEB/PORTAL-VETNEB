@@ -11,7 +11,9 @@ import {
   buildFailedStorageOrphanInventory,
   resolveInventoryErrorName,
   runStorageOrphanInventory,
+  type StorageObjectListingPort,
   type StorageOrphanInventoryResult,
+  type StorageReferenceLookup,
 } from "./storage-orphan-inventory.ts";
 
 export type MaintenancePurgeCandidateGroup = {
@@ -217,22 +219,45 @@ const lookupReferencedReportPaths = createReferencedPathLookup((work) =>
 );
 
 /** Nunca lanza: un fallo se informa como inventario "failed". */
+export type StorageOrphanInventoryCompositionDeps = {
+  createListing?: () => Promise<StorageObjectListingPort>;
+  lookupReferencedPaths?: StorageReferenceLookup;
+  /** Reloj de pared (ms Unix) para el nucleo. */
+  wallNow?: () => number;
+  /** Reloj monotonico (ms) para duracion y deadline. */
+  monotonicNow?: () => number;
+};
+
+/**
+ * La duracion de un
+ * fallo de composicion se mide aqui, con reloj monotonico, desde antes de
+ * inicializar el adaptador; el nucleo mide la suya y no se suma a esta.
+ */
 export async function getStorageOrphanInventory(
   now = new Date(),
+  deps: StorageOrphanInventoryCompositionDeps = {},
 ): Promise<StorageOrphanInventoryResult> {
+  const monotonic = deps.monotonicNow ?? (() => performance.now());
+  const startedAt = monotonic();
+
   try {
-    const { createStorageObjectListing } = await import("./lib/supabase.ts");
+    const listing = deps.createListing
+      ? await deps.createListing()
+      : (await import("./lib/supabase.ts")).createStorageObjectListing();
 
     return await runStorageOrphanInventory({
-      listing: createStorageObjectListing(),
-      lookupReferencedPaths: lookupReferencedReportPaths,
-      now: () => Date.now(),
+      listing,
+      lookupReferencedPaths:
+        deps.lookupReferencedPaths ?? lookupReferencedReportPaths,
+      ...(deps.wallNow ? { now: deps.wallNow } : {}),
+      monotonicNow: monotonic,
     });
   } catch (error) {
     return buildFailedStorageOrphanInventory(
       now,
       "inventory_unavailable",
       resolveInventoryErrorName(error),
+      monotonic() - startedAt,
     );
   }
 }
