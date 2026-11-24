@@ -300,15 +300,17 @@ SEC-09C (serialización de subidas concurrentes al mismo Particular Token: `lock
 
 SEC-09D (inventario de solo lectura de huérfanos de Storage: el módulo nuevo `server/storage-orphan-inventory.ts`, el adaptador de listado `listV2` en `server/lib/supabase.ts`, la consulta de referencias y `getStorageOrphanInventory` en `server/db-maintenance.ts` y la solicitud explícita `includeStorageOrphans` en `server/routes/admin-system-maintenance.fastify.ts`) lleva la raíz `server/*.ts` de 9/2.707 a 10/3.199, `server/lib` de 35/5.990 a 35/6.075 y `server/routes` de 38/22.293 a 38/22.333; `server/features` y `server/middlewares` no cambian. Total 248/51.440 → 249/52.057.
 
+SEC-09E (guardas del inventario: `server/lib/single-flight-guard.ts` nuevo, timeout local de referencias en `server/db-maintenance.ts`, campos de duración en `server/storage-orphan-inventory.ts` y guarda de admisión en `server/routes/admin-system-maintenance.fastify.ts`) lleva la raíz `server/*.ts` de 10/3.199 a 10/3.285, `server/lib` de 35/6.075 a 36/6.109 y `server/routes` de 38/22.333 a 38/22.367. Total 249/52.057 → 250/52.211.
+
 | Área | Archivos TypeScript | LOC |
 | --- | ---: | ---: |
 | `server/features` | 163 | 20.021 |
-| `server/routes` | 38 | 22.333 |
-| `server/lib` | 35 | 6.075 |
+| `server/routes` | 38 | 22.367 |
+| `server/lib` | 36 | 6.109 |
 | `server/middlewares` | 3 | 429 |
-| raíz/entrypoints `server/*.ts` | 10 | 3.199 |
+| raíz/entrypoints `server/*.ts` | 10 | 3.285 |
 | otros | 0 | 0 |
-| **Total `server`** | **249** | **52.057** |
+| **Total `server`** | **250** | **52.211** |
 
 El review P2 de M48 detectó que la primera metodología aplicaba una semántica
 equivalente a `source.split("\n").length`, que sumaba un segmento vacío por

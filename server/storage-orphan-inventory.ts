@@ -75,6 +75,15 @@ export type StorageOrphanInventoryResult = {
   /** true solo si status === "complete": unicamente entonces los conteos son totales. */
   complete: boolean;
   truncationReason?: StorageOrphanInventoryTruncationReason;
+  /** Duracion medida con el reloj inyectado, de inicio a construccion del resultado. */
+  durationMs: number;
+  /**
+   * true si la duracion alcanzo maxDurationMs. Es independiente de `complete`:
+   * el presupuesto es cooperativo (se comprueba entre operaciones) y no cancela
+   * una operacion en curso, por lo que un inventario puede ser completo y haber
+   * excedido el presupuesto.
+   */
+  deadlineExceeded: boolean;
   failureReason?: StorageOrphanInventoryFailureReason;
   failureErrorName?: string;
   scope: {
@@ -223,6 +232,8 @@ function buildBaseInventory(generatedAt: Date): StorageOrphanInventoryResult {
     generatedAt: generatedAt.toISOString(),
     status: "complete",
     complete: true,
+    durationMs: 0,
+    deadlineExceeded: false,
     scope: SCOPE,
     minAgeMs: STORAGE_ORPHAN_DEFAULT_MIN_AGE_MS,
     limits: { ...STORAGE_ORPHAN_DEFAULT_LIMITS },
@@ -259,6 +270,11 @@ export async function runStorageOrphanInventory(
   result.limits = limits;
   result.minAgeMs = minAgeMs;
 
+  const stampDuration = () => {
+    result.durationMs = Math.max(0, clock() - startedAtMs);
+    result.deadlineExceeded = result.durationMs >= limits.maxDurationMs;
+  };
+
   const fail = (
     reason: StorageOrphanInventoryFailureReason,
     error?: unknown,
@@ -266,6 +282,7 @@ export async function runStorageOrphanInventory(
     result.status = "failed";
     result.complete = false;
     result.failureReason = reason;
+    stampDuration();
 
     if (error !== undefined) {
       result.failureErrorName = resolveInventoryErrorName(error);
@@ -425,6 +442,7 @@ export async function runStorageOrphanInventory(
     }
   }
 
+  stampDuration();
   result.observed.orphanCandidates = confirmed.length;
   result.candidatesSampleTruncated =
     confirmed.length > STORAGE_ORPHAN_CANDIDATE_SAMPLE_LIMIT;

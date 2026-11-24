@@ -128,25 +128,93 @@ export async function getMaintenancePurgeDryRunSnapshot(
     },
   };
 }
-/**
- * Referencias reales de objetos de informe: reports.storage_path (unico sitio
- * de INSERT: report-command-repository). Sentencia corta por lote, sin
- * transaccion y sin conexion retenida entre llamadas.
- */
-async function lookupReferencedReportPaths(
-  paths: string[],
-): Promise<ReadonlySet<string>> {
-  if (paths.length === 0) {
-    return new Set();
+export const STORAGE_ORPHAN_REFERENCE_QUERY_TIMEOUT_MS = 10_000;
+
+export class ReferenceLookupTimeoutError extends Error {
+  constructor() {
+    super("reference_lookup_timeout");
+    this.name = "ReferenceLookupTimeoutError";
+  }
+}
+
+/** Puerto transaccional: una sola conexion, sin llamadas a Storage dentro. */
+export type ReferenceLookupTransaction = {
+  setLocalStatementTimeout(timeoutMs: number): Promise<void>;
+  selectReferencedPaths(paths: string[]): Promise<string[]>;
+};
+
+export type ReferenceLookupRunner = <T>(
+  work: (transaction: ReferenceLookupTransaction) => Promise<T>,
+) => Promise<T>;
+
+const QUERY_CANCELED_SQLSTATE = "57014";
+
+function isQueryCanceled(error: unknown) {
+  let current: unknown = error;
+
+  for (let depth = 0; depth < 4 && current instanceof Object; depth += 1) {
+    if ((current as { code?: unknown }).code === QUERY_CANCELED_SQLSTATE) {
+      return true;
+    }
+
+    current = (current as { cause?: unknown }).cause;
   }
 
-  const rows = await db
-    .select({ storagePath: reports.storagePath })
-    .from(reports)
-    .where(inArray(reports.storagePath, paths));
-
-  return new Set(rows.map((row) => row.storagePath));
+  return false;
 }
+
+/**
+ * Referencias reales de objetos de informe: reports.storage_path (unico sitio
+ * de INSERT: report-command-repository). Cada lote es una transaccion corta con
+ * statement_timeout LOCAL (set_config(..., true)): el limite muere con la
+ * transaccion y no afecta a otras solicitudes ni al pool.
+ */
+export function createReferencedPathLookup(
+  runner: ReferenceLookupRunner,
+  timeoutMs: number = STORAGE_ORPHAN_REFERENCE_QUERY_TIMEOUT_MS,
+) {
+  return async (paths: string[]): Promise<ReadonlySet<string>> => {
+    if (paths.length === 0) {
+      return new Set();
+    }
+
+    try {
+      const found = await runner(async (transaction) => {
+        await transaction.setLocalStatementTimeout(timeoutMs);
+
+        return transaction.selectReferencedPaths(paths);
+      });
+
+      return new Set(found);
+    } catch (error) {
+      if (isQueryCanceled(error)) {
+        throw new ReferenceLookupTimeoutError();
+      }
+
+      throw error;
+    }
+  };
+}
+
+const lookupReferencedReportPaths = createReferencedPathLookup((work) =>
+  db.transaction(async (tx) =>
+    work({
+      setLocalStatementTimeout: async (timeoutMs) => {
+        await tx.execute(
+          sql`select set_config('statement_timeout', ${String(Math.trunc(timeoutMs))}, true)`,
+        );
+      },
+      selectReferencedPaths: async (paths) => {
+        const rows = await tx
+          .select({ storagePath: reports.storagePath })
+          .from(reports)
+          .where(inArray(reports.storagePath, paths));
+
+        return rows.map((row) => row.storagePath);
+      },
+    }),
+  ),
+);
 
 /** Nunca lanza: un fallo se informa como inventario "failed". */
 export async function getStorageOrphanInventory(

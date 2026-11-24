@@ -12,6 +12,10 @@ import {
   enforceTrustedOrigin,
 } from "../lib/cors-headers.ts";
 import { authenticateFastifyAdmin } from "../lib/fastify-admin-auth.ts";
+import {
+  createSingleFlightGuard,
+  type SingleFlightGuard,
+} from "../lib/single-flight-guard.ts";
 import type { MaintenancePurgeDryRunSnapshot } from "../db-maintenance.ts";
 import {
   buildFailedStorageOrphanInventory,
@@ -52,8 +56,12 @@ export type AdminSystemMaintenanceNativeRoutesOptions = {
   getStorageOrphanInventory?: (
     now: Date,
   ) => Promise<StorageOrphanInventoryResult>;
+  /** Guarda de inventarios de Storage; por defecto una por registro del plugin. */
+  storageOrphanInventoryGuard?: SingleFlightGuard;
   now?: () => number;
 };
+
+const STORAGE_ORPHAN_INVENTORY_RETRY_AFTER_SECONDS = "30";
 
 type NativeAdminSystemMaintenanceDeps = Required<
   Pick<
@@ -154,6 +162,9 @@ export const adminSystemMaintenanceNativeRoutes: FastifyPluginAsync<
   AdminSystemMaintenanceNativeRoutesOptions
 > = async (app, options) => {
   const now = options.now ?? (() => Date.now());
+  const inventoryGuard =
+    options.storageOrphanInventoryGuard ??
+    createSingleFlightGuard();
   const allowedOrigins = new Set(getAllowedOrigins());
 
   async function resolveDeps(): Promise<NativeAdminSystemMaintenanceDeps> {
@@ -228,13 +239,36 @@ export const adminSystemMaintenanceNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
-    const snapshot = await deps.getMaintenancePurgeDryRunSnapshot(
-      new Date(now()),
-    );
-    // Inventario remoto solo bajo solicitud explicita; nunca al cargar la tarjeta.
-    const storageOrphanInventory = requestsStorageOrphanInventory(request.body)
-      ? await resolveStorageOrphanInventory(options, new Date(now()))
-      : undefined;
+    const buildPayload = async (includeInventory: boolean) => {
+      const snapshot = await deps.getMaintenancePurgeDryRunSnapshot(
+        new Date(now()),
+      );
+      // Inventario remoto solo bajo solicitud explicita; nunca al cargar la tarjeta.
+      const storageOrphanInventory = includeInventory
+        ? await resolveStorageOrphanInventory(options, new Date(now()))
+        : undefined;
+
+      return { snapshot, storageOrphanInventory };
+    };
+
+    // La guarda se toma despues de autenticar y antes de cualquier consulta.
+    const admission = requestsStorageOrphanInventory(request.body)
+      ? await inventoryGuard.runExclusive(() => buildPayload(true))
+      : ({ admitted: true, value: await buildPayload(false) } as const);
+
+    if (!admission.admitted) {
+      return reply
+        .code(429)
+        .header("cache-control", "no-store")
+        .header("retry-after", STORAGE_ORPHAN_INVENTORY_RETRY_AFTER_SECONDS)
+        .send({
+          success: false,
+          error: "Ya hay un inventario de Storage en curso",
+          code: "storage_orphan_inventory_in_progress",
+        });
+    }
+
+    const { snapshot, storageOrphanInventory } = admission.value;
 
     return reply.code(200).send({
       success: true,

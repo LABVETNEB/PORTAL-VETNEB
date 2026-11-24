@@ -12,7 +12,8 @@ const adapter = supabaseSource.slice(
   supabaseSource.indexOf("export function createStorageObjectListing"),
 );
 const referenceWiring = maintenance.slice(
-  maintenance.indexOf("async function lookupReferencedReportPaths"),
+  maintenance.indexOf("export const STORAGE_ORPHAN_REFERENCE_QUERY_TIMEOUT_MS"),
+  maintenance.indexOf("/** Nunca lanza"),
 );
 
 test("SEC-09D estructura: el inventario y el adaptador de listado no contienen operaciones destructivas ni de escritura", () => {
@@ -33,8 +34,11 @@ test("SEC-09D estructura: el inventario y el adaptador de listado no contienen o
 
 test("SEC-09D estructura: el modulo del inventario no importa base de datos ni Storage y la consulta de referencias no retiene conexiones", () => {
   assert.equal(/from "\.\/db\.ts"|from "drizzle-orm|from "postgres"|supabase/.test(inventory), false);
-  assert.equal(/\.transaction\(|\.reserve\(|pgClient|begin\(/.test(referenceWiring), false);
+  assert.equal(/\.reserve\(|pgClient|begin\(/.test(referenceWiring), false);
   assert.match(referenceWiring, /\.where\(inArray\(reports\.storagePath, paths\)\)/);
+  assert.match(referenceWiring, /set_config\('statement_timeout', \$\{String\(Math\.trunc\(timeoutMs\)\)\}, true\)/);
+  assert.equal(/SET statement_timeout|set_config\('statement_timeout'[^)]*false\)/i.test(referenceWiring), false);
+  assert.equal(/supabase|storage\.from|listPage/.test(referenceWiring), false);
 });
 
 test("SEC-09D estructura: storage_orphans conserva supported=false y destructiveAction=null", () => {
