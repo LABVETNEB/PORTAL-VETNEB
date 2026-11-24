@@ -202,6 +202,42 @@ test("SEC-09D: los limites de paginas, objetos y duracion producen un resultado 
   assert.equal(slowResult.complete, false);
 });
 
+test("SEC-09D: el presupuesto de duracion tambien rige la reverificacion de candidatos", async () => {
+  let clock = NOW_MS;
+  let lookups = 0;
+  const { listing } = scripted([
+    {
+      objects: [
+        { key: objectKey(1, 1), createdAt: OLD },
+        { key: objectKey(1, 2), createdAt: OLD },
+        { key: objectKey(1, 3), createdAt: OLD },
+      ],
+      nextCursor: null,
+    },
+  ]);
+  const result = await runStorageOrphanInventory({
+    listing,
+    now: () => clock,
+    limits: { referenceBatchSize: 1, maxDurationMs: 30 },
+    lookupReferencedPaths: async () => {
+      lookups += 1;
+      clock += 9;
+      return new Set();
+    },
+  });
+
+  assert.equal(result.status, "truncated");
+  assert.equal(result.truncationReason, "deadline");
+  assert.equal(result.complete, false);
+  assert.equal(lookups < 6, true, "no se ejecutan todos los lotes de la segunda pasada");
+  assert.equal(result.observed.unverified > 0, true);
+  assert.equal(
+    result.observed.orphanCandidates + result.observed.unverified,
+    3,
+    "cada elegible es candidato verificado o no verificado, nunca ambos",
+  );
+});
+
 test("SEC-09D: exactamente maxObjects objetos sin mas paginas es un inventario completo", async () => {
   const { run } = build(
     [{ objects: [{ key: objectKey(1, 1), createdAt: OLD }], nextCursor: null }],

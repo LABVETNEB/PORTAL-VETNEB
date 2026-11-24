@@ -67,7 +67,7 @@ subida→commit no tiene cota por configuración.
 | --- | --- | --- |
 | páginas | 200 | `status: "truncated"`, `truncationReason: "max_pages"` |
 | objetos únicos | 50.000 | `truncated`, `max_objects` |
-| duración total | 30 s | `truncated`, `deadline` |
+| duración total (incluye la reverificación de candidatos) | 30 s | `truncated`, `deadline`; los elegibles o candidatos sin comprobar se cuentan en `unverified` y nunca como candidatos |
 | lote de referencias | 500 | (tamaño de cada consulta) |
 
 `complete` es `true` solo si `status === "complete"`: únicamente entonces los conteos son totales. Un inventario
@@ -96,7 +96,7 @@ error. `deletionSafety` es siempre `"not_assessed"`: **un candidato no es seguro
 | `server/lib/supabase.ts` | `createStorageObjectListing` (listV2, solo lectura) |
 | `server/db-maintenance.ts` | consulta de referencias, `getStorageOrphanInventory`, texto de `reason` |
 | `server/routes/admin-system-maintenance.fastify.ts` | solicitud explícita `includeStorageOrphans` |
-| `test/unit/infrastructure/storage-orphan-inventory.test.ts` | nuevo: 24 tests (inventario, adaptador, ruta) |
+| `test/unit/infrastructure/storage-orphan-inventory.test.ts` | nuevo: 25 tests (inventario, adaptador, ruta) |
 | `test/unit/infrastructure/storage-orphan-inventory-structure.test.ts` | nuevo: 4 tests estructurales |
 | `test/architecture/backend-modularization-m48-final-certification.test.ts` | censo LOC realineado |
 | `docs/implementation/m48-backend-modularization-final-certification.md` | tabla y párrafo SEC-09D |
@@ -144,7 +144,7 @@ Estados canónicos (AGENTS §6):
 | `pnpm typecheck` | PASSED |
 | `pnpm typecheck:test` | PASSED |
 | `pnpm build` | PASSED |
-| Specs propios (inventario, adaptador, ruta: 24; estructura: 4) | PASSED 28/28 |
+| Specs propios (inventario, adaptador, ruta: 25; estructura: 4) | PASSED 29/29 |
 | Ruta de mantenimiento existente (`admin-system-maintenance.fastify.test.ts`) | PASSED |
 | Guards de arquitectura (M44, M45, M46, M48, 01B, 05A, seguridad) con los archivos nuevos visibles (índice temporal) | PASSED |
 | `pnpm test` completo con el índice real | FAILED (67 de 6.099; ver clasificación) |
@@ -165,8 +165,8 @@ Clasificación de los 67 fallos de `pnpm test` (6.099 tests, 6.031 aprobados, 1 
 - **1 spec estructural propio** (`storage-orphan-inventory-structure`): lee por el lector canónico, que solo ve
   archivos versionados; pasa con el índice temporal (4/4).
 
-Realineaciones de censo (en esta PR, sin debilitar nada): M48 (raíz 9/2.707 → 10/3.189, `server/lib` 5.990 → 6.075,
-`server/routes` 22.293 → 22.333, total 248/51.440 → 249/52.047), 01B (`RUNTIME_ONLY` 89 → 113 con la tolerancia
+Realineaciones de censo (en esta PR, sin debilitar nada): M48 (raíz 9/2.707 → 10/3.199, `server/lib` 5.990 → 6.075,
+`server/routes` 22.293 → 22.333, total 248/51.440 → 249/52.057), 01B (`RUNTIME_ONLY` 89 → 113 con la tolerancia
 sin cambios) y piso de adopción del lector canónico 443 → 444.
 
 ## 8. Riesgo residual y rollback

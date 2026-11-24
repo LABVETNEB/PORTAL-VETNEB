@@ -395,7 +395,17 @@ export async function runStorageOrphanInventory(
 
   const confirmed: string[] = [];
 
-  for (const batch of chunk(candidates, limits.referenceBatchSize)) {
+  const confirmationBatches = chunk(candidates, limits.referenceBatchSize);
+
+  for (const [batchIndex, batch] of confirmationBatches.entries()) {
+    if (clock() - startedAtMs >= limits.maxDurationMs) {
+      truncation = truncation ?? "deadline";
+      result.observed.unverified += confirmationBatches
+        .slice(batchIndex)
+        .reduce((total, remaining) => total + remaining.length, 0);
+      break;
+    }
+
     let referencedNow: ReadonlySet<string>;
 
     try {
