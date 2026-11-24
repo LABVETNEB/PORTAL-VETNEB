@@ -13,6 +13,11 @@ import {
 } from "../lib/cors-headers.ts";
 import { authenticateFastifyAdmin } from "../lib/fastify-admin-auth.ts";
 import type { MaintenancePurgeDryRunSnapshot } from "../db-maintenance.ts";
+import {
+  buildFailedStorageOrphanInventory,
+  resolveInventoryErrorName,
+  type StorageOrphanInventoryResult,
+} from "../storage-orphan-inventory.ts";
 
 type AdminSessionRecord = {
   adminUserId: number;
@@ -44,6 +49,9 @@ export type AdminSystemMaintenanceNativeRoutesOptions = {
   getMaintenancePurgeDryRunSnapshot?: (
     now: Date,
   ) => Promise<MaintenancePurgeDryRunSnapshot>;
+  getStorageOrphanInventory?: (
+    now: Date,
+  ) => Promise<StorageOrphanInventoryResult>;
   now?: () => number;
 };
 
@@ -113,6 +121,33 @@ function applyCorsHeaders(
   reply.header("vary", "Origin");
   reply.header("access-control-allow-origin", allowedOrigin);
   reply.header("access-control-allow-credentials", "true");
+}
+
+function requestsStorageOrphanInventory(body: unknown) {
+  return (
+    typeof body === "object" &&
+    body !== null &&
+    (body as { includeStorageOrphans?: unknown }).includeStorageOrphans === true
+  );
+}
+
+async function resolveStorageOrphanInventory(
+  options: AdminSystemMaintenanceNativeRoutesOptions,
+  now: Date,
+): Promise<StorageOrphanInventoryResult> {
+  try {
+    const run =
+      options.getStorageOrphanInventory ??
+      (await import("../db-maintenance.ts")).getStorageOrphanInventory;
+
+    return await run(now);
+  } catch (error) {
+    return buildFailedStorageOrphanInventory(
+      now,
+      "inventory_unavailable",
+      resolveInventoryErrorName(error),
+    );
+  }
 }
 
 export const adminSystemMaintenanceNativeRoutes: FastifyPluginAsync<
@@ -196,6 +231,10 @@ export const adminSystemMaintenanceNativeRoutes: FastifyPluginAsync<
     const snapshot = await deps.getMaintenancePurgeDryRunSnapshot(
       new Date(now()),
     );
+    // Inventario remoto solo bajo solicitud explicita; nunca al cargar la tarjeta.
+    const storageOrphanInventory = requestsStorageOrphanInventory(request.body)
+      ? await resolveStorageOrphanInventory(options, new Date(now()))
+      : undefined;
 
     return reply.code(200).send({
       success: true,
@@ -204,6 +243,7 @@ export const adminSystemMaintenanceNativeRoutes: FastifyPluginAsync<
         username: admin.username,
       },
       ...snapshot,
+      ...(storageOrphanInventory ? { storageOrphanInventory } : {}),
     });
   });
 };

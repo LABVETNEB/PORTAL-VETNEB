@@ -251,3 +251,88 @@ export async function deleteStorageObject(
     throw error;
   }
 }
+
+export type StorageListingBucketPort = Pick<
+  ReturnType<SupabaseStorageClient["from"]>,
+  "listV2"
+>;
+
+export type StorageListingPort = {
+  from(bucketId: string): StorageListingBucketPort;
+};
+
+export class StorageListingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "StorageListingError";
+  }
+}
+
+const STORAGE_LISTING_CALL_TIMEOUT_MS = 15_000;
+
+/**
+ * Listado de solo lectura (listV2, cursor). No hay inventario atomico: ante
+ * cualquier respuesta que no permita continuar con certeza, falla cerrado.
+ * Nunca incluye el mensaje del proveedor en el error propagado.
+ */
+export function createStorageObjectListing(
+  storage: StorageListingPort = supabase.storage,
+  bucketId: string = ENV.supabaseStorageBucket,
+) {
+  return {
+    async listPage(input: {
+      prefix: string;
+      cursor: string | null;
+      limit: number;
+    }) {
+      const { data, error } = await storage.from(bucketId).listV2(
+        {
+          prefix: input.prefix,
+          limit: input.limit,
+          with_delimiter: false,
+          sortBy: { column: "name", order: "asc" },
+          noncurrentVersions: "exclude",
+          deleteMarkers: "exclude",
+          ...(input.cursor === null ? {} : { cursor: input.cursor }),
+        },
+        { signal: AbortSignal.timeout(STORAGE_LISTING_CALL_TIMEOUT_MS) },
+      );
+
+      if (error || !data) {
+        throw new StorageListingError("storage_listing_failed");
+      }
+
+      if (!Array.isArray(data.objects) || typeof data.hasNext !== "boolean") {
+        throw new StorageListingError("storage_listing_invalid_shape");
+      }
+
+      const nextCursor =
+        typeof data.nextCursor === "string" && data.nextCursor.length > 0
+          ? data.nextCursor
+          : null;
+
+      if (data.hasNext && nextCursor === null) {
+        throw new StorageListingError("storage_listing_missing_cursor");
+      }
+
+      const objects: Array<{ key: string; createdAt: string | null }> = [];
+
+      for (const entry of data.objects) {
+        if (entry.is_delete_marker === true) {
+          continue;
+        }
+
+        if (typeof entry.key !== "string" || !entry.key.startsWith(input.prefix)) {
+          throw new StorageListingError("storage_listing_invalid_entry");
+        }
+
+        objects.push({
+          key: entry.key,
+          createdAt: typeof entry.created_at === "string" ? entry.created_at : null,
+        });
+      }
+
+      return { objects, nextCursor: data.hasNext ? nextCursor : null };
+    },
+  };
+}

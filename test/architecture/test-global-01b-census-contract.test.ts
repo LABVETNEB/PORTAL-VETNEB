@@ -617,10 +617,12 @@ const CENSUS_LEDGER: readonly CensusEntry[] = [
     section: "§7.2",
     metric: "specs que ejecutan runtime y no leen filesystem",
     historical: 89,
+    baseline: 113,
     compute: () => classification.byBucket.RUNTIME_ONLY,
-    resolution: "REPRODUCED",
+    resolution: "RECLASSIFIED",
     guard: BAND,
-    motive: "Reproduce la cifra del Anexo con la definición versionada.",
+    motive:
+      "Reproduce la cifra del Anexo con la definición versionada. Re-anclaje 89 -> 113: main@3d7781079bf6059cdceac4dff6f8e239f5601e8f producia 112, exactamente el tope de la banda 89 +- 23 (112), y SEC-09D suma test/unit/infrastructure/storage-orphan-inventory.test.ts, un único spec que ejecuta producción real sin leer filesystem (el clasificador y el recorrido paginado del inventario de Storage con un puerto simulado, el adaptador de listV2 sobre un cliente de Storage simulado y la ruta de mantenimiento con inject), lo que lleva el valor a 113. Crecimiento intencional: se re-ancla el baseline al valor medido sin ampliar GROWTH_TOLERANCE y sin excluir ningun archivo del inventario.",
   },
   {
     row: "A0-07-BUCKETS",
@@ -1739,7 +1741,8 @@ test("censo 05A: la deuda de lectores ad hoc rompe al crecer y la adopción del 
   // +1: global-search-state-retention lee la migración 0031, el repositorio y el preflight por el lector canónico.
   // +1: security-client-ip-proxy-signing lee proxy.ts y next.config.ts por el lector canónico (PR-SEC-10).
   // +1: security-ip-independent-ceilings lee las rutas de login, contacto y públicas por el lector canónico (PR-SEC-10).
-  assert.equal(current, 443, "security-ip-independent-ceilings se suma a los 442 importadores del lector canónico (tras security-client-ip-proxy-signing)");
+  // +1: storage-orphan-inventory-structure lee las fuentes del inventario de Storage por el lector canónico (SEC-09D).
+  assert.equal(current, 444, "storage-orphan-inventory-structure se suma a los 443 importadores del lector canónico (tras security-ip-independent-ceilings)");
   assert.equal(
     guardViolation(adoptionEntry, evaluateEntry(adoptionEntry)),
     null,

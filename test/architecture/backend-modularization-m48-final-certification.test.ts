@@ -89,10 +89,10 @@ const m47KeepPaths = [
 
 const expectedAreaCensus = {
   "server/features": { files: 163, loc: 20_021 },
-  "server/routes": { files: 38, loc: 22_293 },
-  "server/lib": { files: 35, loc: 5_990 },
+  "server/routes": { files: 38, loc: 22_333 },
+  "server/lib": { files: 35, loc: 6_075 },
   "server/middlewares": { files: 3, loc: 429 },
-  "server root": { files: 9, loc: 2_707 },
+  "server root": { files: 10, loc: 3_199 },
   other: { files: 0, loc: 0 },
 } as const;
 
@@ -255,14 +255,14 @@ test("M48 congela el censo LOC global y de las diez features", () => {
       (total, area) => total + area.loc,
       0,
     ),
-    51_440,
+    52_057,
   );
   assert.equal(
     Object.values(actualAreaCensus).reduce(
       (total, area) => total + area.files,
       0,
     ),
-    248,
+    249,
   );
 
   const actualFeatureCensus = Object.fromEntries(
@@ -306,7 +306,7 @@ test("M48 mantiene el censo LOC documentado igual al árbol computado", () => {
     ["server/middlewares", expectedAreaCensus["server/middlewares"]],
     ["raíz/entrypoints server/*.ts", expectedAreaCensus["server root"]],
     ["otros", expectedAreaCensus.other],
-    ["Total server", { files: 248, loc: 51_440 }],
+    ["Total server", { files: 249, loc: 52_057 }],
   ] as const) {
     assert.deepEqual(markdownTableRow(areaSection, label), expected, label);
   }
